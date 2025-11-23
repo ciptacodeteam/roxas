@@ -1,0 +1,17 @@
+{
+  "Index": {
+    "title": "Welcome",
+    "description": "This is the English version of the application."
+  },
+  "Navigation": {
+    "topup": "Topup",
+    "transaction": "Check Transactions",
+    "leaderboard": "Leaderboard",
+    "calculator": "Calculator",
+    "login": "Login",
+    "register": "Register",
+    "searchPlaceholder": "Search Game or Voucher...",
+    "language": "EN / USD",
+    "chooseLanguage": "Choose Language"
+  }
+}
