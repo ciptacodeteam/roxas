@@ -28,7 +28,7 @@ export default function FavoriteSection() {
 
   return (
     <section>
-      <div className="mx-auto mb-12 max-w-7xl">
+      <div className="mx-auto mb-16 max-w-7xl">
         <div>
           <div className="mb-2 flex gap-2 text-3xl">
             <span>🔥</span>

@@ -4,7 +4,7 @@
     "description": "This is the English version of the application."
   },
   "Navigation": {
-    "topup": "Topup",
+    "home": "Beranda",
     "transaction": "Cek Transaksi",
     "leaderboard": "Leaderboard",
     "calculator": "Kalkulator",

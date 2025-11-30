@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 "use client";
 
 import { useState } from "react";
@@ -42,7 +40,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: "topup", href: "/", icon: Gamepad2 },
+  { key: "home", href: "/", icon: Gamepad2 },
   { key: "transaction", href: "/transaction", icon: ReceiptText },
   { key: "leaderboard", href: "/data", icon: ChartNoAxesColumn },
   { key: "calculator", href: "/pln", icon: Calculator },
@@ -84,8 +82,12 @@ const Navigationbar = () => {
           <div className="hidden md:flex">
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="flex items-center rounded-full px-2 hover:bg-rose-500/90 cursor-pointer">
-                  <Image alt="" src={Indonesia} width={24} />
+                <Button className="flex cursor-pointer items-center rounded-full px-2 hover:bg-rose-500/90">
+                  <Image
+                    alt=""
+                    src={locale === "en" ? uk : Indonesia}
+                    width={24}
+                  />
                   <p className="ml-1">{t("language")}</p>
                 </Button>
               </DialogTrigger>
@@ -145,7 +147,7 @@ const Navigationbar = () => {
                   href={`/${locale}${item.href}`}
                   className={`relative flex items-center gap-2 text-sm transition ${
                     active
-                      ? "font-semibold text-rose-500 after:absolute after:-bottom-3.5 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                      ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
                       : "text-gray-300 hover:text-white"
                   }`}
                 >
