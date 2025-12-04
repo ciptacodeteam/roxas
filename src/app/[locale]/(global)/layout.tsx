@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
+import ChatButton from '@/components/layout/ChatButton';
+import FooterSection from '@/components/layout/Footer';
 import Navbar from '@/components/layout/navbar';
 import { routing } from '@/i18n/routing';
 import set from 'lodash/set';
@@ -42,6 +44,8 @@ export default async function LocaleLayout({
           <Navbar />
           {children}
           {/* <FloatingLanguageSelector /> */}
+          <FooterSection />
+          <ChatButton />
         </main>
       </NextIntlClientProvider>
     </div>

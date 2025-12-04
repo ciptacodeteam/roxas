@@ -104,7 +104,7 @@ const Navigationbar = () => {
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/id${cleanPath}`)}
-                    className={`flex flex-1 items-center gap-2 p-2 ${locale === "id" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className={`flex flex-1 items-center gap-2 p-2 cursor-pointer ${locale === "id" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
                   >
                     <Image alt="" src={Indonesia} width={24} />
                     <p className="ml-1 text-white">Bahasa Indonesia</p>
@@ -114,7 +114,7 @@ const Navigationbar = () => {
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/en${cleanPath}`)}
-                    className={`flex flex-1 items-center gap-2 p-2 ${locale === "en" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className={`flex flex-1 items-center gap-2 p-2 cursor-pointer ${locale === "en" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
                   >
                     <Image alt="" src={uk} width={24} />
                     <p className="ml-1 text-white">English</p>

@@ -5,11 +5,11 @@ import characterImg from "public/img/character1.webp"; // ganti sesuai gambarmu
 export default function InformationSection() {
   return (
     <section className="relative">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl mb-16">
         <div className="bg-card relative overflow-visible rounded-2xl px-10 py-16">
           {/* TEXT SECTION */}
           <div className="relative z-10 max-w-3xl">
-            <h2 className="text-3xl font-bold text-white">
+            <h2 className="text-3xl font-semibold text-white">
               Top Up Game Teraman
             </h2>
             <p className="mt-4 leading-normal text-white/70">
