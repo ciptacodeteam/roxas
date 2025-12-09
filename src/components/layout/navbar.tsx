@@ -42,8 +42,8 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: "home", href: "/", icon: Gamepad2 },
   { key: "transaction", href: "/transaction", icon: ReceiptText },
-  { key: "leaderboard", href: "/data", icon: ChartNoAxesColumn },
-  { key: "calculator", href: "/pln", icon: Calculator },
+  { key: "leaderboard", href: "/leaderboard", icon: ChartNoAxesColumn },
+  { key: "calculator", href: "/calculator", icon: Calculator },
 ];
 
 const Navigationbar = () => {
