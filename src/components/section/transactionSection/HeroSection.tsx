@@ -1,4 +1,4 @@
-import characterImg from "public/img/character4.webp";
+import animation3 from "public/gif/animation3.gif";
 import Image from "next/image";
 
 export default function HeroTransaction() {
@@ -24,9 +24,9 @@ export default function HeroTransaction() {
 
             {/* CHARACTER FIXED DI BAWAH CARD */}
             <Image
-              src={characterImg}
+              src={animation3}
               alt="Character"
-              className="pointer-events-none absolute -right-2 bottom-0 w-[450px]"
+              className="pointer-events-none absolute right-20 bottom-0 w-[300px]"
             />
           </div>
         </div>
