@@ -1,4 +1,4 @@
-import characterImg from "public/img/character3.webp";
+import bruno from "public/gif/bruno.gif";
 import Image from "next/image";
 
 export default function HeroLeaderboard() {
@@ -24,9 +24,9 @@ export default function HeroLeaderboard() {
 
             {/* CHARACTER FIXED DI BAWAH CARD */}
             <Image
-              src={characterImg}
+              src={bruno}
               alt="Character"
-              className="pointer-events-none absolute right-0 bottom-0 w-[380px]"
+              className="pointer-events-none absolute right-16 bottom-0 -top-8 w-[290px]"
             />
           </div>
         </div>

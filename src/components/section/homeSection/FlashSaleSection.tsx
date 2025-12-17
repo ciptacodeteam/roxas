@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import MarqueeCards from "./MarqueeCards";
 
+import Image from "next/image";
+
+import electric from "public/gif/electric.gif"
+
 export default function FlashSaleSection() {
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -68,7 +72,7 @@ export default function FlashSaleSection() {
             <div className="flex items-center justify-between p-8">
               <div>
                 <div className="mb-2 flex gap-2 text-3xl">
-                  <span>⚡️</span>
+                  <span><Image src={electric} alt="" className="w-8"/></span>
                   <p className="font-medium text-white">FLASH SALE</p>
                 </div>
                 <p className="text-white">
