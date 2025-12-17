@@ -1,25 +1,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import Image from "next/image";
+import Link from "next/link";
+import { useLocale } from "next-intl";
 
 export default function GameCard({ item }: { item: any }) {
-  return (
-    <div className="group relative cursor-pointer overflow-hidden rounded-2xl bg-neutral-800 shadow transition-all hover:outline-2 hover:outline-rose-500">
-      <div className="relative aspect-2/3 w-full">
-        <Image
-          src={item.image}
-          alt={item.title}
-          fill
-          className="object-cover"
-        />
+  const locale = useLocale();
 
-        {/* GRADIENT TIDAK MUNCUL DI AWAL, HANYA SAAT HOVER */}
-        <div className="absolute right-0 bottom-0 left-0 flex h-40 translate-y-10 flex-col justify-end bg-linear-to-t from-black to-transparent p-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-          <h3 className="text-lg font-semibold text-white">{item.title}</h3>
-          <p className="text-sm text-white/70">{item.subtitle}</p>
+  return (
+    <Link href={`/${locale}/product/${item.slug}`}>
+      <div className="group relative cursor-pointer overflow-hidden rounded-2xl bg-neutral-800 shadow transition-all hover:outline-2 hover:outline-rose-500">
+        <div className="relative aspect-2/3 w-full">
+          <Image
+            src={item.image}
+            alt={item.title}
+            fill
+            className="object-cover"
+          />
+
+          {/* Gradient muncul saat hover */}
+          <div className="absolute right-0 bottom-0 left-0 flex h-40 translate-y-10 flex-col justify-end bg-linear-to-t from-black to-transparent p-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+            <p className="text-sm text-white/70">{item.subtitle}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

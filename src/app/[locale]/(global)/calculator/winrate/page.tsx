@@ -5,11 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
-import Image from "next/image";
-
-import bgCharacter from "public/img/background.webp";
-import valir from "public/gif/valir.gif";
-
 export default function WinRatePage() {
   const [totalMatch, setTotalMatch] = useState<number | "">("");
   const [currentWR, setCurrentWR] = useState<number | "">("");
