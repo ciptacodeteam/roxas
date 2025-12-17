@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 
+import fire from "public/gif/fire.gif";
+
 export default function FavoriteSection() {
   const games = [
     {
@@ -31,7 +33,9 @@ export default function FavoriteSection() {
       <div className="mx-auto mb-16 max-w-7xl">
         <div>
           <div className="mb-2 flex gap-2 text-3xl">
-            <span>🔥</span>
+            <span>
+              <Image src={fire} alt="fire" className="w-8"/>
+            </span>
             <p className="font-medium text-white">POPULER SEKARANG !</p>
           </div>
           <p className="text-white">Silahkan Temukan Game Kamu.</p>
@@ -41,7 +45,7 @@ export default function FavoriteSection() {
           {games.map((game) => (
             <Card
               key={game.id}
-              className="hover:border-primary relative cursor-pointer overflow-hidden rounded-xl border-background bg-[url(/img/bgroxas.webp)] bg-cover bg-center transition-all py-1"
+              className="hover:border-primary border-background relative cursor-pointer overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover bg-center py-1 transition-all"
             >
               {/* overlay hitam */}
               <div className="absolute inset-0 bg-rose-950/60"></div>

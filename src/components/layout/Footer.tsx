@@ -14,7 +14,7 @@ export default function FooterSection() {
               <div>
                 <Image src={logo} alt="" className="w-48" />
               </div>
-              <p className="text-sm text-gray-300">
+              <p className="text-sm text-white">
                 Roxas Store adalah Platform Resmi Untuk Semua Kebutuhan TopUp &
                 Voucher Game. Roxas Store Menyedikan Harga Termurah, Proses
                 Cepat, dan Kebutuhan Lainnya Dengan harga Kompetitif.
@@ -103,13 +103,13 @@ export default function FooterSection() {
                   <h1 className="text-primary mb-8 font-medium">Legalistas</h1>
                   <div className="flex flex-col gap-3">
                     <Link
-                      href={""}
+                      href={"/privacypolicy"}
                       className="font-light text-gray-300 hover:text-white"
                     >
                       Kebijakan Privasi
                     </Link>
                     <Link
-                      href={""}
+                      href={"/termsconditions"}
                       className="font-light text-gray-300 hover:text-white"
                     >
                       Syarat dan Ketentuan

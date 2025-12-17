@@ -5,8 +5,33 @@ import { routing } from './i18n/routing'; // Pastikan routing sudah dikonfiguras
 
 const intlMiddleware = createMiddleware(routing);
 
-export default function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Exclude /admin routes from next-intl
+  if (pathname.startsWith('/admin')) {
+    const sessionCookie = request.cookies.get('admin-session');
+    
+    // If accessing login page and already authenticated, redirect to dashboard
+    if (pathname === '/admin/login' && sessionCookie) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
+    
+    // Check authentication for admin routes (except login)
+    if (pathname !== '/admin/login') {
+      if (!sessionCookie) {
+        // Redirect to login if not authenticated
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/login';
+        return NextResponse.redirect(url);
+      }
+    }
+    
+    // Allow admin routes to pass through without next-intl
+    return NextResponse.next();
+  }
 
   // Cek apakah URL sudah mengandung locale (misalnya /en, /id, dst)
   const localePrefixPattern = /^\/(id|en|zh)(\/|$)/;
@@ -31,5 +56,8 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'], // Match semua path kecuali API, file Next.js, dll
+  // Match all paths except API routes, Next.js internals, and static files
+  // Note: Admin routes are matched here so we can handle auth, but they're excluded from next-intl processing
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
+

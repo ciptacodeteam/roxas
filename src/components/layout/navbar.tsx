@@ -16,6 +16,7 @@ import {
   ChartNoAxesColumn,
   LogIn,
   UserRoundPlus,
+  SquareChartGantt,
 } from "lucide-react";
 
 import {
@@ -42,8 +43,8 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: "home", href: "/", icon: Gamepad2 },
   { key: "transaction", href: "/transaction", icon: ReceiptText },
-  { key: "leaderboard", href: "/data", icon: ChartNoAxesColumn },
-  { key: "calculator", href: "/pln", icon: Calculator },
+  { key: "leaderboard", href: "/leaderboard", icon: ChartNoAxesColumn },
+  { key: "calculator", href: "", icon: Calculator },
 ];
 
 const Navigationbar = () => {
@@ -104,7 +105,7 @@ const Navigationbar = () => {
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/id${cleanPath}`)}
-                    className={`flex flex-1 items-center gap-2 p-2 cursor-pointer ${locale === "id" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className={`flex flex-1 cursor-pointer items-center gap-2 p-2 ${locale === "id" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
                   >
                     <Image alt="" src={Indonesia} width={24} />
                     <p className="ml-1 text-white">Bahasa Indonesia</p>
@@ -114,7 +115,7 @@ const Navigationbar = () => {
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/en${cleanPath}`)}
-                    className={`flex flex-1 items-center gap-2 p-2 cursor-pointer ${locale === "en" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className={`flex flex-1 cursor-pointer items-center gap-2 p-2 ${locale === "en" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
                   >
                     <Image alt="" src={uk} width={24} />
                     <p className="ml-1 text-white">English</p>
@@ -136,10 +137,56 @@ const Navigationbar = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
 
-              const active =
-                item.href === "/"
-                  ? cleanPath === "/"
-                  : cleanPath.startsWith(item.href);
+              if (item.key === "calculator") {
+                const isCalculatorActive =
+                  cleanPath === "/calculator" ||
+                  cleanPath.startsWith("/calculator/");
+
+                return (
+                  <div key="calculator" className="group relative">
+                    {/* TRIGGER (BUKAN LINK) */}
+                    <button
+                      type="button"
+                      className={`relative flex cursor-pointer items-center gap-2 text-sm transition ${
+                        isCalculatorActive
+                          ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                          : "text-gray-300 hover:text-white"
+                      }`}
+                    >
+                      <Calculator className="h-5 w-5" />
+                      {t("calculator")}
+                    </button>
+
+                    {/* DROPDOWN */}
+                    <div className="invisible absolute top-full left-0 z-50 mt-4 w-96 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                      {/* ARROW */}
+                      <div className="absolute -top-2 left-6 h-4 w-4 rotate-45 bg-[#141414]" />
+
+                      <div className="space-y-3">
+                        <CalculatorDropdownItem
+                          title="Win Rate"
+                          desc="Digunakan untuk menghitung total jumlah match yang harus ditempuh untuk mencapai target win rate."
+                          href={`/${locale}/calculator/winrate`}
+                        />
+
+                        <CalculatorDropdownItem
+                          title="Magic Wheel"
+                          desc="Digunakan untuk mengetahui total maksimal diamond yang dibutuhkan untuk mendapatkan skin Legends."
+                          href={`/${locale}/calculator/magicwheel`}
+                        />
+
+                        <CalculatorDropdownItem
+                          title="Zodiac"
+                          desc="Digunakan untuk mengetahui total diamond maksimal yang dibutuhkan untuk mendapatkan skin Zodiac."
+                          href={`/${locale}/calculator/zodiac`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              const active = cleanPath === item.href;
 
               return (
                 <Link
@@ -260,3 +307,29 @@ const Navigationbar = () => {
 };
 
 export default Navigationbar;
+
+const CalculatorDropdownItem = ({
+  title,
+  desc,
+  href,
+}: {
+  title: string;
+  desc: string;
+  href: string;
+}) => {
+  return (
+    <Link
+      href={href}
+      className="group/item flex gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
+    >
+      <div className="flex h-8 w-8 items-center justify-center text-primary">
+        <SquareChartGantt />
+      </div>
+
+      <div>
+        <p className="text-sm font-semibold text-white">{title}</p>
+        <p className="text-xs leading-relaxed text-gray-400">{desc}</p>
+      </div>
+    </Link>
+  );
+};

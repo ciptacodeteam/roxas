@@ -1,10 +1,10 @@
 "use client";
 
-import FavoriteSection from "@/components/section/home/FavoriteSection";
-import FlashSaleSection from "@/components/section/home/FlashSaleSection";
-import HeroSection from "@/components/section/home/HeroSection";
-import InformationSection from "@/components/section/home/InformationSection";
-import GameSection from "@/components/section/home/ProductSection/GameSection";
+import FavoriteSection from "@/components/section/homeSection/FavoriteSection";
+import FlashSaleSection from "@/components/section/homeSection/FlashSaleSection";
+import HeroSection from "@/components/section/homeSection/HeroSection";
+import InformationSection from "@/components/section/homeSection/InformationSection";
+import GameSection from "@/components/section/homeSection/ProductSection/GameSection";
 
 
 export default function IndexPage() {

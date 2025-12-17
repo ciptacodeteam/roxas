@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
- 
+
 "use client";
 
 import Image from "next/image";
