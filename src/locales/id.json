@@ -1,0 +1,17 @@
+{
+  "Index": {
+    "title": "Selamat Datang",
+    "description": "This is the English version of the application."
+  },
+  "Navigation": {
+    "home": "Beranda",
+    "transaction": "Cek Transaksi",
+    "leaderboard": "Leaderboard",
+    "calculator": "Kalkulator",
+    "login": "Masuk",
+    "register": "Daftar",
+    "searchPlaceholder": "Cari Game atau Voucher disini...",
+    "language": "ID / IDR",
+    "chooseLanguage": "Pilih Bahasa"
+  }
+}
