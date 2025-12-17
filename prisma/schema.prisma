@@ -18,3 +18,41 @@ model Post {
 
     @@index([name])
 }
+
+enum UserRole {
+    USER
+    ADMIN
+}
+
+model User {
+    id            String    @id @default(uuid())
+    email         String    @unique
+    password      String    // Hashed password
+    name          String?
+    role          UserRole  @default(USER)
+    emailVerified DateTime?
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    // Relations
+    sessions      Session[]
+
+    @@index([email])
+    @@map("users")
+}
+
+model Session {
+    id        String   @id @default(uuid())
+    userId    String
+    token     String   @unique
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([token])
+    @@map("sessions")
+}
