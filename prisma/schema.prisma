@@ -10,15 +10,6 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([name])
-}
-
 enum UserRole {
     USER
     ADMIN
@@ -27,16 +18,17 @@ enum UserRole {
 model User {
     id            String    @id @default(uuid())
     email         String    @unique
-    password      String    // Hashed password
+    password      String
     name          String?
+    phone         String?
     role          UserRole  @default(USER)
     emailVerified DateTime?
     image         String?
     createdAt     DateTime  @default(now())
     updatedAt     DateTime  @updatedAt
 
-    // Relations
-    sessions      Session[]
+    sessions Session[]
+    orders   Order[]
 
     @@index([email])
     @@map("users")
@@ -50,9 +42,209 @@ model Session {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@index([userId])
     @@index([token])
     @@map("sessions")
+}
+
+// ============================================
+// PRODUCT MODELS
+// ============================================
+
+model Category {
+    id        String    @id @default(uuid())
+    name      String    @unique
+    slug      String    @unique
+    icon      String?
+    isActive  Boolean   @default(true)
+    sortOrder Int       @default(0)
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+
+    products Product[]
+
+    @@map("categories")
+}
+
+model Product {
+    id           String   @id @default(uuid())
+    categoryId   String
+    name         String
+    slug         String   @unique
+    brand        String // Moonton, Garena, etc.
+    description  String?
+    image        String?
+    bannerImage  String?
+    inputFields  Json // e.g. ["userId", "serverId"] or ["phoneNumber"]
+    instructions String? // How to find game ID
+    isActive     Boolean  @default(true)
+    sortOrder    Int      @default(0)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    category Category      @relation(fields: [categoryId], references: [id])
+    items    ProductItem[]
+
+    @@index([categoryId])
+    @@index([slug])
+    @@map("products")
+}
+
+model ProductItem {
+    id        String   @id @default(uuid())
+    productId String
+    name      String // "86 Diamonds"
+    skuCode   String   @unique // Digiflazz buyer_sku_code
+    basePrice Int // Cost from Digiflazz (in IDR)
+    sellPrice Int // Your selling price
+    isActive  Boolean  @default(true)
+    sortOrder Int      @default(0)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    product        Product         @relation(fields: [productId], references: [id])
+    orders         Order[]
+    flashSaleItems FlashSaleItem[]
+
+    @@index([productId])
+    @@index([skuCode])
+    @@map("product_items")
+}
+
+// ============================================
+// FLASH SALE MODELS
+// ============================================
+
+model FlashSale {
+    id        String   @id @default(uuid())
+    name      String
+    startTime DateTime
+    endTime   DateTime
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    items FlashSaleItem[]
+
+    @@map("flash_sales")
+}
+
+model FlashSaleItem {
+    id            String @id @default(uuid())
+    flashSaleId   String
+    productItemId String
+    salePrice     Int // Discounted price
+    stock         Int // Limited stock for flash sale
+    soldCount     Int    @default(0)
+
+    flashSale   FlashSale   @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+    productItem ProductItem @relation(fields: [productItemId], references: [id])
+
+    @@unique([flashSaleId, productItemId])
+    @@map("flash_sale_items")
+}
+
+// ============================================
+// ORDER & TRANSACTION MODELS
+// ============================================
+
+enum OrderStatus {
+    PENDING // Order created, awaiting payment
+    PAID // Payment received, processing topup
+    PROCESSING // Sent to Digiflazz
+    COMPLETED // Topup successful
+    FAILED // Topup failed
+    REFUNDED // Payment refunded
+    EXPIRED // Payment expired
+}
+
+model Order {
+    id            String      @id @default(uuid())
+    orderNumber   String      @unique // e.g. "ORD-20231217-XXXX"
+    userId        String
+    productItemId String
+
+    // Customer input (game ID, server ID, phone, etc.)
+    customerData Json // { "userId": "123456", "serverId": "1234" }
+
+    // Pricing
+    originalPrice Int // Original sell price
+    finalPrice    Int // After discount (flash sale)
+
+    // Status
+    status OrderStatus @default(PENDING)
+
+    // Timestamps
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    paidAt      DateTime?
+    completedAt DateTime?
+
+    // Relations
+    user        User                  @relation(fields: [userId], references: [id])
+    productItem ProductItem           @relation(fields: [productItemId], references: [id])
+    payment     Payment?
+    digiflazzTx DigiflazzTransaction?
+
+    @@index([userId])
+    @@index([orderNumber])
+    @@index([status])
+    @@map("orders")
+}
+
+model Payment {
+    id      String @id @default(uuid())
+    orderId String @unique
+
+    // Xendit data
+    externalId     String    @unique // Your reference ID
+    invoiceId      String?   @unique // Xendit invoice ID
+    invoiceUrl     String? // Payment URL
+    paymentMethod  String? // QRIS, OVO, DANA, etc.
+    paymentChannel String?
+
+    amount    Int
+    status    String // PENDING, PAID, EXPIRED
+    paidAt    DateTime?
+    expiresAt DateTime?
+
+    // Raw webhook data
+    webhookData Json?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    order Order @relation(fields: [orderId], references: [id])
+
+    @@index([externalId])
+    @@map("payments")
+}
+
+model DigiflazzTransaction {
+    id      String @id @default(uuid())
+    orderId String @unique
+
+    // Digiflazz data
+    refId      String  @unique // Your reference ID
+    trxId      String? // Digiflazz transaction ID
+    skuCode    String
+    customerNo String // Game ID / phone number
+
+    status       String // Pending, Sukses, Gagal
+    message      String?
+    serialNumber String? // SN for vouchers
+
+    // Raw response data
+    responseData Json?
+    webhookData  Json?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    order Order @relation(fields: [orderId], references: [id])
+
+    @@index([refId])
+    @@map("digiflazz_transactions")
 }
