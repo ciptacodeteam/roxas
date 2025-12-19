@@ -4,6 +4,7 @@
 import ChatButton from '@/components/layout/ChatButton';
 import FooterSection from '@/components/layout/Footer';
 import Navbar from '@/components/layout/navbar';
+import { Toaster } from '@/components/ui/sonner';
 import { routing } from '@/i18n/routing';
 import set from 'lodash/set';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
@@ -46,6 +47,7 @@ export default async function LocaleLayout({
           {/* <FloatingLanguageSelector /> */}
           <FooterSection />
           <ChatButton />
+          <Toaster />
         </main>
       </NextIntlClientProvider>
     </div>

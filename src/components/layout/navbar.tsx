@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useSession, signOut } from "next-auth/react";
+import { toast } from "sonner";
 
 import {
   Gamepad2,
@@ -18,6 +20,10 @@ import {
   LogIn,
   UserRoundPlus,
   SquareChartGantt,
+  LogOut,
+  User,
+  UserCircle,
+  Settings,
 } from "lucide-react";
 
 import {
@@ -30,6 +36,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import logo from "public/img/logo.webp";
 import Indonesia from "public/img/indonesia-logo.webp";
@@ -51,6 +58,7 @@ const navItems: NavItem[] = [
 
 const Navigationbar = () => {
   const [open, setOpen] = useState(false);
+  const { data: session, status } = useSession();
 
   const t = useTranslations("Navigation");
   const router = useRouter();
@@ -58,6 +66,22 @@ const Navigationbar = () => {
 
   const locale = pathname.split("/")[1] ?? "id";
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
+
+  const handleLogout = async () => {
+    toast.loading("Memproses logout...", {
+      description: "Mohon tunggu sebentar...",
+    });
+    try {
+      await signOut({ callbackUrl: `/${locale}` });
+      toast.success("Logout Berhasil", {
+        description: "Anda telah berhasil logout. Sampai jumpa!",
+      });
+    } catch (error) {
+      toast.error("Logout Gagal", {
+        description: "Terjadi kesalahan saat logout. Silakan coba lagi.",
+      });
+    }
+  };
 
   const toggleMenu = () => setOpen((s) => !s);
 
@@ -262,22 +286,100 @@ const Navigationbar = () => {
           </div>
 
           {/* AUTH BUTTONS */}
-          <div className="flex gap-6">
-            <Link
-              href={`/${locale}/login`}
-              className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
-            >
-              <LogIn className="h-5 w-5" />
-              <p>{t("login")}</p>
-            </Link>
+          <div className="flex items-center gap-6">
+            {status === "loading" ? (
+              <div className="text-sm text-gray-300">Loading...</div>
+            ) : session ? (
+              <div className="group relative">
+                {/* TRIGGER BUTTON */}
+                <button
+                  type="button"
+                  className="relative flex cursor-pointer items-center gap-2 text-sm text-gray-300 hover:text-white transition"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={session.user.image || undefined}
+                      alt={session.user.name || "User"}
+                    />
+                    <AvatarFallback className="bg-gray-700 text-white">
+                      {session.user.name
+                        ? session.user.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)
+                        : session.user.email?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p className="font-medium text-white">
+                    {session.user.name || session.user.email}
+                  </p>
+                </button>
 
-            <Link
-              href={`/${locale}/register`}
-              className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
-            >
-              <UserRoundPlus className="h-5 w-5" />
-              <p>{t("register")}</p>
-            </Link>
+                {/* DROPDOWN */}
+                <div className="invisible absolute top-full right-0 z-50 mt-4 w-56 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                  {/* ARROW */}
+                  <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 bg-[#141414]" />
+
+                  <div className="space-y-3">
+                    {/* USER INFO */}
+                    <div className="flex flex-col space-y-1 pb-2 border-b border-gray-800">
+                      <p className="text-sm font-semibold text-white">
+                        {session.user.name || "User"}
+                      </p>
+                      <p className="text-xs leading-relaxed text-gray-400">
+                        {session.user.email}
+                      </p>
+                    </div>
+
+                    {/* PROFILE LINK */}
+                    <Link
+                      href={`/${locale}/profile`}
+                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
+                    >
+                      <div className="text-primary flex h-8 w-8 items-center justify-center">
+                        <UserCircle className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">Profile</p>
+                      </div>
+                    </Link>
+
+                    {/* LOGOUT BUTTON */}
+                    <button
+                      onClick={handleLogout}
+                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-red-500/10 w-full text-left"
+                    >
+                      <div className="text-red-400 flex h-8 w-8 items-center justify-center">
+                        <LogOut className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-red-400">Logout</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href={`/${locale}/login`}
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <p>{t("login")}</p>
+                </Link>
+
+                <Link
+                  href={`/${locale}/register`}
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+                >
+                  <UserRoundPlus className="h-5 w-5" />
+                  <p>{t("register")}</p>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -315,6 +417,80 @@ const Navigationbar = () => {
                 </Link>
               );
             })}
+
+            {/* Auth Buttons - Mobile */}
+            <div className="mt-4 flex flex-col gap-3 border-t pt-4">
+              {status === "loading" ? (
+                <div className="text-sm text-gray-700">Loading...</div>
+              ) : session ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={session.user.image || undefined}
+                        alt={session.user.name || "User"}
+                      />
+                      <AvatarFallback className="bg-gray-700 text-white">
+                        {session.user.name
+                          ? session.user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)
+                          : session.user.email?.[0]?.toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">
+                        {session.user.name || session.user.email}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {session.user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/${locale}/profile`}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
+                  >
+                    <UserCircle className="h-5 w-5" />
+                    <p>Profile</p>
+                  </Link>
+                  <Button
+                    onClick={() => {
+                      handleLogout();
+                      setOpen(false);
+                    }}
+                    variant="outline"
+                    className="flex items-center justify-center gap-2 text-red-600 border-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <p>Logout</p>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href={`/${locale}/login`}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    <p>{t("login")}</p>
+                  </Link>
+                  <Link
+                    href={`/${locale}/register`}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
+                  >
+                    <UserRoundPlus className="h-5 w-5" />
+                    <p>{t("register")}</p>
+                  </Link>
+                </>
+              )}
+            </div>
 
             {/* Language Switch */}
             <Dialog>

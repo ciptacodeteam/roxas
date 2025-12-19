@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { IBM_Plex_Sans_Condensed } from "next/font/google";
 
 import { TRPCReactProvider } from "@/trpc/react";
+import { SessionProvider } from "@/components/auth/session-provider";
 
 export const metadata: Metadata = {
   title: "PPOB App",
@@ -24,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={ibmPlex.variable}>
       <body className="font-ibm">
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <SessionProvider>
+          <TRPCReactProvider>{children}</TRPCReactProvider>
+        </SessionProvider>
       </body>
     </html>
   );

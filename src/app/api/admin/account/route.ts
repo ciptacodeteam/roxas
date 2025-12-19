@@ -2,34 +2,27 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 
 import { db } from '@/server/db';
-
-const SESSION_COOKIE_NAME = 'admin-session';
+import { getServerAuthSession } from '@/auth';
+import { UserRole } from '@prisma/client';
 
 const UpdateAccountSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
 });
 
-async function getCurrentAdmin(request: NextRequest) {
-  const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!sessionToken) return null;
-
-  const session = await db.session.findUnique({
-    where: { token: sessionToken },
-    include: {
-      user: true,
-    },
+async function getCurrentAdmin() {
+  const session = await getServerAuthSession();
+  if (!session || session.user.role !== UserRole.ADMIN) return null;
+  
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
   });
-
-  if (!session || session.expiresAt < new Date()) return null;
-  if (session.user.role !== 'ADMIN') return null;
-
-  return session.user;
+  
+  return user;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentAdmin(request);
+    const user = await getCurrentAdmin();
 
     if (!user) {
       return NextResponse.json(
@@ -61,7 +54,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getCurrentAdmin(request);
+    const user = await getCurrentAdmin();
 
     if (!user) {
       return NextResponse.json(
