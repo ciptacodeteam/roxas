@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { hashPassword } from "@/lib/password";
+import { auth } from "@/auth";
 import { UserRole } from "@prisma/client";
 import { sendEmail } from "@/lib/mailgun";
 import { getWelcomeEmailTemplate } from "@/lib/email-templates";
+import { headers } from "next/headers";
 
 const RegisterSchema = z.object({
   email: z.string().email("Invalid email"),
@@ -30,15 +31,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await hashPassword(validatedData.password);
+    // Use BetterAuth's signUp API to create user with proper password hashing
+    const headersList = await headers();
+    try {
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          email: validatedData.email,
+          password: validatedData.password,
+          name: validatedData.name || "User", // BetterAuth requires name, provide default
+        },
+        headers: headersList,
+      });
 
-    // Create user
-    const user = await db.user.create({
+      // BetterAuth returns user object on success
+      if (!signUpResult.user) {
+        return NextResponse.json(
+          { success: false, message: "Registration failed" },
+          { status: 400 }
+        );
+      }
+    } catch (error: any) {
+      // BetterAuth throws error if registration fails
+      return NextResponse.json(
+        { success: false, message: error?.message || "Registration failed" },
+        { status: 400 }
+      );
+    }
+
+    // Update user with phone number and role (BetterAuth doesn't handle these)
+    const user = await db.user.update({
+      where: { email: validatedData.email },
       data: {
-        email: validatedData.email,
-        password: hashedPassword,
-        name: validatedData.name,
         phone: validatedData.phone,
         role: UserRole.USER,
       },
@@ -80,7 +103,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, message: error.errors[0]?.message || "Validation error" },
+        { success: false, message: error.issues[0]?.message || "Validation error" },
         { status: 400 }
       );
     }

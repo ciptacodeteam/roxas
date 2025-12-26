@@ -18,7 +18,7 @@ import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useEffect } from "react";
 
 export default function RegisterPage() {
@@ -26,31 +26,9 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (status === "authenticated" && session) {
-      const locale = pathname?.split("/")[1] ?? "id";
-      router.replace(`/${locale}/profile`);
-    }
-  }, [status, session, router, pathname]);
-
-  // Show loading while checking session
-  if (status === "loading") {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-        <div className="text-white text-lg">Memuat...</div>
-      </div>
-    );
-  }
-
-  // Don't render register form if already authenticated (will redirect)
-  if (status === "authenticated") {
-    return null;
-  }
-
-  // state form
+  // state form (must be called before any early returns)
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -61,8 +39,30 @@ export default function RegisterPage() {
     terms: false,
   });
 
-  // error state
+  // error state (must be called before any early returns)
   const [errors, setErrors] = useState<any>({});
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session?.user) {
+      const locale = pathname?.split("/")[1] ?? "id";
+      router.replace(`/${locale}/profile`);
+    }
+  }, [session, router, pathname]);
+
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+        <div className="text-white text-lg">Memuat...</div>
+      </div>
+    );
+  }
+
+  // Don't render register form if already authenticated (will redirect)
+  if (session?.user) {
+    return null;
+  }
 
   // handler input
   const handleChange = (e: any) => {
@@ -119,7 +119,7 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      toast.loading("Mendaftarkan akun...", {
+      const loadingToast = toast.loading("Mendaftarkan akun...", {
         description: "Mohon tunggu sebentar...",
       });
 
@@ -135,6 +135,7 @@ export default function RegisterPage() {
       });
 
       const data = await response.json();
+      toast.dismiss(loadingToast);
 
       if (!response.ok) {
         setErrors({ email: data.message || "Registrasi gagal" });
@@ -149,23 +150,22 @@ export default function RegisterPage() {
         description: "Akun Anda berhasil dibuat! Mengarahkan ke profil...",
       });
 
-      // Auto-login after successful registration
+      // Auto-login after successful registration using BetterAuth
       // Wait a bit to ensure database transaction is committed
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const { signIn } = await import("next-auth/react");
+      const { signIn } = await import("@/lib/auth-client");
       
       try {
         console.log("Attempting auto-login for:", form.email);
-        const result = await signIn("credentials", {
+        const result = await signIn.email({
           email: form.email,
           password: form.password,
-          redirect: false,
         });
 
         console.log("SignIn result:", result);
 
-        if (result?.ok) {
+        if (!result.error) {
           // Wait a bit more to ensure session is created in database
           await new Promise(resolve => setTimeout(resolve, 300));
           
@@ -180,9 +180,9 @@ export default function RegisterPage() {
           }, 1000);
         } else {
           // Registration successful but login failed, redirect to login
-          console.error("Auto-login failed:", result?.error);
+          console.error("Auto-login failed:", result.error);
           toast.warning("Login Otomatis Gagal", {
-            description: result?.error || "Registrasi berhasil! Silakan login secara manual.",
+            description: result.error.message || "Registrasi berhasil! Silakan login secara manual.",
           });
           const locale = pathname.split("/")[1] ?? "id";
           setTimeout(() => {

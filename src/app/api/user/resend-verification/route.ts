@@ -47,18 +47,18 @@ export async function POST(request: NextRequest) {
     expires.setHours(expires.getHours() + 24); // Token expires in 24 hours
 
     // Delete any existing tokens for this email first
-    await (db as any).verificationToken.deleteMany({
+    await db.verification.deleteMany({
       where: {
         identifier: user.email,
       },
     });
 
-    // Create new verification token
-    await (db as any).verificationToken.create({
+    // Create new verification token (BetterAuth uses 'value' instead of 'token', 'expiresAt' instead of 'expires')
+    await db.verification.create({
       data: {
         identifier: user.email,
-        token: token,
-        expires: expires,
+        value: token,
+        expiresAt: expires,
       },
     });
 

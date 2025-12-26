@@ -14,32 +14,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find verification token
-    const verificationToken = await (db as any).verificationToken.findUnique({
+    // Find verification token (BetterAuth uses 'value' instead of 'token')
+    const verification = await db.verification.findFirst({
       where: {
-        identifier_token: {
-          identifier: email,
-          token: token,
-        },
+        identifier: email,
+        value: token,
       },
     });
 
-    if (!verificationToken) {
+    if (!verification) {
       return NextResponse.json(
         { success: false, message: "Invalid or expired reset token" },
         { status: 400 }
       );
     }
 
-    // Check if token is expired
-    if (verificationToken.expires < new Date()) {
+    // Check if token is expired (BetterAuth uses 'expiresAt' instead of 'expires')
+    if (verification.expiresAt < new Date()) {
       // Delete expired token
-      await (db as any).verificationToken.delete({
+      await db.verification.delete({
         where: {
-          identifier_token: {
-            identifier: email,
-            token: token,
-          },
+          id: verification.id,
         },
       });
       return NextResponse.json(

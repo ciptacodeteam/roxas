@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 import {
@@ -58,7 +58,7 @@ const navItems: NavItem[] = [
 
 const Navigationbar = () => {
   const [open, setOpen] = useState(false);
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
 
   const t = useTranslations("Navigation");
   const router = useRouter();
@@ -68,15 +68,18 @@ const Navigationbar = () => {
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
 
   const handleLogout = async () => {
-    toast.loading("Memproses logout...", {
+    const loadingToast = toast.loading("Memproses logout...", {
       description: "Mohon tunggu sebentar...",
     });
     try {
-      await signOut({ callbackUrl: `/${locale}` });
+      await signOut();
+      toast.dismiss(loadingToast);
       toast.success("Logout Berhasil", {
         description: "Anda telah berhasil logout. Sampai jumpa!",
       });
+      router.push(`/${locale}`);
     } catch (error) {
+      toast.dismiss(loadingToast);
       toast.error("Logout Gagal", {
         description: "Terjadi kesalahan saat logout. Silakan coba lagi.",
       });
@@ -287,9 +290,9 @@ const Navigationbar = () => {
 
           {/* AUTH BUTTONS */}
           <div className="flex items-center gap-6">
-            {status === "loading" ? (
+            {isPending ? (
               <div className="text-sm text-gray-300">Loading...</div>
-            ) : session ? (
+            ) : session?.user ? (
               <div className="group relative">
                 {/* TRIGGER BUTTON */}
                 <button
@@ -420,9 +423,9 @@ const Navigationbar = () => {
 
             {/* Auth Buttons - Mobile */}
             <div className="mt-4 flex flex-col gap-3 border-t pt-4">
-              {status === "loading" ? (
+              {isPending ? (
                 <div className="text-sm text-gray-700">Loading...</div>
-              ) : session ? (
+              ) : session?.user ? (
                 <>
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Avatar className="h-8 w-8">

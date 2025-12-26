@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { getServerAuthSession } from "@/auth";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { auth } from "@/auth";
+import { headers } from "next/headers";
 
 const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
+  currentPassword: z.string().optional(), // Optional for OAuth-only users
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
   confirmPassword: z.string().min(1, "Please confirm your new password"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
@@ -27,12 +28,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = ChangePasswordSchema.parse(body);
 
-    // Get user with password
+    // Get user
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
         id: true,
-        password: true,
+        email: true,
       },
     });
 
@@ -43,57 +44,156 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has a password (not OAuth only)
-    if (!user.password) {
-      return NextResponse.json(
-        { success: false, message: "This account uses OAuth sign-in. Password cannot be changed." },
-        { status: 400 }
-      );
-    }
-
-    // Verify current password
-    const isCurrentPasswordValid = await verifyPassword(
-      validatedData.currentPassword,
-      user.password
-    );
-
-    if (!isCurrentPasswordValid) {
-      return NextResponse.json(
-        { success: false, message: "Current password is incorrect" },
-        { status: 400 }
-      );
-    }
-
-    // Check if new password is different from current password
-    const isSamePassword = await verifyPassword(
-      validatedData.newPassword,
-      user.password
-    );
-
-    if (isSamePassword) {
-      return NextResponse.json(
-        { success: false, message: "New password must be different from current password" },
-        { status: 400 }
-      );
-    }
-
-    // Hash and update password
-    const hashedNewPassword = await hashPassword(validatedData.newPassword);
-
-    await db.user.update({
-      where: { id: session.user.id },
-      data: {
-        password: hashedNewPassword,
+    // Check if user has a credential account (email/password)
+    // BetterAuth stores passwords in Account model with providerId = "credential"
+    const accounts = await db.account.findMany({
+      where: {
+        userId: session.user.id,
       },
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Password changed successfully",
-      },
-      { status: 200 }
-    );
+    const credentialAccount = accounts.find((acc: any) => acc.providerId === "credential");
+    const hasPassword = !!(credentialAccount as any)?.password;
+
+    const headersList = await headers();
+
+    // If user has password, use BetterAuth's changePassword API
+    if (hasPassword) {
+      if (!validatedData.currentPassword) {
+        return NextResponse.json(
+          { success: false, message: "Current password is required" },
+          { status: 400 }
+        );
+      }
+
+      // Use BetterAuth's changePassword API
+      try {
+        const changePasswordResult = await auth.api.changePassword({
+          body: {
+            currentPassword: validatedData.currentPassword,
+            newPassword: validatedData.newPassword,
+          },
+          headers: headersList,
+        });
+
+        console.log("Change password result:", JSON.stringify(changePasswordResult, null, 2));
+
+        // BetterAuth's changePassword may return different formats
+        // Check for error in result
+        const result = changePasswordResult as any;
+        if (result?.error) {
+          console.error("Change password API error:", result.error);
+          return NextResponse.json(
+            { success: false, message: result.error.message || result.error || "Failed to change password" },
+            { status: 400 }
+          );
+        }
+
+        // Password changed successfully via BetterAuth
+        return NextResponse.json(
+          {
+            success: true,
+            message: "Password changed successfully",
+          },
+          { status: 200 }
+        );
+      } catch (error: any) {
+        console.error("Change password error:", error);
+        console.error("Error details:", {
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name,
+        });
+        
+        // Check if it's a password verification error
+        const errorMessage = error?.message || error?.toString() || "Current password is incorrect";
+        return NextResponse.json(
+          { success: false, message: errorMessage },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For OAuth-only users setting password for the first time
+      // We'll use BetterAuth's signUpEmail to create a temporary user and get the password hash
+      // Then use that hash format for the OAuth user's credential account
+      try {
+        // Create a temporary user with BetterAuth to get the password hash format
+        const tempEmail = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}@temp.com`;
+        
+        const tempSignUp = await auth.api.signUpEmail({
+          body: {
+            email: tempEmail,
+            password: validatedData.newPassword,
+            name: "Temp",
+          },
+          headers: headersList,
+        });
+        
+        if (!tempSignUp.user) {
+          return NextResponse.json(
+            { success: false, message: "Failed to generate password hash" },
+            { status: 500 }
+          );
+        }
+        
+        // Get the password hash from the temporary account
+        const tempAccounts = await db.account.findMany({
+          where: {
+            userId: tempSignUp.user.id,
+          },
+        });
+        
+        const tempCredentialAccount = tempAccounts.find((acc: any) => acc.providerId === "credential");
+        const passwordHash = (tempCredentialAccount as any)?.password;
+        
+        if (!passwordHash) {
+          // Clean up temp user
+          await db.account.deleteMany({
+            where: { userId: tempSignUp.user.id },
+          });
+          await db.user.delete({
+            where: { id: tempSignUp.user.id },
+          });
+          
+          return NextResponse.json(
+            { success: false, message: "Failed to generate password hash" },
+            { status: 500 }
+          );
+        }
+        
+        // Create credential account for OAuth user with the password hash
+        await db.account.create({
+          data: {
+            userId: session.user.id,
+            providerId: "credential",
+            accountId: user.email,
+            password: passwordHash,
+          } as any,
+        });
+        
+        // Clean up temporary user and account
+        await db.account.deleteMany({
+          where: { userId: tempSignUp.user.id },
+        });
+        await db.user.delete({
+          where: { id: tempSignUp.user.id },
+        });
+        
+        return NextResponse.json(
+          {
+            success: true,
+            message: "Password set successfully",
+          },
+          { status: 200 }
+        );
+      } catch (error: any) {
+        console.error("Set password for OAuth user error:", error);
+        return NextResponse.json(
+          { success: false, message: error?.message || "Failed to set password" },
+          { status: 500 }
+        );
+      }
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

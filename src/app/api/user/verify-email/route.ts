@@ -11,29 +11,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/?error=invalid_token", request.url));
     }
 
-    // Find verification token
-    const verificationToken = await (db as any).verificationToken.findUnique({
+    // Find verification token (BetterAuth uses 'value' instead of 'token')
+    const verification = await db.verification.findFirst({
       where: {
-        identifier_token: {
-          identifier: email,
-          token: token,
-        },
+        identifier: email,
+        value: token,
       },
     });
 
-    if (!verificationToken) {
+    if (!verification) {
       return NextResponse.redirect(new URL("/?error=token_not_found", request.url));
     }
 
-    // Check if token is expired
-    if (verificationToken.expires < new Date()) {
+    // Check if token is expired (BetterAuth uses 'expiresAt' instead of 'expires')
+    if (verification.expiresAt < new Date()) {
       // Delete expired token
-      await (db as any).verificationToken.delete({
+      await db.verification.delete({
         where: {
-          identifier_token: {
-            identifier: email,
-            token: token,
-          },
+          id: verification.id,
         },
       });
       return NextResponse.redirect(new URL("/?error=token_expired", request.url));
@@ -50,32 +45,26 @@ export async function GET(request: NextRequest) {
 
     if (user.emailVerified) {
       // Already verified, just delete the token
-      await (db as any).verificationToken.delete({
+      await db.verification.delete({
         where: {
-          identifier_token: {
-            identifier: email,
-            token: token,
-          },
+          id: verification.id,
         },
       });
       return NextResponse.redirect(new URL("/?verified=already", request.url));
     }
 
-    // Verify the email
+    // Verify the email (BetterAuth uses Boolean, not DateTime)
     await db.user.update({
       where: { email: email },
       data: {
-        emailVerified: new Date(),
+        emailVerified: true as any, // Type assertion needed during migration
       },
     });
 
     // Delete the used token
-    await (db as any).verificationToken.delete({
+    await db.verification.delete({
       where: {
-        identifier_token: {
-          identifier: email,
-          token: token,
-        },
+        id: verification.id,
       },
     });
 

@@ -14,32 +14,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = ResetPasswordSchema.parse(body);
 
-    // Find verification token
-    const verificationToken = await (db as any).verificationToken.findUnique({
+    // Find verification token (BetterAuth uses 'value' instead of 'token')
+    const verification = await db.verification.findFirst({
       where: {
-        identifier_token: {
-          identifier: validatedData.email,
-          token: validatedData.token,
-        },
+        identifier: validatedData.email,
+        value: validatedData.token,
       },
     });
 
-    if (!verificationToken) {
+    if (!verification) {
       return NextResponse.json(
         { success: false, message: "Invalid or expired reset token" },
         { status: 400 }
       );
     }
 
-    // Check if token is expired
-    if (verificationToken.expires < new Date()) {
+    // Check if token is expired (BetterAuth uses 'expiresAt' instead of 'expires')
+    if (verification.expiresAt < new Date()) {
       // Delete expired token
-      await (db as any).verificationToken.delete({
+      await db.verification.delete({
         where: {
-          identifier_token: {
-            identifier: validatedData.email,
-            token: validatedData.token,
-          },
+          id: verification.id,
         },
       });
       return NextResponse.json(
@@ -85,12 +80,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Delete the used token
-    await (db as any).verificationToken.delete({
+    await db.verification.delete({
       where: {
-        identifier_token: {
-          identifier: validatedData.email,
-          token: validatedData.token,
-        },
+        id: verification.id,
       },
     });
 
@@ -106,7 +98,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, message: error.errors[0]?.message || "Validation error" },
+        { success: false, message: error.issues[0]?.message || "Validation error" },
         { status: 400 }
       );
     }

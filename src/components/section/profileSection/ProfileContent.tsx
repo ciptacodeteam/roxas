@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { signIn } from "next-auth/react";
+import { useSession, signIn } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,8 +21,9 @@ const ProfileSchema = z.object({
   phone: z.string().optional(),
 });
 
+// Schema that makes currentPassword optional (will be validated on server)
 const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Kata sandi saat ini wajib diisi"),
+  currentPassword: z.string().optional(),
   newPassword: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
   confirmPassword: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
@@ -35,11 +35,12 @@ type ProfileFormData = z.infer<typeof ProfileSchema>;
 type ChangePasswordFormData = z.infer<typeof ChangePasswordSchema>;
 
 export default function ProfileContent() {
-  const { data: session, status, update } = useSession();
+  const { data: session, isPending } = useSession();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [userData, setUserData] = useState<{
     name: string | null;
     phone: string | null;
@@ -54,6 +55,11 @@ export default function ProfileContent() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Track if component is mounted to avoid hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const {
     register,
@@ -199,15 +205,30 @@ export default function ProfileContent() {
         return;
       }
 
-      // Update session with new data
-      await update();
+      // BetterAuth automatically refreshes session, no need to manually update
       
-      // Update local state
-      setUserData({
-        name: result.user.name,
-        phone: result.user.phone,
-        image: result.user.image,
-      });
+      // Refresh full user data to get all fields including emailVerified
+      const profileResponse = await fetch("/api/user/profile");
+      const profileData = await profileResponse.json();
+      if (profileData.success) {
+        setUserData({
+          name: profileData.user.name,
+          phone: profileData.user.phone,
+          image: profileData.user.image,
+          hasPassword: profileData.user.hasPassword,
+          isOAuthOnly: profileData.user.isOAuthOnly,
+          emailVerified: profileData.user.emailVerified,
+          hasGoogleAccount: profileData.user.hasGoogleAccount,
+        });
+      } else {
+        // Fallback to result data if profile fetch fails
+        setUserData({
+          name: result.user.name,
+          phone: result.user.phone,
+          image: result.user.image,
+          emailVerified: (result.user as any).emailVerified ?? userData?.emailVerified,
+        });
+      }
 
       setIsEditing(false);
       toast.success("Profil Diperbarui", {
@@ -242,8 +263,26 @@ export default function ProfileContent() {
 
       setIsChangingPassword(false);
       resetPassword();
-      toast.success("Kata Sandi Diubah", {
-        description: "Kata sandi Anda berhasil diubah!",
+      
+      // Refresh user data to update hasPassword status
+      const profileResponse = await fetch("/api/user/profile");
+      const profileData = await profileResponse.json();
+      if (profileData.success) {
+        setUserData({
+          name: profileData.user.name,
+          phone: profileData.user.phone,
+          image: profileData.user.image,
+          hasPassword: profileData.user.hasPassword,
+          isOAuthOnly: profileData.user.isOAuthOnly,
+          emailVerified: profileData.user.emailVerified,
+          hasGoogleAccount: profileData.user.hasGoogleAccount,
+        });
+      }
+      
+      toast.success(userData?.hasPassword ? "Kata Sandi Diubah" : "Kata Sandi Diatur", {
+        description: userData?.hasPassword 
+          ? "Kata sandi Anda berhasil diubah!" 
+          : "Kata sandi Anda berhasil diatur! Anda sekarang bisa login dengan email dan password.",
       });
     } catch (err) {
       toast.error("Gagal Mengubah Kata Sandi", {
@@ -254,11 +293,20 @@ export default function ProfileContent() {
     }
   };
 
-  if (status === "loading") {
+  // Show loading only after mount to avoid hydration mismatch
+  if (!isMounted || isPending) {
     return (
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl mb-10">
         <div className="bg-card rounded-lg p-8">
-          <div className="text-center text-white">Loading...</div>
+          <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
+            <div className="flex flex-col items-center">
+              <div className="h-32 w-32 rounded-full bg-gray-700 animate-pulse" />
+            </div>
+            <div className="flex-1 space-y-4">
+              <div className="h-8 bg-gray-700 rounded animate-pulse w-1/2" />
+              <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -266,7 +314,7 @@ export default function ProfileContent() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl mb-10">
         <div className="bg-card rounded-lg p-8">
           <div className="text-center text-white">Not authenticated</div>
         </div>
@@ -296,13 +344,14 @@ export default function ProfileContent() {
                 onClick={async () => {
                   try {
                     setIsLoading(true);
-                    toast.loading("Mengirim email verifikasi...", {
+                    const loadingToast = toast.loading("Mengirim email verifikasi...", {
                       description: "Mohon tunggu sebentar...",
                     });
                     const response = await fetch("/api/user/resend-verification", {
                       method: "POST",
                     });
                     const data = await response.json();
+                    toast.dismiss(loadingToast);
                     if (response.ok) {
                       toast.success("Email Verifikasi Dikirim", {
                         description: "Silakan cek inbox email Anda untuk verifikasi. Link berlaku selama 24 jam.",
@@ -478,7 +527,7 @@ export default function ProfileContent() {
                 <h4 className="text-lg font-semibold text-white">
                   Keamanan Akun
                 </h4>
-                {userData?.hasPassword && !isChangingPassword && (
+                {!isChangingPassword && (
                   <Button
                     type="button"
                     variant="outline"
@@ -486,7 +535,7 @@ export default function ProfileContent() {
                     className="border-gray-600 text-white hover:bg-gray-700"
                   >
                     <Lock className="h-4 w-4 mr-2" />
-                    Ubah Kata Sandi
+                    {userData?.hasPassword ? "Ubah Kata Sandi" : "Atur Kata Sandi"}
                   </Button>
                 )}
               </div>
@@ -505,12 +554,12 @@ export default function ProfileContent() {
                 {userData?.isOAuthOnly && (
                   <div className="flex items-center justify-between pt-2 border-t border-gray-700">
                     <div>
-                      <p className="text-white font-medium">Metode Login</p>
+                      <p className="text-white font-medium">Akun Google</p>
                       <p className="text-sm text-gray-400">
-                        Akun Anda menggunakan Google Sign-In
+                        Akun Google sudah terhubung
                       </p>
                     </div>
-                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
                   </div>
                 )}
 
@@ -525,18 +574,22 @@ export default function ProfileContent() {
                     </div>
                     <Button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const locale = pathname?.split("/")[1] ?? "id";
                         const loadingToast = toast.loading("Menghubungkan akun Google...", {
                           description: "Mengarahkan ke Google...",
                         });
-                        setTimeout(() => {
+                        try {
+                          await signIn.social({
+                            provider: "google",
+                            callbackURL: `/${locale}/profile?google_linked=true`,
+                          });
+                        } catch (error) {
                           toast.dismiss(loadingToast);
-                        }, 500);
-                        signIn("google", { 
-                          callbackUrl: `/${locale}/profile?google_linked=true`,
-                          redirect: true,
-                        });
+                          toast.error("Gagal Menghubungkan Google", {
+                            description: "Terjadi kesalahan saat menghubungkan akun Google.",
+                          });
+                        }
                       }}
                       className="bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
                       size="sm"
@@ -576,34 +629,43 @@ export default function ProfileContent() {
                   </div>
                 )}
 
-                {userData?.hasPassword && isChangingPassword && (
+                {isChangingPassword && (
                   <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4 pt-4 border-t border-gray-700">
-                    <div>
-                      <Label htmlFor="currentPassword" className="text-sm text-gray-400 mb-2 block">
-                        Kata Sandi Saat Ini
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="currentPassword"
-                          type={showCurrentPassword ? "text" : "password"}
-                          {...registerPassword("currentPassword")}
-                          className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 pr-10"
-                          placeholder="Masukkan kata sandi saat ini"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                          className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
-                        >
-                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+                    {userData?.hasPassword && (
+                      <div>
+                        <Label htmlFor="currentPassword" className="text-sm text-gray-400 mb-2 block">
+                          Kata Sandi Saat Ini
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="currentPassword"
+                            type={showCurrentPassword ? "text" : "password"}
+                            {...registerPassword("currentPassword")}
+                            className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 pr-10"
+                            placeholder="Masukkan kata sandi saat ini"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {passwordErrors.currentPassword && (
+                          <p className="text-xs text-red-400 mt-1">
+                            {passwordErrors.currentPassword.message}
+                          </p>
+                        )}
                       </div>
-                      {passwordErrors.currentPassword && (
-                        <p className="text-xs text-red-400 mt-1">
-                          {passwordErrors.currentPassword.message}
+                    )}
+                    {!userData?.hasPassword && (
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-blue-300">
+                          Anda belum memiliki kata sandi. Atur kata sandi untuk dapat login dengan email dan password.
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="newPassword" className="text-sm text-gray-400 mb-2 block">

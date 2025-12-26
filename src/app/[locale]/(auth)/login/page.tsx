@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
@@ -32,29 +32,50 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
   
-  // Redirect if already logged in
+  // ⚡ Connect form + validation (must be called before any early returns)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(LoginSchema),
+  });
+
+  // Redirect if already logged in and check role
   useEffect(() => {
-    if (status === "authenticated" && session) {
-      const locale = pathname?.split("/")[1] ?? "id";
-      router.replace(`/${locale}/profile`);
-    }
-  }, [status, session, router, pathname]);
+    const checkRoleAndRedirect = async () => {
+      if (session?.user) {
+        // Check if user is admin
+        try {
+          const roleResponse = await fetch("/api/auth/check-role");
+          const roleData = await roleResponse.json();
 
-  // Show loading while checking session
-  if (status === "loading") {
-    return (
-      <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat flex items-center justify-center">
-        <div className="text-white text-lg">Memuat...</div>
-      </div>
-    );
-  }
+          if (roleData.success && roleData.role === "ADMIN") {
+            // Admin trying to access public login - sign out and show error
+            await signOut();
+            setError("Akses ditolak");
+            toast.error("Login Gagal", {
+              description: "Akun admin tidak dapat login melalui halaman ini. Silakan gunakan halaman admin login.",
+            });
+            return;
+          }
 
-  // Don't render login form if already authenticated (will redirect)
-  if (status === "authenticated") {
-    return null;
-  }
+          // Regular user - proceed with redirect
+          const locale = pathname?.split("/")[1] ?? "id";
+          router.replace(`/${locale}/profile`);
+        } catch (error) {
+          console.error("Role check failed:", error);
+          // If role check fails, still redirect but log the error
+          const locale = pathname?.split("/")[1] ?? "id";
+          router.replace(`/${locale}/profile`);
+        }
+      }
+    };
+
+    checkRoleAndRedirect();
+  }, [session, router, pathname]);
 
   // Check for OAuth errors and registration success message
   useEffect(() => {
@@ -82,14 +103,19 @@ export default function LoginPage() {
     }
   }, [router, pathname]);
 
-  // ⚡ Connect form + validation
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(LoginSchema),
-  });
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat flex items-center justify-center">
+        <div className="text-white text-lg">Memuat...</div>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated (will redirect)
+  if (session?.user) {
+    return null;
+  }
 
   // ⚡ Submit Form
   const onSubmit = async (data: any) => {
@@ -99,30 +125,57 @@ export default function LoginPage() {
     });
 
     try {
-      const result = await signIn("credentials", {
+      const result = await signIn.email({
         email: data.email,
         password: data.password,
-        redirect: false,
       });
 
       // Dismiss loading toast
       toast.dismiss(loadingToast);
 
-      if (result?.error) {
+      if (result.error) {
         setError("Email atau kata sandi tidak valid");
         toast.error("Login Gagal", {
-          description: "Email atau kata sandi tidak valid. Silakan coba lagi.",
+          description: result.error.message || "Email atau kata sandi tidak valid. Silakan coba lagi.",
         });
-      } else if (result?.ok) {
-        toast.success("Login Berhasil", {
-          description: "Selamat datang kembali! Mengarahkan ke profil Anda...",
-        });
-        // Get locale from pathname
-        const locale = pathname.split("/")[1] ?? "id";
-        setTimeout(() => {
-          router.push(`/${locale}/profile?from=login`);
-          router.refresh();
-        }, 1000);
+      } else {
+        // Check user role after successful login
+        try {
+          const roleResponse = await fetch("/api/auth/check-role");
+          const roleData = await roleResponse.json();
+
+          if (roleData.success && roleData.role === "ADMIN") {
+            // Admin trying to login through public login - reject and sign out
+            await signOut();
+            setError("Akses ditolak");
+            toast.error("Login Gagal", {
+              description: "Akun admin tidak dapat login melalui halaman ini. Silakan gunakan halaman admin login.",
+            });
+            return;
+          }
+
+          // Regular user - proceed with login
+          toast.success("Login Berhasil", {
+            description: "Selamat datang kembali! Mengarahkan ke profil Anda...",
+          });
+          // Get locale from pathname
+          const locale = pathname.split("/")[1] ?? "id";
+          setTimeout(() => {
+            router.push(`/${locale}/profile?from=login`);
+            router.refresh();
+          }, 1000);
+        } catch (roleError) {
+          // If role check fails, still allow login but log the error
+          console.error("Role check failed:", roleError);
+          toast.success("Login Berhasil", {
+            description: "Selamat datang kembali! Mengarahkan ke profil Anda...",
+          });
+          const locale = pathname.split("/")[1] ?? "id";
+          setTimeout(() => {
+            router.push(`/${locale}/profile?from=login`);
+            router.refresh();
+          }, 1000);
+        }
       }
     } catch (err) {
       // Dismiss loading toast
@@ -260,17 +313,23 @@ export default function LoginPage() {
 
                       <Button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const locale = pathname.split("/")[1] ?? "id";
                           // Show loading toast briefly, but it will be dismissed when redirect happens
                           const loadingToast = toast.loading("Memproses login Google...", {
                             description: "Mengarahkan ke Google...",
                           });
-                          // Dismiss after a short delay since redirect happens immediately
-                          setTimeout(() => {
+                          try {
+                            await signIn.social({
+                              provider: "google",
+                              callbackURL: `/${locale}/profile?from=google`,
+                            });
+                          } catch (error) {
                             toast.dismiss(loadingToast);
-                          }, 500);
-                          signIn("google", { callbackUrl: `/${locale}/profile?from=google` });
+                            toast.error("Login Google Gagal", {
+                              description: "Terjadi kesalahan saat login dengan Google.",
+                            });
+                          }
                         }}
                         className="bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 flex-1"
                       >

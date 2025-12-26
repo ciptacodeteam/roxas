@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
         phone: true,
         image: true,
         role: true,
-        password: true, // Include to check if user has password
         emailVerified: true,
       },
     });
@@ -40,27 +39,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has password (not OAuth only)
-    const hasPassword = !!user.password;
-    
-    // Check if user has any OAuth accounts (Google)
-    // Note: Using direct Prisma query since Account model exists
-    const accounts = await (db as any).account.findMany({
+    // Check if user has password account (BetterAuth stores password in Account model)
+    // BetterAuth uses "credential" (singular) for email/password accounts
+    const accounts = await db.account.findMany({
       where: { userId: session.user.id },
-      select: { provider: true },
+      select: { 
+        providerId: true,
+        password: true, // Check if account has password
+      },
     });
     
-    const isOAuthOnly = !hasPassword && accounts.length > 0 && accounts.every((acc: { provider: string }) => acc.provider !== "credentials");
-    const hasGoogleAccount = accounts.some((acc: { provider: string }) => acc.provider === "google");
-
-    // Remove password from response
-    const { password, ...userWithoutPassword } = user;
+    // User has password if they have a credential account with a password
+    const credentialAccount = accounts.find((acc) => acc.providerId === "credential");
+    const hasPassword = !!credentialAccount?.password;
+    
+    // User is OAuth-only if they have accounts but no credential account with password
+    const isOAuthOnly = accounts.length > 0 && !hasPassword;
+    const hasGoogleAccount = accounts.some((acc) => acc.providerId === "google");
 
     return NextResponse.json(
       {
         success: true,
         user: {
-          ...userWithoutPassword,
+          ...user,
           hasPassword,
           isOAuthOnly,
           hasGoogleAccount,
@@ -104,6 +105,7 @@ export async function PATCH(request: NextRequest) {
         phone: true,
         image: true,
         role: true,
+        emailVerified: true,
       },
     });
 

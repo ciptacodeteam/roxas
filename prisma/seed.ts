@@ -1,5 +1,5 @@
 import { PrismaClient, UserRole } from '@prisma/client';
-import { hashPassword } from '../src/lib/password';
+import { auth } from '../src/auth';
 
 const prisma = new PrismaClient();
 
@@ -10,22 +10,72 @@ async function main() {
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
+    include: {
+      accounts: {
+        where: { providerId: 'credential' },
+      },
+    },
   });
 
   if (!existingAdmin) {
-    const hashedPassword = await hashPassword(adminPassword);
+    // Use BetterAuth's signUpEmail API to create user with proper password hashing
+    // Create a minimal headers object for the seed script
+    const headers = new Headers();
     
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        password: hashedPassword,
-        name: 'Admin User',
-        role: UserRole.ADMIN,
-      },
-    });
+    try {
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          email: adminEmail,
+          password: adminPassword,
+          name: 'Admin User',
+        },
+        headers: headers,
+      });
 
-    console.log('✅ Admin user created:', adminEmail);
+      if (!signUpResult.user) {
+        throw new Error('Failed to create admin user via BetterAuth');
+      }
+
+      // Update user with ADMIN role (BetterAuth doesn't handle custom fields)
+      await prisma.user.update({
+        where: { email: adminEmail },
+        data: {
+          role: UserRole.ADMIN,
+        },
+      });
+
+      console.log('✅ Admin user created:', adminEmail);
+      console.log('   Password:', adminPassword);
+    } catch (error: any) {
+      console.error('❌ Failed to create admin user:', error?.message || error);
+      throw error;
+    }
   } else {
+    // Check if user has a credential account (password)
+    const hasCredentialAccount = existingAdmin.accounts.some(
+      (acc) => acc.providerId === 'credential'
+    );
+
+    if (!hasCredentialAccount) {
+      console.log('⚠️  Admin user exists but has no password. Updating role...');
+      // Update role if not already admin
+      if (existingAdmin.role !== UserRole.ADMIN) {
+        await prisma.user.update({
+          where: { email: adminEmail },
+          data: { role: UserRole.ADMIN },
+        });
+        console.log('✅ Admin role updated');
+      }
+    } else {
+      // Update role if not already admin
+      if (existingAdmin.role !== UserRole.ADMIN) {
+        await prisma.user.update({
+          where: { email: adminEmail },
+          data: { role: UserRole.ADMIN },
+        });
+        console.log('✅ Admin role updated');
+      }
+    }
     console.log('ℹ️  Admin user already exists:', adminEmail);
   }
 }

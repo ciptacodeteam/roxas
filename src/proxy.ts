@@ -4,18 +4,31 @@ import type { NextRequest } from 'next/server';
 import { routing } from './i18n/routing';
 import { auth } from '@/auth';
 import { UserRole } from '@prisma/client';
+import { db } from '@/server/db';
 
 const intlMiddleware = createMiddleware(routing);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Handle admin routes with NextAuth
+  // Handle admin routes with BetterAuth
   if (pathname.startsWith('/admin')) {
-    const session = await auth();
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
 
+    // Fetch user role from database (session might not include role)
+    let userRole: UserRole | null = null;
+    if (session?.user) {
+      const user = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
+      userRole = user?.role || null;
+    }
+    
     // If accessing login page and already authenticated as admin, redirect to dashboard
-    if (pathname === '/admin/login' && session?.user.role === UserRole.ADMIN) {
+    if (pathname === '/admin/login' && userRole === UserRole.ADMIN) {
       const url = request.nextUrl.clone();
       url.pathname = '/admin';
       return NextResponse.redirect(url);
@@ -23,7 +36,7 @@ export async function proxy(request: NextRequest) {
     
     // Check authentication for admin routes (except login)
     if (pathname !== '/admin/login') {
-      if (!session) {
+      if (!session || !session.user) {
         // Redirect to login if not authenticated
         const url = request.nextUrl.clone();
         url.pathname = '/admin/login';
@@ -31,8 +44,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      // Check if user is admin
-      if (session.user.role !== UserRole.ADMIN) {
+      // Check if user is admin - fetch from database to be sure
+      if (userRole !== UserRole.ADMIN) {
         return NextResponse.redirect(new URL('/', request.url));
       }
     }
@@ -41,7 +54,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle protected user routes (require login)
+  // Handle protected user routes (require login and must be regular user, not admin)
   // Check if pathname contains /transaction or /profile (with locale prefix)
   const protectedRoutes = ['/transaction', '/profile'];
   const isProtectedRoute = protectedRoutes.some(route => {
@@ -52,15 +65,28 @@ export async function proxy(request: NextRequest) {
   });
   
   if (isProtectedRoute) {
-    const session = await auth();
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
     
-    if (!session) {
+    if (!session || !session.user) {
       // Extract locale from pathname if present
       const localeMatch = pathname.match(/^\/(id|en|zh)/);
       const locale = localeMatch ? localeMatch[1] : 'id';
       const loginUrl = new URL(`/${locale}/login`, request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    // Check if user is admin - admins should not access public protected routes
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    });
+
+    if (user?.role === UserRole.ADMIN) {
+      // Admin trying to access public route - redirect to admin dashboard
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
   }
 

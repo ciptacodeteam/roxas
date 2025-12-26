@@ -76,6 +76,8 @@ export default function AdminLayout({
           loading: <Loader2Icon className="size-4 animate-spin text-gray-400" />,
         }}
         toastOptions={{
+          duration: 4000, // Default 4 seconds
+          unstyled: false,
           classNames: {
             toast: "!bg-[#1B2129] !text-white !border !border-gray-800",
             success: "!bg-green-950/50 !text-green-100 !border-green-800",
