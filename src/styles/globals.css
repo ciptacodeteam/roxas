@@ -137,3 +137,30 @@
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
 }
+
+
+@keyframes accordion-down-smooth {
+  from {
+    height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes accordion-up-smooth {
+  from {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}

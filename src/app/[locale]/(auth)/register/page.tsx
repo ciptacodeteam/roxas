@@ -282,7 +282,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="mt-6">
                       <CountryPhoneInput
                         value={form.phone}
                         onChange={(val: string) =>
