@@ -55,12 +55,13 @@ export async function proxy(request: NextRequest) {
   }
 
   // Handle protected user routes (require login and must be regular user, not admin)
-  // Check if pathname contains /transaction or /profile (with locale prefix)
-  const protectedRoutes = ['/transaction', '/profile'];
+  // Check if pathname contains /my-transactions or /profile (with locale prefix)
+  // Note: /transaction is public (for invoice checking), /my-transactions is protected (user's order history)
+  const protectedRoutes = ['/my-transactions', '/profile'];
   const isProtectedRoute = protectedRoutes.some(route => {
-    return /^\/(id|en|zh)\/transaction/.test(pathname) || 
+    return /^\/(id|en|zh)\/my-transactions/.test(pathname) || 
            /^\/(id|en|zh)\/profile/.test(pathname) ||
-           pathname === '/transaction' ||
+           pathname === '/my-transactions' ||
            pathname === '/profile';
   });
   

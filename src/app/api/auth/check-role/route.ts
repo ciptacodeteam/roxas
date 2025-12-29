@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      role: session.user.role,
+      role: session.user.role || UserRole.USER,
     });
   } catch (error) {
     console.error("Role check error:", error);

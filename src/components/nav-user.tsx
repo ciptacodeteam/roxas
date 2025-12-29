@@ -10,6 +10,7 @@ import {
   IconUserCircle,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
+import { signOut } from "@/lib/auth-client"
 
 import {
   Avatar,
@@ -79,26 +80,18 @@ export function NavUser({ user }: NavUserProps) {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true)
-      const response = await fetch("/api/admin/logout", {
-        method: "POST",
-        credentials: "include",
+      
+      // Use BetterAuth signOut directly
+      await signOut()
+      
+      toast.success("Logged out successfully", {
+        description: "You have been logged out.",
       })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        toast.success("Logged out successfully", {
-          description: "You have been logged out.",
-        })
-        setTimeout(() => {
-          window.location.href = "/admin/login"
-        }, 500)
-      } else {
-        toast.error("Logout failed", {
-          description: result.message || "Please try again.",
-        })
-        setIsLoggingOut(false)
-      }
+      
+      // Redirect to admin login page
+      setTimeout(() => {
+        window.location.href = "/admin/login"
+      }, 500)
     } catch (error) {
       console.error("Logout error:", error)
       toast.error("Logout failed", {

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -58,6 +58,7 @@ const navItems: NavItem[] = [
 
 const Navigationbar = () => {
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const { data: session, isPending } = useSession();
 
   const t = useTranslations("Navigation");
@@ -66,6 +67,26 @@ const Navigationbar = () => {
 
   const locale = pathname.split("/")[1] ?? "id";
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (session?.user) {
+        try {
+          const response = await fetch("/api/auth/check-role");
+          const data = await response.json();
+          setIsAdmin(data.success && data.role === "ADMIN");
+        } catch (error) {
+          console.error("Error checking user role:", error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkUserRole();
+  }, [session]);
 
   const handleLogout = async () => {
     const loadingToast = toast.loading("Memproses logout...", {
@@ -214,11 +235,16 @@ const Navigationbar = () => {
           </button>
         </div>
 
-        {/* DESKTOP NAV */}
+          {/* DESKTOP NAV */}
         <div className="mt-6 flex items-center justify-between">
           <div className="hidden items-center gap-6 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
+
+              // Hide transaction link for admin users
+              if (item.key === "transaction" && isAdmin) {
+                return null;
+              }
 
               if (item.key === "calculator") {
                 const isCalculatorActive =
@@ -290,9 +316,9 @@ const Navigationbar = () => {
 
           {/* AUTH BUTTONS */}
           <div className="flex items-center gap-6">
-            {isPending ? (
+            {isPending || isAdmin === null ? (
               <div className="text-sm text-gray-300">Loading...</div>
-            ) : session?.user ? (
+            ) : session?.user && !isAdmin ? (
               <div className="group relative">
                 {/* TRIGGER BUTTON */}
                 <button
@@ -321,7 +347,7 @@ const Navigationbar = () => {
                 </button>
 
                 {/* DROPDOWN */}
-                <div className="invisible absolute top-full right-0 z-50 mt-4 w-56 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                <div className="invisible absolute top-full right-0 z-50 mt-4 w-64 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100 max-h-[600px] overflow-y-auto">
                   {/* ARROW */}
                   <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 bg-[#141414]" />
 
@@ -349,10 +375,27 @@ const Navigationbar = () => {
                       </div>
                     </Link>
 
+                    {/* TRANSACTION LINK */}
+                    <Link
+                      href={`/${locale}/my-transactions`}
+                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
+                    >
+                      <div className="text-primary flex h-8 w-8 items-center justify-center">
+                        <ReceiptText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">Transaction</p>
+                        <p className="text-xs text-gray-400">Order history</p>
+                      </div>
+                    </Link>
+
+                    {/* SEPARATOR */}
+                    <div className="border-t border-gray-800 pt-2"></div>
+
                     {/* LOGOUT BUTTON */}
                     <button
                       onClick={handleLogout}
-                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-red-500/10 w-full text-left"
+                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-red-500/10 w-full text-left cursor-pointer"
                     >
                       <div className="text-red-400 flex h-8 w-8 items-center justify-center">
                         <LogOut className="h-5 w-5" />
@@ -406,6 +449,11 @@ const Navigationbar = () => {
               const Icon = item.icon;
               const active = cleanPath === item.href;
 
+              // Hide transaction link for admin users
+              if (item.key === "transaction" && isAdmin) {
+                return null;
+              }
+
               return (
                 <Link
                   key={item.href}
@@ -423,9 +471,9 @@ const Navigationbar = () => {
 
             {/* Auth Buttons - Mobile */}
             <div className="mt-4 flex flex-col gap-3 border-t pt-4">
-              {isPending ? (
+              {isPending || isAdmin === null ? (
                 <div className="text-sm text-gray-700">Loading...</div>
-              ) : session?.user ? (
+              ) : session?.user && !isAdmin ? (
                 <>
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Avatar className="h-8 w-8">
@@ -461,13 +509,25 @@ const Navigationbar = () => {
                     <UserCircle className="h-5 w-5" />
                     <p>Profile</p>
                   </Link>
+                  <Link
+                    href={`/${locale}/my-transactions`}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
+                  >
+                    <ReceiptText className="h-5 w-5" />
+                    <p>Transaction</p>
+                  </Link>
+
+                  {/* SEPARATOR */}
+                  <div className="border-t border-gray-300 pt-2 mt-2"></div>
+
                   <Button
                     onClick={() => {
                       handleLogout();
                       setOpen(false);
                     }}
                     variant="outline"
-                    className="flex items-center justify-center gap-2 text-red-600 border-red-600 hover:bg-red-50"
+                    className="flex items-center justify-center gap-2 text-red-600 border-red-600 hover:bg-red-50 cursor-pointer"
                   >
                     <LogOut className="h-5 w-5" />
                     <p>Logout</p>

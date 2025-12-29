@@ -69,6 +69,11 @@ const data = {
       url: "/admin/currency",
       icon: IconCurrencyDollar,
     },
+    {
+      title: "Price List",
+      url: "/admin/price-list",
+      icon: IconPackage,
+    },
   ],
   navSecondary: [
     {

@@ -19,6 +19,9 @@ export const env = createEnv({
     MAILGUN_DOMAIN: z.string().min(1),
     MAILGUN_FROM_EMAIL: z.string().email(),
     MAILGUN_REGION: z.string().default("us"),
+    DIGIFLAZZ_USERNAME: z.string().min(1),
+    DIGIFLAZZ_API_KEY: z.string().min(1),
+    DIGIFLAZZ_API_URL: z.string().url(),
   },
 
   /**
@@ -45,6 +48,9 @@ export const env = createEnv({
     MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
     MAILGUN_FROM_EMAIL: process.env.MAILGUN_FROM_EMAIL,
     MAILGUN_REGION: process.env.MAILGUN_REGION,
+    DIGIFLAZZ_USERNAME: process.env.DIGIFLAZZ_USERNAME,
+    DIGIFLAZZ_API_KEY: process.env.DIGIFLAZZ_API_KEY,
+    DIGIFLAZZ_API_URL: process.env.DIGIFLAZZ_API_URL,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**
