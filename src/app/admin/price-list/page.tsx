@@ -53,7 +53,7 @@ export default function PriceListPage() {
       setLoading(true);
       setError(null);
       // Fetch from database instead of Digiflazz API
-      const response = await fetch(`/api/admin/products`);
+      const response = await fetch(`/api/admin/product-items`);
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -309,7 +309,11 @@ export default function PriceListPage() {
                       )}
                     </TableCell>
                     <TableCell>{item.seller_name}</TableCell>
-                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      {typeof item.category === "string"
+                        ? item.category
+                        : (item.category as any)?.name || "N/A"}
+                    </TableCell>
                     <TableCell>{item.type}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatPrice(item.price)}

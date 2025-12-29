@@ -4,78 +4,29 @@ import { db } from "@/server/db";
 
 /**
  * GET /api/admin/products
- * Fetch all products from database (for price list display)
+ * Fetch all products with their categories
  */
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
 
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
-    const search = searchParams.get("search");
-
-    // Fetch all product items with their related data
-    const productItems = await db.productItem.findMany({
+    const products = await db.product.findMany({
       include: {
-        product: {
-          include: {
-            category: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
       orderBy: {
-        createdAt: "desc",
+        sortOrder: "asc",
       },
     });
-
-    // Transform to PriceListItem format
-    const items = productItems.map((item) => {
-      const digiflazzStatus = (item as any).digiflazzStatus as string | undefined;
-      const isActiveStatus = digiflazzStatus === "active" || item.isActive;
-      return {
-        product_name: item.name,
-        category: item.product.category.name,
-        brand: item.product.brand,
-        type: "Umum", // Default, can be enhanced later
-        seller_name: "Internal", // Default
-        price: item.basePrice,
-        buyer_sku_code: item.skuCode,
-        buyer_product_status: isActiveStatus,
-        seller_product_status: isActiveStatus,
-      unlimited_stock: true,
-      stock: 0,
-      multi: true,
-      start_cut_off: "0:0",
-      end_cut_off: "0:0",
-      desc: item.product.description || "",
-      };
-    });
-
-    // Filter by category if provided
-    let filteredItems = items;
-    if (category) {
-      filteredItems = filteredItems.filter(
-        (item) => item.category.toLowerCase() === category.toLowerCase()
-      );
-    }
-
-    // Filter by search if provided
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filteredItems = filteredItems.filter(
-        (item) =>
-          item.product_name.toLowerCase().includes(searchLower) ||
-          item.buyer_sku_code.toLowerCase().includes(searchLower) ||
-          item.category.toLowerCase().includes(searchLower) ||
-          item.brand.toLowerCase().includes(searchLower)
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      data: {
-        data: filteredItems,
-      },
+      data: products,
     });
   } catch (error) {
     console.error("Get products error:", error);
@@ -90,3 +41,62 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * POST /api/admin/products
+ * Create a new product
+ */
+export async function POST(request: NextRequest) {
+  try {
+    await requireAdmin();
+
+    const body = await request.json();
+    const { name, slug, description, categoryId, image, bannerImage, isActive, sortOrder, inputFields } = body;
+
+    if (!name || !slug || !categoryId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Name, slug, and categoryId are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const product = await db.product.create({
+      data: {
+        name,
+        slug,
+        description: description || null,
+        image: image || null,
+        bannerImage: bannerImage || null,
+        categoryId,
+        isActive: isActive !== undefined ? isActive : true,
+        sortOrder: sortOrder || 0,
+        inputFields: inputFields || [],
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    console.error("Create product error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to create product",
+      },
+      { status: 500 }
+    );
+  }
+}

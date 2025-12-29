@@ -19,9 +19,9 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   name          String?
-  emailVerified Boolean  @default(false) // BetterAuth uses Boolean, not DateTime
+  emailVerified Boolean  @default(false)
   image         String?
-  password      String? // Optional for OAuth users (Google)
+  password      String?
   phone         String? // Custom field
   role          UserRole @default(USER) // Custom field
   createdAt     DateTime @default(now())
@@ -37,17 +37,17 @@ model User {
 
 model Account {
   id                    String    @id @default(uuid())
-  accountId             String // BetterAuth uses 'accountId' instead of 'providerAccountId'
-  providerId            String // BetterAuth uses 'providerId' instead of 'provider'
+  accountId             String
+  providerId            String
   userId                String
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?   @db.Text // BetterAuth uses camelCase
+  accessToken           String?   @db.Text
   refreshToken          String?   @db.Text
   idToken               String?   @db.Text
-  accessTokenExpiresAt  DateTime? // BetterAuth uses DateTime instead of Int
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
-  password              String? // For email/password accounts
+  password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -73,8 +73,8 @@ model Session {
 model Verification {
   id         String   @id @default(uuid())
   identifier String
-  value      String // BetterAuth uses 'value' instead of 'token'
-  expiresAt  DateTime // BetterAuth uses 'expiresAt' instead of 'expires'
+  value      String
+  expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -90,7 +90,6 @@ model Category {
   id        String   @id @default(uuid())
   name      String   @unique
   slug      String   @unique
-  icon      String?
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -106,11 +105,11 @@ model Product {
   categoryId   String
   name         String
   slug         String   @unique
-  brand        String // Moonton, Garena, etc.
+  /// Names of input fields required for this product, e.g. ["userId", "serverId"]
+  inputFields  String[]
   description  String?
   image        String?
   bannerImage  String?
-  inputFields  Json // e.g. ["userId", "serverId"] or ["phoneNumber"]
   instructions String? // How to find game ID
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
@@ -254,15 +253,15 @@ model Payment {
   id      String @id @default(uuid())
   orderId String @unique
 
-  // Xendit data
-  externalId     String  @unique // Your reference ID
-  invoiceId      String? @unique // Xendit invoice ID
-  invoiceUrl     String? // Payment URL
-  paymentMethod  String? // QRIS, OVO, DANA, etc.
-  paymentChannel String?
+  // Midtrans data
+  externalId     String  @unique // Your reference ID (order number)
+  transactionId  String? @unique // Midtrans transaction ID
+  paymentUrl     String? // Payment URL (Snap URL or redirect URL)
+  paymentMethod  String? // credit_card, bank_transfer, ewallet, qris, etc.
+  paymentChannel String? // bca, bni, mandiri, gopay, ovo, dana, etc.
 
   amount    Int
-  status    String // PENDING, PAID, EXPIRED
+  status    String // pending, settlement, expire, cancel, deny, refund
   paidAt    DateTime?
   expiresAt DateTime?
 
@@ -275,6 +274,7 @@ model Payment {
   order Order @relation(fields: [orderId], references: [id])
 
   @@index([externalId])
+  @@index([transactionId])
   @@map("payments")
 }
 

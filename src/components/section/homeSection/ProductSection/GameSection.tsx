@@ -6,13 +6,6 @@ import GameTabs from "./GameTabs";
 import GameGrid from "./GameGrid";
 import { productData } from "@/lib/data/productItems";
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string | null;
-}
-
 export default function GameSection() {
   const [categories, setCategories] = useState<string[]>(["Semua"]);
   const [active, setActive] = useState("Semua");
@@ -26,7 +19,7 @@ export default function GameSection() {
 
         if (data.success && Array.isArray(data.data)) {
           // Map database categories to category names
-          const categoryNames = ["Semua", ...data.data.map((cat: Category) => cat.name)];
+          const categoryNames = ["Semua", ...data.data.map((cat: { name: string }) => cat.name)];
           setCategories(categoryNames);
         }
       } catch (error) {

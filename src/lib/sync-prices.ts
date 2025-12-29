@@ -91,7 +91,6 @@ async function autoCreateProduct(digiflazzItem: PriceListItem) {
         categoryId: category.id,
         name: digiflazzItem.brand,
         slug: productSlug,
-        brand: digiflazzItem.brand,
         description: digiflazzItem.desc || undefined,
         inputFields: inputFields,
         isActive: true,
@@ -174,6 +173,7 @@ export async function syncPricesFromDigiflazz(
         skuCode: true,
         basePrice: true,
         digiflazzStatus: true,
+        isActive: true,
       },
     });
 

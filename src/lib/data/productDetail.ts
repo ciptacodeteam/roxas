@@ -2,7 +2,6 @@ export const productDetail = {
   "mobile-legends": {
     slug: "mobile-legends",
     title: "Mobile Legends",
-    brand: "Moonton",
     category: "Games",
     type: "GAME_TOPUP",
 
@@ -67,7 +66,6 @@ export const productDetail = {
   "roblox-via-login": {
     slug: "roblox-via-login",
     title: "Roblox Via Login",
-    brand: "Roblox",
     category: "Roblox",
     type: "ACCOUNT_LOGIN",
 

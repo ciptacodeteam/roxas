@@ -22,6 +22,10 @@ export const env = createEnv({
     DIGIFLAZZ_USERNAME: z.string().min(1),
     DIGIFLAZZ_API_KEY: z.string().min(1),
     DIGIFLAZZ_API_URL: z.string().url(),
+    MIDTRANS_SERVER_KEY: z.string().min(1),
+    MIDTRANS_CLIENT_KEY: z.string().min(1),
+    MIDTRANS_IS_PRODUCTION: z.string().default("false"),
+    BLOB_READ_WRITE_TOKEN: z.string().min(1),
   },
 
   /**
@@ -51,6 +55,10 @@ export const env = createEnv({
     DIGIFLAZZ_USERNAME: process.env.DIGIFLAZZ_USERNAME,
     DIGIFLAZZ_API_KEY: process.env.DIGIFLAZZ_API_KEY,
     DIGIFLAZZ_API_URL: process.env.DIGIFLAZZ_API_URL,
+    MIDTRANS_SERVER_KEY: process.env.MIDTRANS_SERVER_KEY,
+    MIDTRANS_CLIENT_KEY: process.env.MIDTRANS_CLIENT_KEY,
+    MIDTRANS_IS_PRODUCTION: process.env.MIDTRANS_IS_PRODUCTION,
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

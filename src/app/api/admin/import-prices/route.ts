@@ -113,7 +113,6 @@ export async function POST(request: NextRequest) {
                 categoryId: categoryId,
                 name: item.brand,
                 slug: productSlug,
-                brand: item.brand,
                 description: item.desc || undefined,
                 inputFields: inputFields,
                 isActive: true,

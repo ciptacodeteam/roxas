@@ -12,6 +12,11 @@ import {
   IconHelp,
   IconChartBar,
   IconCurrencyDollar,
+  IconFolder,
+  IconTags,
+  IconShoppingBag,
+  IconReceipt,
+  IconFlame,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -40,14 +45,34 @@ const data = {
       icon: IconDashboard,
     },
     {
+      title: "Categories",
+      url: "/admin/categories",
+      icon: IconFolder,
+    },
+    {
+      title: "Products",
+      url: "/admin/products",
+      icon: IconShoppingBag,
+    },
+    {
+      title: "Product Items",
+      url: "/admin/price-list",
+      icon: IconTags,
+    },
+    {
+      title: "Orders",
+      url: "/admin/orders",
+      icon: IconReceipt,
+    },
+    {
+      title: "Flash Sales",
+      url: "/admin/flash-sales",
+      icon: IconFlame,
+    },
+    {
       title: "Transactions",
       url: "/admin/transactions",
       icon: IconShoppingCart,
-    },
-    {
-      title: "Packages",
-      url: "/admin/packages",
-      icon: IconPackage,
     },
     {
       title: "Users",
@@ -55,24 +80,9 @@ const data = {
       icon: IconUsers,
     },
     {
-      title: "Staffs",
-      url: "/admin/staffs",
-      icon: IconUsersGroup,
-    },
-    {
       title: "Analytics",
       url: "/admin/analytics",
       icon: IconChartBar,
-    },
-    {
-      title: "Currency",
-      url: "/admin/currency",
-      icon: IconCurrencyDollar,
-    },
-    {
-      title: "Price List",
-      url: "/admin/price-list",
-      icon: IconPackage,
     },
   ],
   navSecondary: [
