@@ -45,7 +45,7 @@ export default function GameSection() {
         // Fallback to default categories if API fails (without "Semua")
         const fallbackCategories = ["Games", "Voucher & Hiburan", "Pulsa & PLN"];
         setCategories(fallbackCategories);
-        setActive(fallbackCategories[0]);
+        setActive(fallbackCategories[0] || "Games");
       }
     };
 

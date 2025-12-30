@@ -332,9 +332,18 @@ export default function FlashSalesPage() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: string, value: string | number) => {
+  const updateItem = (index: number, field: "productItemId" | "salePrice" | "stock", value: string | number) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
+    const currentItem = newItems[index];
+    if (!currentItem) return;
+    
+    const updatedItem: { productItemId: string; salePrice: number; stock: number } = {
+      productItemId: field === "productItemId" ? (value as string) : currentItem.productItemId,
+      salePrice: field === "salePrice" ? (value as number) : currentItem.salePrice,
+      stock: field === "stock" ? (value as number) : currentItem.stock,
+    };
+    
+    newItems[index] = updatedItem;
     setItems(newItems);
   };
 

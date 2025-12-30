@@ -380,10 +380,9 @@ export default function UsersPage() {
       const method = editingUser ? "PUT" : "POST";
 
       // Don't send password if it's empty (when editing)
-      const submitData = { ...formData };
-      if (editingUser && !submitData.password) {
-        delete submitData.password;
-      }
+      const submitData = editingUser && !formData.password
+        ? (({ password, ...rest }) => rest)(formData)
+        : { ...formData };
 
       const response = await fetch(url, {
         method,

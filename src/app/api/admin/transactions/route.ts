@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
+import { OrderStatus, Prisma } from "@prisma/client";
 
 /**
  * GET /api/admin/transactions
@@ -14,15 +15,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const paymentStatus = searchParams.get("paymentStatus");
 
-    const where: {
-      status?: string;
-      payment?: {
-        status?: string;
-      };
-    } = {};
+    const where: Prisma.OrderWhereInput = {};
 
-    if (status) {
-      where.status = status;
+    if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
+      where.status = status as OrderStatus;
     }
 
     if (paymentStatus) {
