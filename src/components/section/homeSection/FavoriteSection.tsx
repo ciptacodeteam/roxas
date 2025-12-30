@@ -1,32 +1,66 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
+import Link from "next/link";
+import { useLocale } from "next-intl";
 
 import fire from "public/gif/fire.gif";
 
+interface Product {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  slug: string;
+}
+
 export default function FavoriteSection() {
-  const games = [
-    {
-      id: 1,
-      name: "Mobile Legends",
-      corp: "Moonton",
-      image: "/img/icon1.webp",
-    },
-    { id: 2, name: "PUBG Mobile", corp: "Tencent", image: "/img/icon1.webp" },
-    {
-      id: 3,
-      name: "Genshin Impact",
-      corp: "Hoyoverse",
-      image: "/img/icon1.webp",
-    },
-    { id: 4, name: "Free Fire", corp: "Garena", image: "/img/icon1.webp" },
-    {
-      id: 5,
-      name: "Honor of Kings",
-      corp: "Tencent",
-      image: "/img/icon1.webp",
-    },
-    { id: 6, name: "Magic Chess", corp: "Moonton", image: "/img/icon1.webp" },
-  ];
+  const locale = useLocale();
+  const [games, setGames] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPopularProducts = async () => {
+      try {
+        // Fetch first 6 products as popular products
+        const response = await fetch("/api/products?limit=6");
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          setGames(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching popular products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPopularProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section>
+        <div className="mx-auto mb-16 max-w-7xl">
+          <div>
+            <div className="mb-2 flex gap-2 text-3xl">
+              <span>
+                <Image src={fire} alt="fire" className="w-8"/>
+              </span>
+              <p className="font-medium text-white">POPULER SEKARANG !</p>
+            </div>
+            <p className="text-white">Silahkan Temukan Game Kamu.</p>
+          </div>
+          <div className="mt-8 flex items-center justify-center py-12">
+            <p className="text-white">Loading...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -41,34 +75,39 @@ export default function FavoriteSection() {
           <p className="text-white">Silahkan Temukan Game Kamu.</p>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {games.map((game) => (
-            <Card
-              key={game.id}
-              className="hover:border-primary border-background relative cursor-pointer overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover bg-center py-1 transition-all"
-            >
-              {/* overlay hitam */}
-              <div className="absolute inset-0 bg-rose-950/60"></div>
+        {games.length > 0 ? (
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {games.map((game) => (
+              <Link key={game.id} href={`/${locale}/product/${game.slug}`}>
+                <Card className="hover:border-primary border-background relative cursor-pointer overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover bg-center py-1 transition-all">
+                  {/* overlay hitam */}
+                  <div className="absolute inset-0 bg-rose-950/60"></div>
 
-              <CardContent className="relative z-10 flex items-center gap-4 p-4">
-                <Image
-                  src={game.image}
-                  alt={game.name}
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 rounded-lg object-cover"
-                />
+                  <CardContent className="relative z-10 flex items-center gap-4 p-4">
+                    <Image
+                      src={game.image}
+                      alt={game.title}
+                      width={80}
+                      height={80}
+                      className="h-20 w-20 rounded-lg object-cover"
+                    />
 
-                <div className="flex flex-col justify-center">
-                  <p className="text-xl font-semibold text-white">
-                    {game.name}
-                  </p>
-                  <p className="text-sm text-white/70">{game.corp}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    <div className="flex flex-col justify-center">
+                      <p className="text-xl font-semibold text-white">
+                        {game.title}
+                      </p>
+                      <p className="text-sm text-white/70">{game.subtitle}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 flex items-center justify-center py-12">
+            <p className="text-white">No products available</p>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 import bgCharacter from "public/img/background.webp";
 import character from "public/img/character.webp";
@@ -12,13 +13,18 @@ import useEmblaCarousel from "embla-carousel-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const slides = [
-  { id: 1, img: "/img/img1.webp" },
-//   { id: 2, img: "/img/img1.webp" },
-//   { id: 3, img: "/img/img1.webp" },
-];
+interface MarketingBanner {
+  id: string;
+  title: string | null;
+  image: string;
+  link: string | null;
+  description: string | null;
+}
 
 export default function HeroSection() {
+  const [banners, setBanners] = useState<MarketingBanner[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const autoplay = useRef(
     Autoplay({
       delay: 3000,
@@ -34,6 +40,30 @@ export default function HeroSection() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const response = await fetch("/api/marketing-banners");
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          setBanners(data.data);
+        } else {
+          // Fallback to default banner if no banners found
+          setBanners([{ id: "1", title: null, image: "/img/img1.webp", link: null, description: null }]);
+        }
+      } catch (error) {
+        console.error("Error fetching marketing banners:", error);
+        // Fallback to default banner on error
+        setBanners([{ id: "1", title: null, image: "/img/img1.webp", link: null, description: null }]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBanners();
+  }, []);
+
+  useEffect(() => {
     if (!emblaApi) return;
 
     const onSelect = () => {
@@ -44,45 +74,78 @@ export default function HeroSection() {
     onSelect();
   }, [emblaApi]);
 
+  // Update carousel when banners change
+  useEffect(() => {
+    if (emblaApi && banners.length > 0) {
+      emblaApi.reInit();
+    }
+  }, [emblaApi, banners]);
+
   return (
     <section className="bg-muted-foreground pt-38 pb-14">
       <div className="mx-auto max-w-7xl">
         <div className="flex items-stretch gap-4">
           {/* LEFT SLIDER */}
           <div className="relative w-3/4 overflow-hidden rounded-2xl">
-            {/* Embla viewport */}
-            <div className="embla" ref={emblaRef}>
-              <div className="embla__container flex">
-                {slides.map((item) => (
-                  <div className="embla__slide flex-[0_0_100%]" key={item.id}>
-                    <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl">
-                      <Image
-                        src={item.img}
-                        alt=""
-                        fill
-                        priority
-                        className="object-cover"
-                      />
-                    </div>
-                  </div>
-                ))}
+            {loading ? (
+              <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
+                <div className="text-white">Loading banners...</div>
               </div>
-            </div>
+            ) : banners.length > 0 ? (
+              <>
+                {/* Embla viewport */}
+                <div className="embla" ref={emblaRef}>
+                  <div className="embla__container flex">
+                    {banners.map((banner) => {
+                      const slideContent = (
+                        <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl">
+                          <Image
+                            src={banner.image}
+                            alt={banner.title || banner.description || "Banner"}
+                            fill
+                            priority
+                            className="object-cover"
+                          />
+                        </div>
+                      );
 
-            {/* DOT INDICATOR (animasi scale) */}
-            <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => emblaApi?.scrollTo(index)}
-                  className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                    selectedIndex === index
-                      ? "bg-primary w-6 scale-110 opacity-100"
-                      : "scale-90 bg-white/40 opacity-60"
-                  } `}
-                />
-              ))}
-            </div>
+                      return (
+                        <div className="embla__slide flex-[0_0_100%]" key={banner.id}>
+                          {banner.link ? (
+                            <Link href={banner.link} className="block">
+                              {slideContent}
+                            </Link>
+                          ) : (
+                            slideContent
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* DOT INDICATOR (animasi scale) */}
+                {banners.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                    {banners.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => emblaApi?.scrollTo(index)}
+                        className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                          selectedIndex === index
+                            ? "bg-primary w-6 scale-110 opacity-100"
+                            : "scale-90 bg-white/40 opacity-60"
+                        } `}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
+                <div className="text-white">No banners available</div>
+              </div>
+            )}
           </div>
 
           {/* RIGHT CARD — tidak berubah */}

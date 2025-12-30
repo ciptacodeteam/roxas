@@ -17,6 +17,7 @@ import {
   IconShoppingBag,
   IconReceipt,
   IconFlame,
+  IconPhoto,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -68,6 +69,11 @@ const data = {
       title: "Flash Sales",
       url: "/admin/flash-sales",
       icon: IconFlame,
+    },
+    {
+      title: "Marketing Banners",
+      url: "/admin/marketing-banners",
+      icon: IconPhoto,
     },
     {
       title: "Transactions",

@@ -202,6 +202,28 @@ model FlashSaleItem {
 }
 
 // ============================================
+// MARKETING BANNER MODELS
+// ============================================
+
+model MarketingBanner {
+  id          String   @id @default(uuid())
+  title       String?  // Optional title for the banner
+  image       String   // Banner image URL
+  link        String?  // Optional link/URL when banner is clicked
+  description String?  // Optional description or alt text
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  startDate   DateTime? // Optional start date for scheduled banners
+  endDate     DateTime? // Optional end date for scheduled banners
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("marketing_banners")
+}
+
+// ============================================
 // ORDER & TRANSACTION MODELS
 // ============================================
 
