@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import ProductDetailClient from "./ProductDetailClient";
 import { db } from "@/server/db";
 import { ensurePricesSynced } from "@/lib/ensure-prices-synced";

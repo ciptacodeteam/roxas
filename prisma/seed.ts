@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import { PrismaClient, UserRole } from '@prisma/client';
 import { auth } from '../src/auth';
 

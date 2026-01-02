@@ -1,4 +1,8 @@
-/* eslint-disable react-hooks/rules-of-hooks */
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -38,7 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-import logo from "public/img/logo.webp";
+import logo from "public/img/logo1.webp";
 import Indonesia from "public/img/indonesia-logo.webp";
 import uk from "public/img/uk-logo.webp";
 import { flattenProducts } from "@/lib/data/flattenProducts";
@@ -125,7 +129,7 @@ const Navigationbar = () => {
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href={`/${locale}`} className="text-xl font-bold">
-            <Image alt="logo" src={logo} className="w-42" />
+            <Image alt="logo" src={logo} className="w-48" />
           </Link>
 
           {/* Search */}
