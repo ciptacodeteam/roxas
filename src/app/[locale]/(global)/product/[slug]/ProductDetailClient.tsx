@@ -28,7 +28,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { ChevronDown, CircleAlert, Headset, TicketPercent } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  Headset,
+  Minus,
+  Plus,
+  TicketPercent,
+} from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -98,11 +105,13 @@ export default function ProductDetailClient({
   // Use database data if available, otherwise fall back to hardcoded data
   const hardcodedProduct = productDetail[slug as keyof typeof productDetail];
   const product = productData || hardcodedProduct;
+  const [quantity, setQuantity] = useState(1);
+
+  const MIN_QTY = 1;
+  const MAX_QTY = 99;
 
   const [phone, setPhone] = useState("");
-  const [selectedItem, setSelectedItem] = useState<string | null>(
-    productData?.items?.[0]?.id || null,
-  );
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
   if (!product) {
     return <div className="mt-96 text-white">Produk tidak ditemukan</div>;
@@ -119,6 +128,16 @@ export default function ProductDetailClient({
     const priceB = b.price || b.sellPrice || 0;
     return priceA - priceB;
   });
+
+  const selectedItemData = selectedItem
+    ? items.find((item: any) => item.id === selectedItem)
+    : null;
+
+  const productPrice =
+    selectedItemData?.price || selectedItemData?.sellPrice || 0;
+
+  const serviceFee = 2000;
+  const totalPayment = productPrice * quantity + serviceFee;
 
   return (
     <section className="mt-30">
@@ -331,12 +350,63 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 3: Pilih Metode Pembayaran */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
                     3
+                  </div>
+                  <h2 className="font-medium text-white">
+                    Masukkan Jumlah Pembelian
+                  </h2>
+                </div>
+
+                {/* Form */}
+                <div className="p-4">
+                  {/* Input */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex w-full items-center gap-4">
+                      <Input
+                        placeholder="Ketik kode promo Kamu"
+                        className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400"
+                        value={quantity}
+                        min={1}
+                        readOnly
+                      />
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        className="bg-primary h-9 w-9 cursor-pointer rounded-md"
+                        onClick={() =>
+                          setQuantity((q) => Math.min(q + 1, MAX_QTY))
+                        }
+                      >
+                        <Plus />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        className="bg-primary h-9 w-9 cursor-pointer rounded-md"
+                        onClick={() =>
+                          setQuantity((q) => Math.max(q - 1, MIN_QTY))
+                        }
+                      >
+                        <Minus />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Pilih Metode Pembayaran */}
+              <div className="overflow-hidden rounded-2xl bg-gray-800">
+                {/* Header */}
+                <div className="flex items-center gap-4 bg-black/40">
+                  <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
+                    4
                   </div>
                   <h2 className="font-medium text-white">Metode Pembayaran</h2>
                 </div>
@@ -444,7 +514,7 @@ export default function ProductDetailClient({
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    4
+                    5
                   </div>
                   <h2 className="font-medium text-white">
                     Masukkan nomor WhatsApp yang dapat dihubungi
@@ -479,7 +549,7 @@ export default function ProductDetailClient({
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    5
+                    6
                   </div>
                   <h2 className="font-medium text-white">Kode Promo</h2>
                 </div>
@@ -502,43 +572,6 @@ export default function ProductDetailClient({
                         Pakai promo yang tersedia
                       </p>
                     </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 7: Bayar Sekarang */}
-              <div className="overflow-hidden rounded-2xl bg-gray-800">
-                <div className="p-4">
-                  <Button className="bg-primary w-full cursor-pointer py-6 text-lg font-semibold">
-                    Bayar Sekarang
-                  </Button>
-                  <p className="mt-4 text-center text-sm text-gray-400">
-                    Klik tombol &quot;Bayar Sekarang&quot; & ikuti instruksi
-                    selanjutnya
-                  </p>
-                </div>
-              </div>
-
-              {/* Informational Section */}
-              <div className="rounded-2xl bg-gray-800 p-6">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500/20">
-                      <span className="text-green-500">✓</span>
-                    </div>
-                    <p className="text-sm text-gray-300">
-                      Item tersebut akan secara otomatis ditambahkan ke akun
-                      Anda
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/20">
-                      <span className="text-blue-500">💬</span>
-                    </div>
-                    <p className="text-sm text-gray-300">
-                      Jika Anda mengalami kesulitan, silakan hubungi kami
-                      melalui WhatsApp
-                    </p>
                   </div>
                 </div>
               </div>
@@ -580,16 +613,81 @@ export default function ProductDetailClient({
               <Card className="overflow-hidden border-0 bg-gray-800 py-0">
                 <CardContent className="p-0">
                   <div className="flex items-center gap-6 p-4">
-                    <div className="flex gap-4 items-center">
-                      <Headset className="text-white size-8" />
+                    <div className="flex items-center gap-4">
+                      <Headset className="size-8 text-white" />
                       <div>
-                        <h1 className="text-semibold text-white">Butuh Bantuan?</h1>  
-                        <p className="text-white font-light text-sm">Kamu bisa hubungi admin disini.</p>                      
+                        <h1 className="text-semibold text-white">
+                          Butuh Bantuan?
+                        </h1>
+                        <p className="text-sm font-light text-white">
+                          Kamu bisa hubungi admin disini.
+                        </p>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="overflow-hidden border-0 bg-black/80 py-0">
+                <CardContent className="space-y-4 p-4">
+                  {!selectedItemData ? (
+                    <div className="flex h-40 items-center justify-center text-center text-sm text-white">
+                      Belum ada item produk yang dipilih
+                    </div>
+                  ) : (
+                    <>
+                      {/* Product Info */}
+                      <div className="flex gap-4">
+                        <Image
+                          src={product.image}
+                          alt={(product as any).name || (product as any).title}
+                          width={64}
+                          height={64}
+                          className="rounded-md object-cover"
+                        />
+                        <div className="flex flex-col">
+                          <p className="text-sm font-semibold text-white">
+                            {(product as any).name || (product as any).title}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {selectedItemData.name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/10" />
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between text-gray-300">
+                          <span>Harga</span>
+                          <span>Rp {productPrice.toLocaleString("id-ID")}</span>
+                        </div>
+
+                        <div className="flex justify-between text-gray-300">
+                          <span>Jumlah</span>
+                          <span>{quantity}</span>
+                        </div>
+
+                        <div className="flex justify-between text-gray-300">
+                          <span>Biaya Layanan</span>
+                          <span>Rp {serviceFee.toLocaleString("id-ID")}</span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-dashed border-white/20" />
+
+                      <div className="flex justify-between text-base font-semibold text-white">
+                        <span>Total Pembayaran</span>
+                        <span>Rp {totalPayment.toLocaleString("id-ID")}</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Button className="bg-primary w-full py-6 text-lg font-medium cursor-pointer">
+                Bayar Sekarang
+              </Button>
             </div>
           </div>
         </div>
