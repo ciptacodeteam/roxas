@@ -10,6 +10,8 @@ import { productDetail } from "@/lib/data/productDetail";
 import Image from "next/image";
 import { useState } from "react";
 
+import Lottie from "lottie-react";
+import animationData from "public/gif/successconfetti.json";
 import wdp from "public/img/wdp.webp";
 import lightning from "public/gif/lightning.gif";
 import cs from "public/gif/contact-support.gif";
@@ -53,6 +55,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type ProductData = {
   id: string;
@@ -106,6 +110,10 @@ export default function ProductDetailClient({
   const hardcodedProduct = productDetail[slug as keyof typeof productDetail];
   const product = productData || hardcodedProduct;
   const [quantity, setQuantity] = useState(1);
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [isAgree, setIsAgree] = useState(true);
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const MIN_QTY = 1;
   const MAX_QTY = 99;
@@ -140,7 +148,7 @@ export default function ProductDetailClient({
   const totalPayment = productPrice * quantity + serviceFee;
 
   return (
-    <section className="mt-30">
+    <section className="mt-12">
       {/* Banner */}
       <div className="relative aspect-16/4 w-full overflow-hidden">
         <Image
@@ -193,7 +201,8 @@ export default function ProductDetailClient({
       {/* CONTENT */}
       <div className="mx-auto my-12 max-w-7xl">
         <div className="flex gap-8">
-          <div className="w-2/3">
+          {/* KONTEN KIRI */}
+          <div className="w-2/3 shrink-0">
             {/* Form Input */}
             <div className="flex flex-col gap-8">
               <div className="overflow-hidden rounded-2xl bg-gray-800">
@@ -578,6 +587,7 @@ export default function ProductDetailClient({
             </div>
           </div>
 
+          {/* KONTEN KANAN */}
           <div className="w-1/3">
             <div className="flex flex-col gap-4">
               <Card className="overflow-hidden border-0 bg-gray-800 py-0">
@@ -685,11 +695,132 @@ export default function ProductDetailClient({
                 </CardContent>
               </Card>
 
-              <Button className="bg-primary w-full py-6 text-lg font-medium cursor-pointer">
-                Bayar Sekarang
-              </Button>
+              <Dialog open={openConfirm} onOpenChange={setOpenConfirm}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="bg-primary w-full cursor-pointer py-6 text-lg font-medium"
+                    disabled={!selectedItemData}
+                  >
+                    Bayar Sekarang
+                  </Button>
+                </DialogTrigger>
+
+                <DialogContent className="bg-foreground max-w-md rounded-2xl border-0 text-white">
+                  <DialogHeader className="text-center">
+                    <div className="mx-auto -mt-10 -mb-16 flex h-72 w-72 items-center justify-center">
+                      <Lottie
+                        animationData={animationData}
+                        loop={false}
+                        autoplay
+                      />
+                    </div>
+                    <div className="flex flex-col items-center justify-center">
+                      <DialogTitle className="mb-2 text-xl">
+                        Buat Pesanan
+                      </DialogTitle>
+                      <p className="text-sm text-gray-400">
+                        Pastikan data akun Kamu dan produk yang Kamu pilih valid
+                        dan sesuai.
+                      </p>
+                    </div>
+                  </DialogHeader>
+
+                  {/* DETAIL PESANAN */}
+                  <div className="bg-card mt-4 space-y-3 rounded-xl p-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Username</span>
+                      <span>{/* ambil dari input */}-</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Item</span>
+                      <span>{selectedItemData?.name}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Product</span>
+                      <span>{productData?.name || (product as any).title}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Jumlah</span>
+                      <span>{quantity}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Metode Pembayaran</span>
+                      <span>QRIS</span>
+                    </div>
+
+                    <div className="flex justify-between border-t border-white/10 pt-3 font-semibold">
+                      <span>Total</span>
+                      <span>Rp {totalPayment.toLocaleString("id-ID")}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      id="agree"
+                      checked={isAgree}
+                      onChange={(e) => setIsAgree(e.target.checked)}
+                      className="accent-primary mt-1 h-4 w-4 rounded border-white/30"
+                    />
+                    <label
+                      htmlFor="agree"
+                      className="leading-snug text-gray-400"
+                    >
+                      Saya menyetujui{" "}
+                      <span className="text-primary cursor-pointer">
+                        <Link href={"/termsconditions"}>
+                          syarat & ketentuan
+                        </Link>
+                      </span>{" "}
+                      dan memastikan data pesanan sudah benar.
+                    </label>
+                  </div>
+
+                  {/* FOOTER */}
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <Button
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => setOpenConfirm(false)}
+                    >
+                      Batalkan
+                    </Button>
+
+                    <Button
+                      className="bg-primary cursor-pointer"
+                      disabled={!isAgree || isLoading}
+                      onClick={() => {
+                        setIsLoading(true);
+
+                        setTimeout(() => {
+                          router.push("/payment");
+                          console.log("Submit order");
+                        }, 1000); // durasi transisi
+                      }}
+                    >
+                      {isLoading ? "Memproses..." : "Pesan Sekarang"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
+
+          {isLoading && (
+            <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/70 backdrop-blur">
+              <div className="flex flex-col items-center gap-3">
+                {/* spinner simple (tanpa lottie) */}
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+                <p className="text-sm text-gray-300">
+                  Mengarahkan ke pembayaran...
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
