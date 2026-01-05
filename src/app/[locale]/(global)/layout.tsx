@@ -39,7 +39,7 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <div className='overflow-x-hidden'>
+    <div>
       <NextIntlClientProvider locale={locale} messages={messages}>
         <main>
           <Navbar />

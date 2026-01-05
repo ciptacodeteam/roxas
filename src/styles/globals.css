@@ -125,7 +125,7 @@
   }
 }
 
-.mask-cut-top {
+/* .mask-cut-top {
   mask-image: linear-gradient(to bottom, black 90%, black 90%, transparent 61%);
   -webkit-mask-image: linear-gradient(to bottom, black 90%, black 90%, transparent 61%);
 }
@@ -174,4 +174,4 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-}
+} */

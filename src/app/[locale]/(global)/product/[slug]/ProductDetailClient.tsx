@@ -200,9 +200,9 @@ export default function ProductDetailClient({
 
       {/* CONTENT */}
       <div className="mx-auto my-12 max-w-7xl">
-        <div className="flex gap-8">
+        <div className="grid grid-cols-3 gap-8 h-full">
           {/* KONTEN KIRI */}
-          <div className="w-2/3 shrink-0">
+          <div className="col-span-2 ">
             {/* Form Input */}
             <div className="flex flex-col gap-8">
               <div className="overflow-hidden rounded-2xl bg-gray-800">
@@ -588,225 +588,233 @@ export default function ProductDetailClient({
           </div>
 
           {/* KONTEN KANAN */}
-          <div className="w-1/3">
-            <div className="flex flex-col gap-4">
-              <Card className="overflow-hidden border-0 bg-gray-800 py-0">
-                <CardContent className="p-0">
-                  <CardTitle className="p-0">
-                    <div className="flex items-center gap-4 bg-black/40">
-                      <div className="flex h-10 items-center p-4">
-                        <h2 className="font-medium text-white">
-                          Ulasan dan rating
-                        </h2>
+          <div>
+            <div className="sticky h-fit top-36 w-full">
+              <div className="flex flex-col gap-4">
+                <Card className="overflow-hidden border-0 bg-gray-800 py-0">
+                  <CardContent className="p-0">
+                    <CardTitle className="p-0">
+                      <div className="flex items-center gap-4 bg-black/40">
+                        <div className="flex h-10 items-center p-4">
+                          <h2 className="font-medium text-white">
+                            Ulasan dan rating
+                          </h2>
+                        </div>
                       </div>
-                    </div>
-                  </CardTitle>
+                    </CardTitle>
 
-                  <div className="flex items-center gap-6 p-4">
-                    <h1 className="text-5xl font-semibold text-white">
-                      4.99<span className="text-xl">/5</span>
-                    </h1>
-                    <div>
-                      <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <StarIcon key={i} />
-                        ))}
-                      </div>
-                      <p className="mt-2 text-sm text-white">
-                        Berdasarkan total 2.53jt rating
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="overflow-hidden border-0 bg-gray-800 py-0">
-                <CardContent className="p-0">
-                  <div className="flex items-center gap-6 p-4">
-                    <div className="flex items-center gap-4">
-                      <Headset className="size-8 text-white" />
+                    <div className="flex items-center gap-6 p-4">
+                      <h1 className="text-5xl font-semibold text-white">
+                        4.99<span className="text-xl">/5</span>
+                      </h1>
                       <div>
-                        <h1 className="text-semibold text-white">
-                          Butuh Bantuan?
-                        </h1>
-                        <p className="text-sm font-light text-white">
-                          Kamu bisa hubungi admin disini.
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <StarIcon key={i} />
+                          ))}
+                        </div>
+                        <p className="mt-2 text-sm text-white">
+                          Berdasarkan total 2.53jt rating
                         </p>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card className="overflow-hidden border-0 bg-black/80 py-0">
-                <CardContent className="space-y-4 p-4">
-                  {!selectedItemData ? (
-                    <div className="flex h-40 items-center justify-center text-center text-sm text-white">
-                      Belum ada item produk yang dipilih
+                <Card className="overflow-hidden border-0 bg-gray-800 py-0">
+                  <CardContent className="p-0">
+                    <div className="flex items-center gap-6 p-4">
+                      <div className="flex items-center gap-4">
+                        <Headset className="size-8 text-white" />
+                        <div>
+                          <h1 className="text-semibold text-white">
+                            Butuh Bantuan?
+                          </h1>
+                          <p className="text-sm font-light text-white">
+                            Kamu bisa hubungi admin disini.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      {/* Product Info */}
-                      <div className="flex gap-4">
-                        <Image
-                          src={product.image}
-                          alt={(product as any).name || (product as any).title}
-                          width={64}
-                          height={64}
-                          className="rounded-md object-cover"
+                  </CardContent>
+                </Card>
+
+                <Card className="overflow-hidden border-0 bg-black/80 py-0">
+                  <CardContent className="space-y-4 p-4">
+                    {!selectedItemData ? (
+                      <div className="flex h-40 items-center justify-center text-center text-sm text-white">
+                        Belum ada item produk yang dipilih
+                      </div>
+                    ) : (
+                      <>
+                        {/* Product Info */}
+                        <div className="flex gap-4">
+                          <Image
+                            src={product.image}
+                            alt={
+                              (product as any).name || (product as any).title
+                            }
+                            width={64}
+                            height={64}
+                            className="rounded-md object-cover"
+                          />
+                          <div className="flex flex-col">
+                            <p className="text-sm font-semibold text-white">
+                              {(product as any).name || (product as any).title}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {selectedItemData.name}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-white/10" />
+
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between text-gray-300">
+                            <span>Harga</span>
+                            <span>
+                              Rp {productPrice.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-gray-300">
+                            <span>Jumlah</span>
+                            <span>{quantity}</span>
+                          </div>
+
+                          <div className="flex justify-between text-gray-300">
+                            <span>Biaya Layanan</span>
+                            <span>Rp {serviceFee.toLocaleString("id-ID")}</span>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-dashed border-white/20" />
+
+                        <div className="flex justify-between text-base font-semibold text-white">
+                          <span>Total Pembayaran</span>
+                          <span>Rp {totalPayment.toLocaleString("id-ID")}</span>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Dialog open={openConfirm} onOpenChange={setOpenConfirm}>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="bg-primary w-full cursor-pointer py-6 text-lg font-medium"
+                      disabled={!selectedItemData}
+                    >
+                      Bayar Sekarang
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="bg-foreground max-w-md rounded-2xl border-0 text-white">
+                    <DialogHeader className="text-center">
+                      <div className="mx-auto -mt-10 -mb-16 flex h-72 w-72 items-center justify-center">
+                        <Lottie
+                          animationData={animationData}
+                          loop={false}
+                          autoplay
                         />
-                        <div className="flex flex-col">
-                          <p className="text-sm font-semibold text-white">
-                            {(product as any).name || (product as any).title}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {selectedItemData.name}
-                          </p>
-                        </div>
+                      </div>
+                      <div className="flex flex-col items-center justify-center">
+                        <DialogTitle className="mb-2 text-xl">
+                          Buat Pesanan
+                        </DialogTitle>
+                        <p className="text-sm text-gray-400">
+                          Pastikan data akun Kamu dan produk yang Kamu pilih
+                          valid dan sesuai.
+                        </p>
+                      </div>
+                    </DialogHeader>
+
+                    {/* DETAIL PESANAN */}
+                    <div className="bg-card mt-4 space-y-3 rounded-xl p-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Username</span>
+                        <span>{/* ambil dari input */}-</span>
                       </div>
 
-                      <div className="border-t border-white/10" />
-
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between text-gray-300">
-                          <span>Harga</span>
-                          <span>Rp {productPrice.toLocaleString("id-ID")}</span>
-                        </div>
-
-                        <div className="flex justify-between text-gray-300">
-                          <span>Jumlah</span>
-                          <span>{quantity}</span>
-                        </div>
-
-                        <div className="flex justify-between text-gray-300">
-                          <span>Biaya Layanan</span>
-                          <span>Rp {serviceFee.toLocaleString("id-ID")}</span>
-                        </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Item</span>
+                        <span>{selectedItemData?.name}</span>
                       </div>
 
-                      <div className="border-t border-dashed border-white/20" />
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Product</span>
+                        <span>
+                          {productData?.name || (product as any).title}
+                        </span>
+                      </div>
 
-                      <div className="flex justify-between text-base font-semibold text-white">
-                        <span>Total Pembayaran</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Jumlah</span>
+                        <span>{quantity}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Metode Pembayaran</span>
+                        <span>QRIS</span>
+                      </div>
+
+                      <div className="flex justify-between border-t border-white/10 pt-3 font-semibold">
+                        <span>Total</span>
                         <span>Rp {totalPayment.toLocaleString("id-ID")}</span>
                       </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                    </div>
 
-              <Dialog open={openConfirm} onOpenChange={setOpenConfirm}>
-                <DialogTrigger asChild>
-                  <Button
-                    className="bg-primary w-full cursor-pointer py-6 text-lg font-medium"
-                    disabled={!selectedItemData}
-                  >
-                    Bayar Sekarang
-                  </Button>
-                </DialogTrigger>
-
-                <DialogContent className="bg-foreground max-w-md rounded-2xl border-0 text-white">
-                  <DialogHeader className="text-center">
-                    <div className="mx-auto -mt-10 -mb-16 flex h-72 w-72 items-center justify-center">
-                      <Lottie
-                        animationData={animationData}
-                        loop={false}
-                        autoplay
+                    <div className="mt-4 flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        id="agree"
+                        checked={isAgree}
+                        onChange={(e) => setIsAgree(e.target.checked)}
+                        className="accent-primary mt-1 h-4 w-4 rounded border-white/30"
                       />
-                    </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <DialogTitle className="mb-2 text-xl">
-                        Buat Pesanan
-                      </DialogTitle>
-                      <p className="text-sm text-gray-400">
-                        Pastikan data akun Kamu dan produk yang Kamu pilih valid
-                        dan sesuai.
-                      </p>
-                    </div>
-                  </DialogHeader>
-
-                  {/* DETAIL PESANAN */}
-                  <div className="bg-card mt-4 space-y-3 rounded-xl p-4 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Username</span>
-                      <span>{/* ambil dari input */}-</span>
+                      <label
+                        htmlFor="agree"
+                        className="leading-snug text-gray-400"
+                      >
+                        Saya menyetujui{" "}
+                        <span className="text-primary cursor-pointer">
+                          <Link href={"/termsconditions"}>
+                            syarat & ketentuan
+                          </Link>
+                        </span>{" "}
+                        dan memastikan data pesanan sudah benar.
+                      </label>
                     </div>
 
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Item</span>
-                      <span>{selectedItemData?.name}</span>
+                    {/* FOOTER */}
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <Button
+                        variant="secondary"
+                        className="cursor-pointer"
+                        onClick={() => setOpenConfirm(false)}
+                      >
+                        Batalkan
+                      </Button>
+
+                      <Button
+                        className="bg-primary cursor-pointer"
+                        disabled={!isAgree || isLoading}
+                        onClick={() => {
+                          setIsLoading(true);
+
+                          setTimeout(() => {
+                            router.push("/payment");
+                            console.log("Submit order");
+                          }, 1000); // durasi transisi
+                        }}
+                      >
+                        {isLoading ? "Memproses..." : "Pesan Sekarang"}
+                      </Button>
                     </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Product</span>
-                      <span>{productData?.name || (product as any).title}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Jumlah</span>
-                      <span>{quantity}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Metode Pembayaran</span>
-                      <span>QRIS</span>
-                    </div>
-
-                    <div className="flex justify-between border-t border-white/10 pt-3 font-semibold">
-                      <span>Total</span>
-                      <span>Rp {totalPayment.toLocaleString("id-ID")}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      id="agree"
-                      checked={isAgree}
-                      onChange={(e) => setIsAgree(e.target.checked)}
-                      className="accent-primary mt-1 h-4 w-4 rounded border-white/30"
-                    />
-                    <label
-                      htmlFor="agree"
-                      className="leading-snug text-gray-400"
-                    >
-                      Saya menyetujui{" "}
-                      <span className="text-primary cursor-pointer">
-                        <Link href={"/termsconditions"}>
-                          syarat & ketentuan
-                        </Link>
-                      </span>{" "}
-                      dan memastikan data pesanan sudah benar.
-                    </label>
-                  </div>
-
-                  {/* FOOTER */}
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <Button
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => setOpenConfirm(false)}
-                    >
-                      Batalkan
-                    </Button>
-
-                    <Button
-                      className="bg-primary cursor-pointer"
-                      disabled={!isAgree || isLoading}
-                      onClick={() => {
-                        setIsLoading(true);
-
-                        setTimeout(() => {
-                          router.push("/payment");
-                          console.log("Submit order");
-                        }, 1000); // durasi transisi
-                      }}
-                    >
-                      {isLoading ? "Memproses..." : "Pesan Sekarang"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
 
