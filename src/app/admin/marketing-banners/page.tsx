@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminMarketingBanners, useCreateMarketingBanner, useUpdateMarketingBanner, useDeleteMarketingBanner } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -58,8 +59,6 @@ interface MarketingBanner {
 }
 
 export default function MarketingBannersPage() {
-  const [banners, setBanners] = useState<MarketingBanner[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -79,28 +78,55 @@ export default function MarketingBannersPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  const fetchBanners = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/marketing-banners");
-      const data = await response.json();
+  // Use TanStack Query hooks
+  const { data: banners = [], isLoading: loading } = useAdminMarketingBanners();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch marketing banners");
-      }
+  const createBannerMutation = useCreateMarketingBanner({
+    onSuccess: () => {
+      toast.success("Banner created successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create banner");
+    },
+  });
 
-      setBanners(data.data || []);
-    } catch (err) {
-      console.error("Error fetching marketing banners:", err);
-      toast.error("Failed to load marketing banners");
-      setBanners([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateBannerMutation = useUpdateMarketingBanner({
+    onSuccess: () => {
+      toast.success("Banner updated successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update banner");
+    },
+  });
 
-  useEffect(() => {
-    fetchBanners();
+  const deleteBannerMutation = useDeleteMarketingBanner({
+    onSuccess: () => {
+      toast.success("Banner deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setBannerToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete banner");
+    },
+  });
+
+  const resetForm = useCallback(() => {
+    setEditingBanner(null);
+    setFormData({
+      title: "",
+      image: "",
+      link: "",
+      description: "",
+      isActive: true,
+      sortOrder: 0,
+      startDate: "",
+      endDate: "",
+    });
+    setImagePreview(null);
   }, []);
 
   const handleImageUpload = async (file: File) => {
@@ -155,30 +181,10 @@ export default function MarketingBannersPage() {
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!bannerToDelete) return;
-
-    try {
-      const response = await fetch(`/api/admin/marketing-banners/${bannerToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to delete marketing banner");
-      }
-
-      toast.success("Marketing banner deleted");
-      setIsDeleteDialogOpen(false);
-      setBannerToDelete(null);
-      fetchBanners();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete marketing banner"
-      );
-    }
-  }, [bannerToDelete]);
+    deleteBannerMutation.mutate(bannerToDelete.id);
+  }, [bannerToDelete, deleteBannerMutation]);
 
   const columns = useMemo<ColumnDef<MarketingBanner>[]>(
     () => [
@@ -372,18 +378,7 @@ export default function MarketingBannersPage() {
   });
 
   const handleCreate = () => {
-    setEditingBanner(null);
-    setFormData({
-      title: "",
-      image: "",
-      link: "",
-      description: "",
-      isActive: true,
-      sortOrder: 0,
-      startDate: "",
-      endDate: "",
-    });
-    setImagePreview(null);
+    resetForm();
     setIsDialogOpen(true);
   };
 
@@ -394,44 +389,22 @@ export default function MarketingBannersPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (!formData.image) {
-        toast.error("Image is required");
-        return;
-      }
+  const handleSubmit = () => {
+    if (!formData.image) {
+      toast.error("Image is required");
+      return;
+    }
 
-      const url = editingBanner
-        ? `/api/admin/marketing-banners/${editingBanner.id}`
-        : "/api/admin/marketing-banners";
-      const method = editingBanner ? "PUT" : "POST";
+    const submitData = {
+      ...formData,
+      startDate: formData.startDate || null,
+      endDate: formData.endDate || null,
+    };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to save marketing banner");
-      }
-
-      toast.success(
-        editingBanner ? "Marketing banner updated" : "Marketing banner created"
-      );
-      setIsDialogOpen(false);
-      setImagePreview(null);
-      fetchBanners();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save marketing banner"
-      );
+    if (editingBanner) {
+      updateBannerMutation.mutate({ id: editingBanner.id, data: submitData });
+    } else {
+      createBannerMutation.mutate(submitData);
     }
   };
 

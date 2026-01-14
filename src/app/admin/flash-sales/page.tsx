@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminFlashSales, useAdminProductItemsSelect, useCreateFlashSale, useUpdateFlashSale, useDeleteFlashSale } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -90,9 +91,6 @@ interface ProductItem {
 }
 
 export default function FlashSalesPage() {
-  const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
-  const [productItems, setProductItems] = useState<ProductItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -107,42 +105,52 @@ export default function FlashSalesPage() {
   });
   const [items, setItems] = useState<Array<{ productItemId: string; salePrice: number; stock: number }>>([]);
 
-  const fetchFlashSales = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/flash-sales");
-      const data = await response.json();
+  // Use TanStack Query hooks
+  const { data: flashSales = [], isLoading: loading } = useAdminFlashSales();
+  const { data: productItems = [] } = useAdminProductItemsSelect();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch flash sales");
-      }
+  const createFlashSaleMutation = useCreateFlashSale({
+    onSuccess: () => {
+      toast.success("Flash sale created successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create flash sale");
+    },
+  });
 
-      setFlashSales(data.data || []);
-    } catch (err) {
-      console.error("Error fetching flash sales:", err);
-      toast.error("Failed to load flash sales");
-      setFlashSales([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateFlashSaleMutation = useUpdateFlashSale({
+    onSuccess: () => {
+      toast.success("Flash sale updated successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update flash sale");
+    },
+  });
 
-  const fetchProductItems = async () => {
-    try {
-      const response = await fetch("/api/admin/product-items/select");
-      const data = await response.json();
+  const deleteFlashSaleMutation = useDeleteFlashSale({
+    onSuccess: () => {
+      toast.success("Flash sale deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setFlashSaleToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete flash sale");
+    },
+  });
 
-      if (data.success) {
-        setProductItems(data.data || []);
-      }
-    } catch (err) {
-      console.error("Error fetching product items:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchFlashSales();
-    fetchProductItems();
+  const resetForm = useCallback(() => {
+    setEditingFlashSale(null);
+    setFormData({
+      name: "",
+      startTime: "",
+      endTime: "",
+      isActive: true,
+    });
+    setItems([]);
   }, []);
 
   const handleEdit = useCallback((flashSale: FlashSale) => {
@@ -166,30 +174,10 @@ export default function FlashSalesPage() {
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!flashSaleToDelete) return;
-
-    try {
-      const response = await fetch(`/api/admin/flash-sales/${flashSaleToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to delete flash sale");
-      }
-
-      toast.success("Flash sale deleted");
-      setIsDeleteDialogOpen(false);
-      setFlashSaleToDelete(null);
-      fetchFlashSales();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete flash sale"
-      );
-    }
-  }, [flashSaleToDelete]);
+    deleteFlashSaleMutation.mutate(flashSaleToDelete.id);
+  }, [flashSaleToDelete, deleteFlashSaleMutation]);
 
   const columns = useMemo<ColumnDef<FlashSale>[]>(
     () => [
@@ -313,14 +301,7 @@ export default function FlashSalesPage() {
   });
 
   const handleCreate = () => {
-    setEditingFlashSale(null);
-    setFormData({
-      name: "",
-      startTime: "",
-      endTime: "",
-      isActive: true,
-    });
-    setItems([]);
+    resetForm();
     setIsDialogOpen(true);
   };
 
@@ -347,47 +328,26 @@ export default function FlashSalesPage() {
     setItems(newItems);
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (!formData.name || !formData.startTime || !formData.endTime) {
-        toast.error("Name, start time, and end time are required");
-        return;
-      }
+  const handleSubmit = () => {
+    if (!formData.name || !formData.startTime || !formData.endTime) {
+      toast.error("Name, start time, and end time are required");
+      return;
+    }
 
-      if (items.length === 0) {
-        toast.error("At least one item is required");
-        return;
-      }
+    if (items.length === 0) {
+      toast.error("At least one item is required");
+      return;
+    }
 
-      const url = editingFlashSale
-        ? `/api/admin/flash-sales/${editingFlashSale.id}`
-        : "/api/admin/flash-sales";
-      const method = editingFlashSale ? "PUT" : "POST";
+    const submitData = {
+      ...formData,
+      items: items.filter(item => item.productItemId),
+    };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          items: items.filter(item => item.productItemId),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to save flash sale");
-      }
-
-      toast.success(
-        editingFlashSale ? "Flash sale updated" : "Flash sale created"
-      );
-      setIsDialogOpen(false);
-      fetchFlashSales();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save flash sale"
-      );
+    if (editingFlashSale) {
+      updateFlashSaleMutation.mutate({ id: editingFlashSale.id, data: submitData });
+    } else {
+      createFlashSaleMutation.mutate(submitData);
     }
   };
 

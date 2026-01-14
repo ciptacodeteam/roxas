@@ -8,8 +8,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession, signIn } from "@/lib/auth-client";
+import { useUserProfile, useUpdateProfile } from "@/lib/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,23 +48,61 @@ export default function ProfileContent() {
   const { data: session, isPending } = useSession();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [userData, setUserData] = useState<{
-    name: string | null;
-    phone: string | null;
-    image: string | null;
-    hasPassword?: boolean;
-    isOAuthOnly?: boolean;
-    emailVerified?: boolean | null;
-    hasGoogleAccount?: boolean;
-  } | null>(null);
   const [hasShownWelcomeToast, setHasShownWelcomeToast] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [isChangingPasswordLoading, setIsChangingPasswordLoading] = useState(false);
+
+  // Use TanStack Query hook for profile data
+  const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile({
+    enabled: !!session?.user,
+  });
+
+  // Use userData from profile query or fallback to session
+  const userData = useMemo(() => {
+    if (profileData) {
+      return {
+        name: profileData.name,
+        phone: profileData.phone,
+        image: profileData.image,
+        hasPassword: profileData.hasPassword,
+        isOAuthOnly: profileData.isOAuthOnly,
+        emailVerified: profileData.emailVerified,
+        hasGoogleAccount: profileData.hasGoogleAccount,
+      };
+    }
+    if (session?.user) {
+      return {
+        name: session.user.name || null,
+        phone: null,
+        image: session.user.image || null,
+      };
+    }
+    return null;
+  }, [profileData, session]);
+
+  const updateProfileMutation = useUpdateProfile({
+    onSuccess: (data) => {
+      toast.success("Profil Diperbarui", {
+        description: "Perubahan profil Anda berhasil disimpan!",
+      });
+      setIsEditing(false);
+      // Profile will be automatically refetched via query invalidation
+    },
+    onError: (error) => {
+      toast.error("Gagal Memperbarui", {
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui profil. Silakan coba lagi.",
+      });
+    },
+  });
+
+  const isLoading = updateProfileMutation.isPending || profileLoading || isResendingVerification || isChangingPasswordLoading;
 
   // Track if component is mounted to avoid hydration mismatch
   useEffect(() => {
@@ -90,10 +130,9 @@ export default function ProfileContent() {
 
   const phoneValue = watch("phone");
 
-  // Fetch user data from database to get phone number
+  // Handle query params and toasts
   useEffect(() => {
-    if (session?.user) {
-      // Check if user just logged in (from query params)
+    if (session?.user && !hasShownWelcomeToast) {
       const fromLogin = searchParams?.get("from") === "login";
       const fromGoogle = searchParams?.get("from") === "google";
       const verified = searchParams?.get("verified") === "true";
@@ -101,7 +140,7 @@ export default function ProfileContent() {
       const oauthError = searchParams?.get("error");
       
       // Check for OAuth account linking error
-      if (oauthError === "OAuthAccountNotLinked" && !hasShownWelcomeToast) {
+      if (oauthError === "OAuthAccountNotLinked") {
         toast.error("Akun Google Sudah Terhubung", {
           description: "Akun Google ini sudah terhubung dengan akun lain. Tidak dapat menghubungkan.",
         });
@@ -111,49 +150,19 @@ export default function ProfileContent() {
         newUrl.searchParams.delete("error");
         newUrl.searchParams.delete("google_linked");
         window.history.replaceState({}, "", newUrl.toString());
-      } else if (googleLinked && !oauthError && !hasShownWelcomeToast) {
+      } else if (googleLinked && !oauthError) {
         toast.success("Akun Google Terhubung", {
           description: "Akun Google Anda berhasil dihubungkan! Anda sekarang bisa login dengan Google.",
         });
         setHasShownWelcomeToast(true);
-        // Refresh user data to get updated hasGoogleAccount status
-        fetch("/api/user/profile")
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) {
-              setUserData({
-                name: data.user.name,
-                phone: data.user.phone,
-                image: data.user.image,
-                hasPassword: data.user.hasPassword,
-                isOAuthOnly: data.user.isOAuthOnly,
-                emailVerified: data.user.emailVerified,
-                hasGoogleAccount: data.user.hasGoogleAccount,
-              });
-            }
-          });
-      } else if (verified && !hasShownWelcomeToast) {
+        refetchProfile();
+      } else if (verified) {
         toast.success("Email Terverifikasi", {
           description: "Email Anda berhasil diverifikasi! Akun Anda sekarang aktif.",
         });
         setHasShownWelcomeToast(true);
-        // Refresh user data to get updated emailVerified status
-        fetch("/api/user/profile")
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) {
-              setUserData({
-                name: data.user.name,
-                phone: data.user.phone,
-                image: data.user.image,
-                hasPassword: data.user.hasPassword,
-                isOAuthOnly: data.user.isOAuthOnly,
-                emailVerified: data.user.emailVerified,
-                hasGoogleAccount: data.user.hasGoogleAccount,
-              });
-            }
-          });
-      } else if ((fromLogin || fromGoogle) && !hasShownWelcomeToast) {
+        refetchProfile();
+      } else if (fromLogin || fromGoogle) {
         if (fromGoogle) {
           toast.success("Login Google Berhasil", {
             description: "Selamat datang! Akun Google Anda berhasil terhubung.",
@@ -165,95 +174,24 @@ export default function ProfileContent() {
         }
         setHasShownWelcomeToast(true);
       }
-
-      fetch("/api/user/profile")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setUserData({
-              name: data.user.name,
-              phone: data.user.phone,
-              image: data.user.image,
-              hasPassword: data.user.hasPassword,
-              isOAuthOnly: data.user.isOAuthOnly,
-              emailVerified: data.user.emailVerified,
-              hasGoogleAccount: data.user.hasGoogleAccount,
-            });
-            setValue("name", data.user.name || "");
-            setValue("phone", data.user.phone || "");
-          }
-        })
-        .catch(() => {
-          // Fallback to session data
-          setUserData({
-            name: session.user.name || null,
-            phone: null,
-            image: session.user.image || null,
-          });
-          setValue("name", session.user.name || "");
-        });
     }
-  }, [session, setValue, searchParams, hasShownWelcomeToast]);
+  }, [session, searchParams, hasShownWelcomeToast, refetchProfile]);
 
-  const onSubmit = async (data: ProfileFormData) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error("Gagal", {
-          description: result.message || "Gagal memperbarui profil",
-        });
-        return;
-      }
-
-      // BetterAuth automatically refreshes session, no need to manually update
-      
-      // Refresh full user data to get all fields including emailVerified
-      const profileResponse = await fetch("/api/user/profile");
-      const profileData = await profileResponse.json();
-      if (profileData.success) {
-        setUserData({
-          name: profileData.user.name,
-          phone: profileData.user.phone,
-          image: profileData.user.image,
-          hasPassword: profileData.user.hasPassword,
-          isOAuthOnly: profileData.user.isOAuthOnly,
-          emailVerified: profileData.user.emailVerified,
-          hasGoogleAccount: profileData.user.hasGoogleAccount,
-        });
-      } else {
-        // Fallback to result data if profile fetch fails
-        setUserData({
-          name: result.user.name,
-          phone: result.user.phone,
-          image: result.user.image,
-          emailVerified: (result.user as any).emailVerified ?? userData?.emailVerified,
-        });
-      }
-
-      setIsEditing(false);
-      toast.success("Profil Diperbarui", {
-        description: "Perubahan profil Anda berhasil disimpan!",
-      });
-    } catch (err) {
-      toast.error("Gagal Memperbarui", {
-        description: "Terjadi kesalahan saat memperbarui profil. Silakan coba lagi.",
-      });
-    } finally {
-      setIsLoading(false);
+  // Set form values when profile data changes
+  useEffect(() => {
+    if (userData) {
+      setValue("name", userData.name || "");
+      setValue("phone", userData.phone || "");
     }
+  }, [userData, setValue]);
+
+  const onSubmit = (data: ProfileFormData) => {
+    updateProfileMutation.mutate(data);
   };
 
   const onPasswordSubmit = async (data: ChangePasswordFormData) => {
-    setIsLoading(true);
     try {
+      setIsChangingPasswordLoading(true);
       const response = await fetch("/api/user/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -273,22 +211,11 @@ export default function ProfileContent() {
       resetPassword();
       
       // Refresh user data to update hasPassword status
-      const profileResponse = await fetch("/api/user/profile");
-      const profileData = await profileResponse.json();
-      if (profileData.success) {
-        setUserData({
-          name: profileData.user.name,
-          phone: profileData.user.phone,
-          image: profileData.user.image,
-          hasPassword: profileData.user.hasPassword,
-          isOAuthOnly: profileData.user.isOAuthOnly,
-          emailVerified: profileData.user.emailVerified,
-          hasGoogleAccount: profileData.user.hasGoogleAccount,
-        });
-      }
+      const previousHasPassword = userData?.hasPassword;
+      await refetchProfile();
       
-      toast.success(userData?.hasPassword ? "Kata Sandi Diubah" : "Kata Sandi Diatur", {
-        description: userData?.hasPassword 
+      toast.success(previousHasPassword ? "Kata Sandi Diubah" : "Kata Sandi Diatur", {
+        description: previousHasPassword 
           ? "Kata sandi Anda berhasil diubah!" 
           : "Kata sandi Anda berhasil diatur! Anda sekarang bisa login dengan email dan password.",
       });
@@ -297,7 +224,7 @@ export default function ProfileContent() {
         description: "Terjadi kesalahan saat mengubah kata sandi. Silakan coba lagi.",
       });
     } finally {
-      setIsLoading(false);
+      setIsChangingPasswordLoading(false);
     }
   };
 
@@ -351,7 +278,7 @@ export default function ProfileContent() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    setIsLoading(true);
+                    setIsResendingVerification(true);
                     const loadingToast = toast.loading("Mengirim email verifikasi...", {
                       description: "Mohon tunggu sebentar...",
                     });
@@ -374,7 +301,7 @@ export default function ProfileContent() {
                       description: "Terjadi kesalahan. Silakan coba lagi.",
                     });
                   } finally {
-                    setIsLoading(false);
+                    setIsResendingVerification(false);
                   }
                 }}
                 disabled={isLoading}

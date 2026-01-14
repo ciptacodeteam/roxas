@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,8 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminProducts, useAdminCategories, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/lib/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -66,9 +68,7 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -90,42 +90,42 @@ export default function ProductsPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/products");
-      const data = await response.json();
+  // Use TanStack Query hooks
+  const { data: products = [], isLoading: loading } = useAdminProducts();
+  const { data: categories = [] } = useAdminCategories();
+  
+  const createProductMutation = useCreateProduct({
+    onSuccess: () => {
+      toast.success("Product created successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create product");
+    },
+  });
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch products");
-      }
+  const updateProductMutation = useUpdateProduct({
+    onSuccess: () => {
+      toast.success("Product updated successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update product");
+    },
+  });
 
-      setProducts(data.data || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch("/api/admin/categories");
-      const data = await response.json();
-      if (data.success) {
-        setCategories(data.data || []);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
+  const deleteProductMutation = useDeleteProduct({
+    onSuccess: () => {
+      toast.success("Product deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setProductToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete product");
+    },
+  });
 
   const handleImageUpload = async (file: File, type: "image" | "banner") => {
     try {
@@ -172,19 +172,7 @@ export default function ProductsPage() {
   };
 
   const handleCreate = () => {
-    setEditingProduct(null);
-    setFormData({
-      name: "",
-      slug: "",
-      description: "",
-      categoryId: categories[0]?.id || "",
-      image: "",
-      bannerImage: "",
-      isActive: true,
-      sortOrder: 0,
-    });
-    setImagePreview(null);
-    setBannerPreview(null);
+    resetForm();
     setIsDialogOpen(true);
   };
 
@@ -210,28 +198,26 @@ export default function ProductsPage() {
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const resetForm = useCallback(() => {
+    setEditingProduct(null);
+    setFormData({
+      name: "",
+      slug: "",
+      description: "",
+      categoryId: categories[0]?.id || "",
+      image: "",
+      bannerImage: "",
+      isActive: true,
+      sortOrder: 0,
+    });
+    setImagePreview(null);
+    setBannerPreview(null);
+  }, [categories]);
+
+  const handleDeleteConfirm = useCallback(() => {
     if (!productToDelete) return;
-
-    try {
-      const response = await fetch(`/api/admin/products/${productToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to delete product");
-      }
-
-      toast.success("Product deleted");
-      setIsDeleteDialogOpen(false);
-      setProductToDelete(null);
-      fetchProducts();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete product");
-    }
-  }, [productToDelete]);
+    deleteProductMutation.mutate(productToDelete.id);
+  }, [productToDelete, deleteProductMutation]);
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
@@ -437,31 +423,10 @@ export default function ProductsPage() {
   });
 
   const handleSubmit = async () => {
-    try {
-      const url = editingProduct
-        ? `/api/admin/products/${editingProduct.id}`
-        : "/api/admin/products";
-      const method = editingProduct ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to save product");
-      }
-
-      toast.success(editingProduct ? "Product updated" : "Product created");
-      setIsDialogOpen(false);
-      setImagePreview(null);
-      setBannerPreview(null);
-      fetchProducts();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save product");
+    if (editingProduct) {
+      updateProductMutation.mutate({ id: editingProduct.id, data: formData });
+    } else {
+      createProductMutation.mutate(formData);
     }
   };
 

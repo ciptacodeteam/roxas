@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { getServerAuthSession } from "@/auth";
+import { OrderStatus, DigiflazzStatus } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,23 +44,22 @@ export async function GET(request: NextRequest) {
       
       // If Digiflazz transaction exists, use its status as primary source
       if (order.digiflazzTx?.status) {
-        const digiflazzStatus = order.digiflazzTx.status.toLowerCase();
-        if (digiflazzStatus === "sukses") {
+        if (order.digiflazzTx.status === DigiflazzStatus.SUKSES) {
           status = "Sukses";
-        } else if (digiflazzStatus === "gagal") {
+        } else if (order.digiflazzTx.status === DigiflazzStatus.GAGAL) {
           status = "Kadaluarsa";
-        } else if (digiflazzStatus === "pending") {
+        } else if (order.digiflazzTx.status === DigiflazzStatus.PENDING) {
           status = "Belum Dibayar";
         }
       } else {
         // Fallback to Order status if no Digiflazz transaction
-        if (order.status === "COMPLETED") {
+        if (order.status === OrderStatus.COMPLETED) {
           status = "Sukses";
-        } else if (order.status === "EXPIRED") {
+        } else if (order.status === OrderStatus.EXPIRED) {
           status = "Kadaluarsa";
-        } else if (order.status === "PENDING" || order.status === "PAID" || order.status === "PROCESSING") {
+        } else if (order.status === OrderStatus.PENDING || order.status === OrderStatus.PAID || order.status === OrderStatus.PROCESSING) {
           status = "Belum Dibayar";
-        } else if (order.status === "FAILED" || order.status === "REFUNDED") {
+        } else if (order.status === OrderStatus.FAILED || order.status === OrderStatus.REFUNDED) {
           status = "Kadaluarsa";
         }
       }

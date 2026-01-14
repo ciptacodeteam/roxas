@@ -25,6 +25,17 @@ export const auth = betterAuth({
   secret: env.AUTH_SECRET,
   baseURL: env.AUTH_URL || "http://localhost:3000",
   basePath: "/api/auth",
+  user: {
+    // Include additional user fields in the session
+    additionalFields: {
+      role: {
+        type: "string",
+        defaultValue: "USER",
+        required: false,
+        input: false, // Don't allow setting via API
+      },
+    },
+  },
   // Note: Role is set via Prisma default value
   // Email verification for OAuth users can be handled via database triggers or in API routes
 });
@@ -43,11 +54,17 @@ export async function getServerAuthSession() {
       return null;
     }
 
-    // Fetch user from database to get role (BetterAuth might not include custom fields in session)
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
+    // Try to get role from session first (faster)
+    let userRole = (session.user as any).role as UserRole | undefined;
+    
+    // If role not in session, fetch from database (fallback for older sessions)
+    if (!userRole) {
+      const user = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
+      userRole = user?.role || UserRole.USER;
+    }
 
     // Transform BetterAuth session to match NextAuth format for compatibility
     return {
@@ -56,7 +73,7 @@ export async function getServerAuthSession() {
         email: session.user.email ?? null,
         name: session.user.name ?? null,
         image: session.user.image ?? null,
-        role: user?.role || UserRole.USER,
+        role: userRole,
       },
       expires: session.session.expiresAt.toISOString(),
     };

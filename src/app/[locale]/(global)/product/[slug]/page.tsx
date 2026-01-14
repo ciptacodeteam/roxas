@@ -18,7 +18,15 @@ export default async function ProductDetailPage({
   let product = await db.product.findUnique({
     where: { slug },
     include: {
-      category: true,
+      category: {
+        include: {
+          instructionImages: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
+        },
+      },
       items: {
         where: {
           isActive: true,
@@ -43,7 +51,15 @@ export default async function ProductDetailPage({
       product = await db.product.findUnique({
         where: { slug: altSlug },
         include: {
-          category: true,
+          category: {
+            include: {
+              instructionImages: {
+                orderBy: {
+                  sortOrder: "asc",
+                },
+              },
+            },
+          },
           items: {
             where: {
               isActive: true,
@@ -97,11 +113,19 @@ export default async function ProductDetailPage({
         .map((item) => ({
           id: item.id,
           name: item.name,
+          iconImage: item.iconImage,
           price: item.sellPrice,
           basePrice: item.basePrice,
+          normalPrice: item.normalPrice,
+          discountedPrice: item.discountedPrice,
           skuCode: item.skuCode,
         }))
         .sort((a, b) => a.price - b.price), // Sort by price ascending
+      instructionImages: product.category.instructionImages.map((img) => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        altText: img.altText,
+      })),
     };
   }
 

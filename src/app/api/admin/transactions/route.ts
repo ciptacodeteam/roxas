@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
-import { OrderStatus, Prisma } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 /**
  * GET /api/admin/transactions
@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
       where.status = status as OrderStatus;
     }
 
-    if (paymentStatus) {
+    if (paymentStatus && Object.values(PaymentStatus).includes(paymentStatus.toUpperCase() as PaymentStatus)) {
       where.payment = {
-        status: paymentStatus,
+        status: paymentStatus.toUpperCase() as PaymentStatus,
       };
     }
 

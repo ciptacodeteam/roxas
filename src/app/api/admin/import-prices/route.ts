@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
+import { DigiflazzItemStatus, PriceSyncType, PriceSyncStatus } from "@prisma/client";
 
 interface PriceListItem {
   product_name: string;
@@ -132,8 +133,8 @@ export async function POST(request: NextRequest) {
 
         const isActive =
           item.buyer_product_status && item.seller_product_status;
-        const status = isActive ? "active" : "inactive";
-        const sellPrice = Math.round(item.price * 1.05); // 5% markup
+        const status = isActive ? DigiflazzItemStatus.ACTIVE : DigiflazzItemStatus.INACTIVE;
+        const normalPrice = Math.round(item.price * 1.05); // 5% markup
 
         if (existingItem) {
           // Update existing item
@@ -141,7 +142,11 @@ export async function POST(request: NextRequest) {
             where: { id: existingItem.id },
             data: {
               basePrice: item.price,
-              sellPrice: sellPrice,
+              normalPrice: normalPrice,
+              // Only update sellPrice if it was previously set to the old normalPrice
+              sellPrice: existingItem.sellPrice === existingItem.normalPrice 
+                ? normalPrice 
+                : existingItem.sellPrice,
               digiflazzStatus: status,
               lastSyncedAt: now,
               isActive: isActive ? existingItem.isActive : false,
@@ -156,7 +161,8 @@ export async function POST(request: NextRequest) {
               name: item.product_name,
               skuCode: item.buyer_sku_code,
               basePrice: item.price,
-              sellPrice: sellPrice,
+              normalPrice: normalPrice,
+              sellPrice: normalPrice, // Initially set to normalPrice
               digiflazzStatus: status,
               lastSyncedAt: now,
               isActive: isActive,
@@ -174,8 +180,8 @@ export async function POST(request: NextRequest) {
     // Create sync record
     await db.priceSync.create({
       data: {
-        syncType: "full",
-        status: "success",
+        syncType: PriceSyncType.FULL,
+        status: PriceSyncStatus.SUCCESS,
         itemsSynced: items.length,
         itemsUpdated: itemsUpdated,
         itemsCreated: itemsCreated,

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useCategories, useProducts } from "@/lib/queries";
 import GameTabs from "./GameTabs";
 import GameGrid from "./GameGrid";
 
@@ -20,78 +21,61 @@ interface Product {
 }
 
 export default function GameSection() {
-  const [categories, setCategories] = useState<string[]>([]);
-  const [active, setActive] = useState<string>("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Fetch categories using TanStack Query
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
 
-  // Fetch categories on mount
+  // Extract category names
+  const categories = categoriesData?.map((cat: { name: string }) => cat.name) || [];
+  
+  // Fallback to default categories if API fails
+  const displayCategories = categories.length > 0 
+    ? categories 
+    : ["Games", "Voucher & Hiburan", "Pulsa & PLN"];
+
+  // Set default active category
+  const [active, setActive] = useState<string>(displayCategories[0] || "");
+  
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch("/api/categories");
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-          // Map database categories to category names (without "Semua")
-          const categoryNames = data.data.map((cat: { name: string }) => cat.name);
-          setCategories(categoryNames);
-          
-          // Set the first category as default
-          setActive(categoryNames[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        // Fallback to default categories if API fails (without "Semua")
-        const fallbackCategories = ["Games", "Voucher & Hiburan", "Pulsa & PLN"];
-        setCategories(fallbackCategories);
-        setActive(fallbackCategories[0] || "Games");
-      }
-    };
-
-    fetchCategories();
-  }, []);
+    if (displayCategories.length > 0 && !displayCategories.includes(active)) {
+      setActive(displayCategories[0]);
+    }
+  }, [displayCategories, active]);
 
   // Fetch products when active category changes
-  useEffect(() => {
-    if (!active) return; // Don't fetch if no active category is set
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useProducts(
+    active ? { categoryName: active } : undefined,
+    {
+      enabled: !!active, // Only fetch when active category is set
+    }
+  );
 
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        // Always filter by category name
-        const url = `/api/products?categoryName=${encodeURIComponent(active)}`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          setProducts(data.data);
-        } else {
-          setProducts([]);
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [active]);
+  const loading = categoriesLoading || productsLoading;
+  const error = categoriesError || productsError;
 
   return (
     <section className="mx-auto max-w-7xl mb-16">
       {!loading && (
         <>
-          <GameTabs categories={categories} active={active} setActive={setActive} />
+          <GameTabs categories={displayCategories} active={active} setActive={setActive} />
           <GameGrid items={products} />
         </>
       )}
       {loading && (
         <div className="flex items-center justify-center py-12">
           <p className="text-white">Loading products...</p>
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-red-400">Error loading products. Please try again.</p>
         </div>
       )}
     </section>

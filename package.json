@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "import:prices": "tsx src/scripts/import-digiflazz-data.ts",
     "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "postinstall": "prisma generate",

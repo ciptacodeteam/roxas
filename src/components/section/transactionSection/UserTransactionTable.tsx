@@ -1,52 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useUserTransactions } from "@/lib/queries";
 import type { TransactionData } from "@/lib/data/transactionData";
 
 export default function UserTransactionTable() {
   const [search, setSearch] = useState("");
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { data: transactionsData, isLoading: loading, error: queryError, refetch } = useUserTransactions();
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch("/api/user/transactions");
-        const data = await response.json();
+  // Map API response to TransactionData format
+  const transactions: TransactionData[] = useMemo(() => {
+    if (!transactionsData || !Array.isArray(transactionsData)) return [];
+    
+    return transactionsData.map((tx: any) => ({
+      faktur: tx.faktur,
+      kategori: tx.kategori,
+      layanan: tx.layanan,
+      tanggal: tx.tanggal,
+      status: tx.status,
+    }));
+  }, [transactionsData]);
 
-        if (!response.ok || !data.success) {
-          throw new Error(data.message || "Failed to fetch transactions");
-        }
+  const error = queryError 
+    ? (queryError instanceof Error ? queryError.message : "Failed to load transactions")
+    : null;
 
-        // Map API response to TransactionData format
-        const mappedTransactions: TransactionData[] = data.transactions.map((tx: any) => ({
-          faktur: tx.faktur,
-          kategori: tx.kategori,
-          layanan: tx.layanan,
-          tanggal: tx.tanggal,
-          status: tx.status,
-        }));
-
-        setTransactions(mappedTransactions);
-      } catch (err) {
-        console.error("Error fetching transactions:", err);
-        setError(err instanceof Error ? err.message : "Failed to load transactions");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, []);
-
-  const filteredData = transactions.filter((item) =>
-    item.faktur.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredData = useMemo(() => {
+    return transactions.filter((item) =>
+      item.faktur.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [transactions, search]);
 
   if (loading) {
     return (
@@ -67,12 +54,12 @@ export default function UserTransactionTable() {
         <div className="bg-card mb-14 rounded-lg p-8">
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-400 mb-2">❌ {error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-white hover:bg-rose-600"
+            <Button
+              onClick={() => refetch()}
+              className="mt-4 bg-rose-500 hover:bg-rose-600"
             >
               Coba Lagi
-            </button>
+            </Button>
           </div>
         </div>
       </div>

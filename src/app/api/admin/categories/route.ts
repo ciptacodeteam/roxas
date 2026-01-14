@@ -11,6 +11,13 @@ export async function GET(request: NextRequest) {
     await requireAdmin();
 
     const categories = await db.category.findMany({
+      include: {
+        instructionImages: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
+      },
       orderBy: {
         sortOrder: "asc",
       },

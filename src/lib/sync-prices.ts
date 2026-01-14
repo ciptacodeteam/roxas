@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { getDigiflazzPriceList } from "./digiflazz";
+import { DigiflazzItemStatus, PriceSyncType, PriceSyncStatus } from "@prisma/client";
 
 // Price list item interface matching Digiflazz API response
 interface PriceListItem {
@@ -103,10 +104,10 @@ async function autoCreateProduct(digiflazzItem: PriceListItem) {
   const isActive =
     digiflazzItem.buyer_product_status &&
     digiflazzItem.seller_product_status;
-  const status = isActive ? "active" : "inactive";
+  const status = isActive ? DigiflazzItemStatus.ACTIVE : DigiflazzItemStatus.INACTIVE;
 
-  // Calculate sell price (add 5% markup by default, admin can adjust later)
-  const sellPrice = Math.round(digiflazzItem.price * 1.05);
+  // Calculate normal price (add 5% markup by default, admin can adjust later)
+  const normalPrice = Math.round(digiflazzItem.price * 1.05);
 
   const productItem = await db.productItem.create({
     data: {
@@ -114,7 +115,8 @@ async function autoCreateProduct(digiflazzItem: PriceListItem) {
       name: digiflazzItem.product_name,
       skuCode: digiflazzItem.buyer_sku_code,
       basePrice: digiflazzItem.price,
-      sellPrice: sellPrice,
+      normalPrice: normalPrice,
+      sellPrice: normalPrice, // Initially set to normalPrice, can be changed manually
       digiflazzStatus: status,
       lastSyncedAt: now,
       isActive: isActive,
@@ -131,7 +133,7 @@ async function autoCreateProduct(digiflazzItem: PriceListItem) {
  * Auto-creates products on first sync if autoCreate is true
  */
 export async function syncPricesFromDigiflazz(
-  cmd: "prepaid" | "pasca" | "full" = "full",
+  cmd: PriceSyncType = PriceSyncType.FULL,
   autoCreate: boolean = false
 ): Promise<SyncResult> {
   const result: SyncResult = {
@@ -146,14 +148,14 @@ export async function syncPricesFromDigiflazz(
     // Fetch price lists from Digiflazz
     const priceLists: PriceListItem[] = [];
 
-    if (cmd === "prepaid" || cmd === "full") {
+    if (cmd === PriceSyncType.PREPAID || cmd === PriceSyncType.FULL) {
       const prepaidData = await getDigiflazzPriceList("prepaid");
       if (prepaidData?.data?.data && Array.isArray(prepaidData.data.data)) {
         priceLists.push(...prepaidData.data.data);
       }
     }
 
-    if (cmd === "pasca" || cmd === "full") {
+    if (cmd === PriceSyncType.PASCA || cmd === PriceSyncType.FULL) {
       const pascaData = await getDigiflazzPriceList("pasca");
       if (pascaData?.data?.data && Array.isArray(pascaData.data.data)) {
         priceLists.push(...pascaData.data.data);
@@ -172,6 +174,8 @@ export async function syncPricesFromDigiflazz(
         id: true,
         skuCode: true,
         basePrice: true,
+        normalPrice: true,
+        sellPrice: true,
         digiflazzStatus: true,
         isActive: true,
       },
@@ -195,7 +199,7 @@ export async function syncPricesFromDigiflazz(
       const isActive =
         digiflazzItem.buyer_product_status &&
         digiflazzItem.seller_product_status;
-      const status = isActive ? "active" : "inactive";
+      const status = isActive ? DigiflazzItemStatus.ACTIVE : DigiflazzItemStatus.INACTIVE;
 
       if (existingItem) {
         // Update existing item if price or status changed
@@ -203,11 +207,21 @@ export async function syncPricesFromDigiflazz(
         const statusChanged =
           existingItem.digiflazzStatus !== status;
 
-        if (priceChanged || statusChanged) {
+        // Calculate new normal price if base price changed
+        const newNormalPrice = Math.round(digiflazzItem.price * 1.05);
+        const normalPriceChanged = existingItem.normalPrice !== newNormalPrice;
+        
+        if (priceChanged || statusChanged || normalPriceChanged) {
           await db.productItem.update({
             where: { id: existingItem.id },
             data: {
               basePrice: digiflazzItem.price,
+              normalPrice: newNormalPrice,
+              // Only update sellPrice if it was previously set to the old normalPrice
+              // (preserve manually set sellPrice or discountedPrice)
+              sellPrice: existingItem.sellPrice === existingItem.normalPrice 
+                ? newNormalPrice 
+                : existingItem.sellPrice,
               digiflazzStatus: status,
               lastSyncedAt: now,
               // Auto-disable if Digiflazz says it's inactive
@@ -283,7 +297,7 @@ export async function isPriceSyncNeeded(
     // Check the most recent sync record
     const lastSync = await db.priceSync.findFirst({
       where: {
-        status: "success",
+        status: PriceSyncStatus.SUCCESS,
       },
       orderBy: {
         completedAt: "desc",

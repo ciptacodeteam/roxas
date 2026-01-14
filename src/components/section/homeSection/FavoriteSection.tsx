@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useProducts } from "@/lib/queries";
 
 import fire from "public/gif/fire.gif";
 
@@ -18,28 +18,7 @@ interface Product {
 
 export default function FavoriteSection() {
   const locale = useLocale();
-  const [games, setGames] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPopularProducts = async () => {
-      try {
-        // Fetch first 6 products as popular products
-        const response = await fetch("/api/products?limit=6");
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          setGames(data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching popular products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPopularProducts();
-  }, []);
+  const { data: games = [], isLoading: loading } = useProducts({ limit: 6 });
 
   if (loading) {
     return (

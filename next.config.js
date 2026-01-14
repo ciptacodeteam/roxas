@@ -13,6 +13,8 @@ const nextConfig = {
       },
     ],
   },
+  // Disable source maps to avoid Turbopack source map parsing errors
+  productionBrowserSourceMaps: false,
 };
 
 export default withNextIntl(nextConfig);

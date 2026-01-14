@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
+import { DigiflazzItemStatus } from "@prisma/client";
 
 /**
  * GET /api/admin/product-items
@@ -20,7 +21,10 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         skuCode: true,
+        iconImage: true,
         basePrice: true,
+        normalPrice: true,
+        discountedPrice: true,
         sellPrice: true,
         isActive: true,
         digiflazzStatus: true,
@@ -45,8 +49,8 @@ export async function GET(request: NextRequest) {
 
     // Transform to PriceListItem format
     const items = productItems.map((item) => {
-      const digiflazzStatus = (item as any).digiflazzStatus as string | undefined;
-      const isActiveStatus = digiflazzStatus === "active" || item.isActive;
+      const digiflazzStatus = item.digiflazzStatus;
+      const isActiveStatus = digiflazzStatus === DigiflazzItemStatus.ACTIVE || item.isActive;
       return {
         product_name: item.name,
         category: item.product.category.name,

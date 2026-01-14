@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Search, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminOrders, useUpdateOrder } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -95,8 +96,6 @@ interface Order {
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -104,32 +103,24 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const url = statusFilter !== "all" 
-        ? `/api/admin/orders?status=${statusFilter}`
-        : "/api/admin/orders";
-      const response = await fetch(url);
-      const data = await response.json();
+  // Use TanStack Query hook with filters
+  const { data: ordersData, isLoading: loading } = useAdminOrders({
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  });
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch orders");
-      }
+  const orders: Order[] = ordersData || [];
 
-      setOrders(data.data || []);
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-      toast.error("Failed to load orders");
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, [statusFilter]);
+  const updateOrderMutation = useUpdateOrder({
+    onSuccess: () => {
+      toast.success("Order updated successfully");
+      setIsDialogOpen(false);
+      setEditingOrder(null);
+      setSelectedStatus("");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update order");
+    },
+  });
 
   const handleEdit = useCallback((order: Order) => {
     setEditingOrder(order);
@@ -137,31 +128,9 @@ export default function OrdersPage() {
     setIsDialogOpen(true);
   }, []);
 
-  const handleStatusUpdate = async () => {
-    if (!editingOrder) return;
-
-    try {
-      const response = await fetch(`/api/admin/orders/${editingOrder.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: selectedStatus }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to update order");
-      }
-
-      toast.success("Order status updated");
-      setIsDialogOpen(false);
-      setEditingOrder(null);
-      fetchOrders();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update order"
-      );
-    }
+  const handleStatusUpdate = () => {
+    if (!editingOrder || !selectedStatus) return;
+    updateOrderMutation.mutate({ id: editingOrder.id, data: { status: selectedStatus } });
   };
 
   const getStatusColor = (status: string) => {

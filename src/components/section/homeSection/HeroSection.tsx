@@ -15,8 +15,9 @@ import character from "public/img/character.webp";
 import Autoplay from "embla-carousel-autoplay";
 import useEmblaCarousel from "embla-carousel-react";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { useMarketingBanners } from "@/lib/queries";
 
 interface MarketingBanner {
   id: string;
@@ -26,9 +27,16 @@ interface MarketingBanner {
   description: string | null;
 }
 
+const DEFAULT_BANNER: MarketingBanner = {
+  id: "1",
+  title: null,
+  image: "/img/img1.webp",
+  link: null,
+  description: null,
+};
+
 export default function HeroSection() {
-  const [banners, setBanners] = useState<MarketingBanner[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: bannersData, isLoading: loading } = useMarketingBanners();
 
   const autoplay = useRef(
     Autoplay({
@@ -44,29 +52,13 @@ export default function HeroSection() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        const response = await fetch("/api/marketing-banners");
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          setBanners(data.data);
-        } else {
-          // Fallback to default banner if no banners found
-          setBanners([{ id: "1", title: null, image: "/img/img1.webp", link: null, description: null }]);
-        }
-      } catch (error) {
-        console.error("Error fetching marketing banners:", error);
-        // Fallback to default banner on error
-        setBanners([{ id: "1", title: null, image: "/img/img1.webp", link: null, description: null }]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBanners();
-  }, []);
+  // Use banners from query or fallback to default
+  const banners: MarketingBanner[] = useMemo(() => {
+    if (bannersData && Array.isArray(bannersData) && bannersData.length > 0) {
+      return bannersData;
+    }
+    return [DEFAULT_BANNER];
+  }, [bannersData]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -96,7 +88,7 @@ export default function HeroSection() {
               <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
                 <div className="text-white">Loading banners...</div>
               </div>
-            ) : banners.length > 0 ? (
+            ) : (
               <>
                 {/* Embla viewport */}
                 <div className="embla" ref={emblaRef}>
@@ -146,10 +138,6 @@ export default function HeroSection() {
                   </div>
                 )}
               </>
-            ) : (
-              <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
-                <div className="text-white">No banners available</div>
-              </div>
             )}
           </div>
 

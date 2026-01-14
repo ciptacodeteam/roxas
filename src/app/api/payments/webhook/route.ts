@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { verifyWebhookSignature, mapMidtransStatus } from "@/lib/midtrans";
+import { PaymentStatus, OrderStatus } from "@prisma/client";
 
 /**
  * POST /api/payments/webhook
@@ -58,23 +59,23 @@ export async function POST(request: NextRequest) {
     const { status: paymentStatus, isPaid } = mapMidtransStatus(transaction_status);
 
     // Update payment
+    // Note: paymentMethodId is already set during payment creation, so we don't need to update it here
     const updatedPayment = await db.payment.update({
       where: { id: payment.id },
       data: {
         transactionId: body.transaction_id || payment.transactionId,
         status: paymentStatus,
-        paymentMethod: payment_type,
         paidAt: isPaid && settlement_time ? new Date(settlement_time) : payment.paidAt,
         webhookData: body,
       },
     });
 
     // Update order status if payment is successful
-    if (isPaid && payment.order.status === "PENDING") {
+    if (isPaid && payment.order.status === OrderStatus.PENDING) {
       await db.order.update({
         where: { id: payment.order.id },
         data: {
-          status: "PAID",
+          status: OrderStatus.PAID,
           paidAt: new Date(settlement_time || transaction_time),
         },
       });
@@ -84,11 +85,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle expired/cancelled payments
-    if (paymentStatus === "expire" || paymentStatus === "cancel") {
+    if (paymentStatus === PaymentStatus.EXPIRE || paymentStatus === PaymentStatus.CANCEL) {
       await db.order.update({
         where: { id: payment.order.id },
         data: {
-          status: "EXPIRED",
+          status: OrderStatus.EXPIRED,
         },
       });
     }

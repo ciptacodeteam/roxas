@@ -15,6 +15,105 @@ enum UserRole {
   ADMIN
 }
 
+enum PaymentStatus {
+  PENDING
+  SETTLEMENT
+  EXPIRE
+  CANCEL
+  DENY
+  REFUND
+}
+
+enum DigiflazzStatus {
+  PENDING
+  SUKSES
+  GAGAL
+}
+
+enum DigiflazzItemStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PriceSyncStatus {
+  SUCCESS
+  FAILED
+  IN_PROGRESS
+}
+
+enum PriceSyncType {
+  PREPAID
+  PASCA
+  FULL
+}
+
+enum FeeType {
+  PERCENTAGE
+  FIXED
+}
+
+enum PaymentMethodType {
+  CREDIT_CARD
+  BANK_TRANSFER
+  ECHANNEL
+  QRIS
+  QRIS_STATIC
+  GOPAY
+  SHOPEEPAY
+}
+
+enum BankTransferBank {
+  BCA
+  BNI
+  PERMATA
+  MANDIRI
+  BRI
+  BSI
+  DANAMON
+  CIMB
+}
+
+// ============================================
+// PAYMENT METHOD CONFIGURATION
+// ============================================
+
+model PaymentMethod {
+  id          String            @id @default(uuid())
+  type        PaymentMethodType // credit_card, bank_transfer, etc.
+  bank        BankTransferBank? // Bank for bank_transfer (null for other methods)
+  name        String            // Display name (e.g., "BCA Virtual Account", "GoPay")
+  description String?           // Description for users
+  icon        String?           // Icon/image URL for the payment method
+  
+  // Fee configuration (Midtrans charges percentage or fixed fee)
+  feeType     FeeType           @default(PERCENTAGE) // PERCENTAGE or FIXED
+  feeValue    Float             @default(0) // Fee percentage (e.g., 2.5 for 2.5%) or fixed amount in IDR
+  
+  // VAT configuration (manually configured per payment method)
+  vatType     FeeType           @default(PERCENTAGE) // PERCENTAGE or FIXED (reusing FeeType enum)
+  vatValue    Float             @default(0) // VAT percentage (e.g., 11 for 11%) or fixed amount in IDR
+  
+  // Configuration
+  isActive    Boolean           @default(true)
+  sortOrder   Int               @default(0)
+  
+  // Midtrans-specific configuration
+  midtransCode String           // Code used in Midtrans API (e.g., "bca", "gopay", "credit_card")
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  orders      Order[]
+  payments    Payment[]
+
+  @@unique([type, bank]) // Ensure one payment method per type+bank combination
+  @@index([isActive])
+  @@index([type])
+  @@index([sortOrder])
+  @@index([isActive, sortOrder])
+  @@map("payment_methods")
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -30,8 +129,8 @@ model User {
   accounts Account[]
   sessions Session[]
   orders   Order[]
+  couponUsages CouponUsage[]
 
-  @@index([email])
   @@map("users")
 }
 
@@ -51,6 +150,7 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([accountId, providerId, userId])
   @@index([userId])
   @@map("accounts")
 }
@@ -78,7 +178,9 @@ model Verification {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  @@unique([identifier, value])
   @@index([identifier])
+  @@index([expiresAt])
   @@map("verification_tokens")
 }
 
@@ -87,17 +189,34 @@ model Verification {
 // ============================================
 
 model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  slug      String   @unique
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String   @unique
+  slug            String   @unique
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   products Product[]
+  instructionImages CategoryInstructionImage[]
 
   @@map("categories")
+}
+
+model CategoryInstructionImage {
+  id         String   @id @default(uuid())
+  categoryId String
+  imageUrl   String   // Image URL showing how to top-up for this category
+  altText    String?  // Optional alt text for accessibility
+  sortOrder  Int      @default(0) // Order for displaying multiple images
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([categoryId, sortOrder])
+  @@map("category_instruction_images")
 }
 
 model Product {
@@ -116,7 +235,7 @@ model Product {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  category Category      @relation(fields: [categoryId], references: [id])
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   items    ProductItem[]
 
   @@index([categoryId])
@@ -129,8 +248,14 @@ model ProductItem {
   productId String
   name      String // "86 Diamonds"
   skuCode   String   @unique // Digiflazz buyer_sku_code
-  basePrice Int // Cost from Digiflazz (in IDR)
-  sellPrice Int // Your selling price
+  iconImage String?  // Icon/image for this specific product item
+  
+  // Pricing
+  basePrice      Int // Cost from Digiflazz (in IDR)
+  normalPrice    Int // Regular/normal selling price (in IDR)
+  discountedPrice Int? // Discounted/sale price (optional, in IDR)
+  sellPrice      Int // Current effective selling price (can be manually set or calculated from normalPrice/discountedPrice)
+  
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -138,9 +263,9 @@ model ProductItem {
 
   // Price sync tracking
   lastSyncedAt    DateTime? // When this item's price was last synced from Digiflazz
-  digiflazzStatus String? // "active" | "inactive" - from buyer_product_status && seller_product_status
+  digiflazzStatus DigiflazzItemStatus? // "active" | "inactive" - from buyer_product_status && seller_product_status
 
-  product        Product         @relation(fields: [productId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   orders         Order[]
   flashSaleItems FlashSaleItem[]
 
@@ -151,21 +276,74 @@ model ProductItem {
 
 // Global price sync tracking
 model PriceSync {
-  id           String    @id @default(uuid())
-  syncType     String // "prepaid" | "pasca" | "full"
-  status       String // "success" | "failed" | "in_progress"
-  itemsSynced  Int       @default(0)
-  itemsUpdated Int       @default(0)
-  itemsCreated Int       @default(0)
+  id           String          @id @default(uuid())
+  syncType     PriceSyncType   // "prepaid" | "pasca" | "full"
+  status       PriceSyncStatus // "success" | "failed" | "in_progress"
+  itemsSynced  Int             @default(0)
+  itemsUpdated Int             @default(0)
+  itemsCreated Int             @default(0)
   errorMessage String?
-  startedAt    DateTime  @default(now())
+  startedAt    DateTime        @default(now())
   completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([status])
   @@index([startedAt])
+  @@index([status, startedAt])
   @@map("price_syncs")
+}
+
+// ============================================
+// COUPON MODELS
+// ============================================
+
+enum DiscountType {
+  PERCENTAGE // Discount as percentage (e.g., 10 = 10% off)
+  FIXED_AMOUNT // Discount as fixed amount in IDR
+}
+
+model Coupon {
+  id            String       @id @default(uuid())
+  code          String       @unique // Coupon code (e.g., "WELCOME10")
+  description   String? // Description of the coupon
+  discountType  DiscountType // PERCENTAGE or FIXED_AMOUNT
+  discountValue Int // Discount amount (percentage or fixed in IDR)
+  minPurchase   Int? @default(0) // Minimum purchase amount to use coupon
+  maxDiscount   Int? // Maximum discount amount (for percentage coupons)
+  usageLimit    Int? // Total usage limit (null = unlimited)
+  usageCount    Int  @default(0) // Current usage count
+  userLimit     Int? @default(1) // Limit per user (null = unlimited per user)
+  isActive      Boolean      @default(true)
+  startDate     DateTime? // Optional start date
+  endDate       DateTime? // Optional expiration date
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  usages CouponUsage[]
+
+  @@index([isActive])
+  @@index([endDate])
+  @@index([isActive, endDate])
+  @@map("coupons")
+}
+
+model CouponUsage {
+  id        String   @id @default(uuid())
+  couponId  String
+  orderId   String   @unique
+  userId    String
+  discountAmount Int // Actual discount applied in IDR
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([orderId])
+  @@map("coupon_usages")
 }
 
 // ============================================
@@ -183,6 +361,10 @@ model FlashSale {
 
   items FlashSaleItem[]
 
+  @@index([isActive])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([isActive, startTime, endTime])
   @@map("flash_sales")
 }
 
@@ -195,9 +377,11 @@ model FlashSaleItem {
   soldCount     Int    @default(0)
 
   flashSale   FlashSale   @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
-  productItem ProductItem @relation(fields: [productItemId], references: [id])
+  productItem ProductItem @relation(fields: [productItemId], references: [id], onDelete: Restrict)
 
   @@unique([flashSaleId, productItemId])
+  @@index([flashSaleId])
+  @@index([productItemId])
   @@map("flash_sale_items")
 }
 
@@ -220,6 +404,10 @@ model MarketingBanner {
 
   @@index([isActive])
   @@index([sortOrder])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive, sortOrder])
+  @@index([startDate, endDate])
   @@map("marketing_banners")
 }
 
@@ -248,7 +436,15 @@ model Order {
 
   // Pricing
   originalPrice Int // Original sell price
-  finalPrice    Int // After discount (flash sale)
+  finalPrice    Int // After discount (flash sale/coupon)
+  
+  // Payment fee and VAT (calculated based on selected payment method)
+  paymentFee    Int @default(0) // Processing fee charged by payment provider (Midtrans)
+  vatAmount     Int @default(0) // VAT amount calculated from payment fee
+  totalAmount   Int // finalPrice + paymentFee + vatAmount
+
+  // Payment method selection (for Core API)
+  paymentMethodId String? // Selected payment method
 
   // Status
   status OrderStatus @default(PENDING)
@@ -260,14 +456,20 @@ model Order {
   completedAt DateTime?
 
   // Relations
-  user        User                  @relation(fields: [userId], references: [id])
-  productItem ProductItem           @relation(fields: [productItemId], references: [id])
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  productItem ProductItem           @relation(fields: [productItemId], references: [id], onDelete: Restrict)
+  paymentMethod PaymentMethod?      @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   payment     Payment?
   digiflazzTx DigiflazzTransaction?
+  couponUsage CouponUsage?
 
   @@index([userId])
   @@index([orderNumber])
   @@index([status])
+  @@index([createdAt])
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([paymentMethodId])
   @@map("orders")
 }
 
@@ -278,12 +480,20 @@ model Payment {
   // Midtrans data
   externalId     String  @unique // Your reference ID (order number)
   transactionId  String? @unique // Midtrans transaction ID
-  paymentUrl     String? // Payment URL (Snap URL or redirect URL)
-  paymentMethod  String? // credit_card, bank_transfer, ewallet, qris, etc.
-  paymentChannel String? // bca, bni, mandiri, gopay, ovo, dana, etc.
-
-  amount    Int
-  status    String // pending, settlement, expire, cancel, deny, refund
+  
+  // Payment method reference
+  paymentMethodId String? // Reference to PaymentMethod
+  
+  // Payment URLs and instructions (Core API response - varies by payment method)
+  paymentUrl         String? // Payment URL or redirect URL (generic)
+  vaNumber           String? // Virtual Account number (for bank_transfer)
+  qrisString         String? // QRIS payment string (for qris)
+  deeplinkUrl        String? // Deep link for e-wallets (gopay, shopeepay)
+  redirectUrl        String? // Redirect URL for credit card
+  
+  // Expiry information
+  amount    Int // Amount charged (includes payment fee)
+  status    PaymentStatus @default(PENDING)
   paidAt    DateTime?
   expiresAt DateTime?
 
@@ -293,10 +503,14 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
 
   @@index([externalId])
   @@index([transactionId])
+  @@index([status])
+  @@index([orderId])
+  @@index([paymentMethodId])
   @@map("payments")
 }
 
@@ -310,7 +524,7 @@ model DigiflazzTransaction {
   skuCode    String
   customerNo String // Game ID / phone number
 
-  status       String // Pending, Sukses, Gagal
+  status       DigiflazzStatus @default(PENDING)
   message      String?
   serialNumber String? // SN for vouchers
 
@@ -321,8 +535,11 @@ model DigiflazzTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([refId])
+  @@index([status])
+  @@index([orderId])
+  @@index([trxId])
   @@map("digiflazz_transactions")
 }

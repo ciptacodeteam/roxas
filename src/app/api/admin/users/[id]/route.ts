@@ -5,6 +5,108 @@ import { hashPassword } from "@/lib/password";
 import { UserRole } from "@prisma/client";
 
 /**
+ * GET /api/admin/users/[id]
+ * Get user details with related data
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const user = await db.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        emailVerified: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            orders: true,
+            accounts: true,
+            sessions: true,
+            couponUsages: true,
+          },
+        },
+        orders: {
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            totalAmount: true,
+            createdAt: true,
+            productItem: {
+              select: {
+                name: true,
+                product: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Get additional stats
+    const totalSpent = await db.order.aggregate({
+      where: { userId: id, status: { in: ["PAID", "COMPLETED"] } },
+      _sum: {
+        totalAmount: true,
+      },
+    });
+
+    const completedOrders = await db.order.count({
+      where: { userId: id, status: "COMPLETED" },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...user,
+        stats: {
+          totalSpent: totalSpent._sum.totalAmount || 0,
+          completedOrders,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get user",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/users/[id]
  * Update a user
  */

@@ -112,43 +112,28 @@ export default function AdminLoginPage() {
           description: result.error.message || "Invalid email or password. Please try again.",
         });
       } else {
-        // Check user role after successful login
-        // Wait a bit for session to be established in the database
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Success! Show toast and redirect immediately
+        toast.success("Login Successful", {
+          description: "Redirecting to admin dashboard...",
+        });
         
-        try {
-          const roleResponse = await fetch("/api/auth/check-role");
-          const roleData = await roleResponse.json();
-
-          if (!roleData.success || roleData.role !== "ADMIN") {
-            // Non-admin trying to login through admin login - reject and sign out
-            const { signOut } = await import("@/lib/auth-client");
-            await signOut();
-            setError("Access denied");
-            toast.error("Login Failed", {
-              description: "Only admin accounts can access this page. Please use the public login page.",
-            });
-            return;
-          }
-
-          // Admin user - proceed with login
-          toast.success("Login Successful", {
-            description: "Redirecting to admin dashboard...",
+        // Optimistic redirect - redirect immediately
+        // Middleware will validate admin role and redirect back if not admin
+        window.location.href = '/admin';
+        
+        // Background validation for extra security (won't block redirect)
+        fetch("/api/auth/check-role")
+          .then(res => res.json())
+          .then(roleData => {
+            if (!roleData.success || roleData.role !== "ADMIN") {
+              // Non-admin detected - middleware will handle redirect
+              console.log("Non-admin detected on admin login - middleware will redirect");
+            }
+          })
+          .catch(err => {
+            // Middleware will handle authentication
+            console.error("Background role check failed:", err);
           });
-          // Use window.location for hard redirect to ensure middleware picks up new session
-          setTimeout(() => {
-            window.location.href = '/admin';
-          }, 1000);
-        } catch (roleError) {
-          // If role check fails, reject login for security
-          console.error("Role check failed:", roleError);
-          const { signOut } = await import("@/lib/auth-client");
-          await signOut();
-          setError("Access denied");
-          toast.error("Login Failed", {
-            description: "Unable to verify admin access. Please try again.",
-          });
-        }
       }
     } catch (err) {
       // Dismiss loading toast

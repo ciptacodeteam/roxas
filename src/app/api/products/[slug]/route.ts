@@ -20,7 +20,15 @@ export async function GET(
     const product = await db.product.findUnique({
       where: { slug },
       include: {
-        category: true,
+        category: {
+          include: {
+            instructionImages: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+            },
+          },
+        },
         items: {
           where: {
             isActive: true,
@@ -58,11 +66,15 @@ export async function GET(
           name: product.category.name,
           slug: product.category.slug,
         },
+        instructionImages: product.category.instructionImages || [],
         items: product.items.map((item) => ({
           id: item.id,
           name: item.name,
           skuCode: item.skuCode,
+          iconImage: item.iconImage,
           basePrice: item.basePrice,
+          normalPrice: item.normalPrice,
+          discountedPrice: item.discountedPrice,
           sellPrice: item.sellPrice,
           sortOrder: item.sortOrder,
         })),

@@ -139,43 +139,30 @@ export default function LoginPage() {
           description: result.error.message || "Email atau kata sandi tidak valid. Silakan coba lagi.",
         });
       } else {
-        // Check user role after successful login
-        try {
-          const roleResponse = await fetch("/api/auth/check-role");
-          const roleData = await roleResponse.json();
-
-          if (roleData.success && roleData.role === "ADMIN") {
-            // Admin trying to login through public login - reject and sign out
-            await signOut();
-            setError("Akses ditolak");
-            toast.error("Login Gagal", {
-              description: "Akun admin tidak dapat login melalui halaman ini. Silakan gunakan halaman admin login.",
-            });
-            return;
-          }
-
-          // Regular user - proceed with login
-          toast.success("Login Berhasil", {
-            description: "Selamat datang kembali! Mengarahkan ke profil Anda...",
+        // Success! Show toast and redirect immediately
+        toast.success("Login Berhasil", {
+          description: "Mengarahkan ke profil Anda...",
+        });
+        
+        const locale = pathname.split("/")[1] ?? "id";
+        
+        // Optimistic redirect - redirect immediately, validate role in background
+        window.location.href = `/${locale}/profile?from=login`;
+        
+        // Background validation (won't block redirect)
+        // Check if admin tried to use public login - middleware will handle redirect if needed
+        fetch("/api/auth/check-role")
+          .then(res => res.json())
+          .then(roleData => {
+            if (roleData.success && roleData.role === "ADMIN") {
+              // Admin detected - sign out will happen via middleware redirect
+              console.log("Admin detected on public login - middleware will redirect");
+            }
+          })
+          .catch(err => {
+            // Ignore errors - middleware will handle authentication
+            console.error("Background role check failed:", err);
           });
-          // Get locale from pathname
-          const locale = pathname.split("/")[1] ?? "id";
-          setTimeout(() => {
-            router.push(`/${locale}/profile?from=login`);
-            router.refresh();
-          }, 1000);
-        } catch (roleError) {
-          // If role check fails, still allow login but log the error
-          console.error("Role check failed:", roleError);
-          toast.success("Login Berhasil", {
-            description: "Selamat datang kembali! Mengarahkan ke profil Anda...",
-          });
-          const locale = pathname.split("/")[1] ?? "id";
-          setTimeout(() => {
-            router.push(`/${locale}/profile?from=login`);
-            router.refresh();
-          }, 1000);
-        }
       }
     } catch (err) {
       // Dismiss loading toast

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -52,8 +53,6 @@ interface Category {
 }
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -67,28 +66,50 @@ export default function CategoriesPage() {
     sortOrder: 0,
   });
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/categories");
-      const data = await response.json();
+  // Use TanStack Query hooks
+  const { data: categories = [], isLoading: loading } = useAdminCategories();
+  
+  const createCategoryMutation = useCreateCategory({
+    onSuccess: () => {
+      toast.success("Category created successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create category");
+    },
+  });
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch categories");
-      }
+  const updateCategoryMutation = useUpdateCategory({
+    onSuccess: () => {
+      toast.success("Category updated successfully");
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update category");
+    },
+  });
 
-      setCategories(data.data || []);
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-      toast.error("Failed to load categories");
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteCategoryMutation = useDeleteCategory({
+    onSuccess: () => {
+      toast.success("Category deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setCategoryToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete category");
+    },
+  });
 
-  useEffect(() => {
-    fetchCategories();
+  const resetForm = useCallback(() => {
+    setEditingCategory(null);
+    setFormData({
+      name: "",
+      slug: "",
+      isActive: true,
+      sortOrder: 0,
+    });
   }, []);
 
   const handleEdit = useCallback((category: Category) => {
@@ -107,30 +128,10 @@ export default function CategoriesPage() {
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!categoryToDelete) return;
-
-    try {
-      const response = await fetch(`/api/admin/categories/${categoryToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to delete category");
-      }
-
-      toast.success("Category deleted");
-      setIsDeleteDialogOpen(false);
-      setCategoryToDelete(null);
-      fetchCategories();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete category"
-      );
-    }
-  }, [categoryToDelete]);
+    deleteCategoryMutation.mutate(categoryToDelete.id);
+  }, [categoryToDelete, deleteCategoryMutation]);
 
   const columns = useMemo<ColumnDef<Category>[]>(
     () => [
@@ -320,44 +321,15 @@ export default function CategoriesPage() {
   });
 
   const handleCreate = () => {
-    setEditingCategory(null);
-    setFormData({
-      name: "",
-      slug: "",
-      isActive: true,
-      sortOrder: 0,
-    });
+    resetForm();
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
-    try {
-      const url = editingCategory
-        ? `/api/admin/categories/${editingCategory.id}`
-        : "/api/admin/categories";
-      const method = editingCategory ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to save category");
-      }
-
-      toast.success(
-        editingCategory ? "Category updated" : "Category created"
-      );
-      setIsDialogOpen(false);
-      fetchCategories();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save category"
-      );
+  const handleSubmit = () => {
+    if (editingCategory) {
+      updateCategoryMutation.mutate({ id: editingCategory.id, data: formData });
+    } else {
+      createCategoryMutation.mutate(formData);
     }
   };
 

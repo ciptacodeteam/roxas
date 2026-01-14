@@ -7,6 +7,7 @@ import {
   isFirstSync,
 } from "@/lib/sync-prices";
 import { db } from "@/server/db";
+import { PriceSyncType, PriceSyncStatus } from "@prisma/client";
 
 /**
  * GET /api/admin/sync-prices
@@ -19,7 +20,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const force = searchParams.get("force") === "true";
-    const cmd = (searchParams.get("cmd") as "prepaid" | "pasca" | "full") || "full";
+    const cmdParam = searchParams.get("cmd") || "full";
+    const cmd = Object.values(PriceSyncType).includes(cmdParam.toUpperCase() as PriceSyncType)
+      ? (cmdParam.toUpperCase() as PriceSyncType)
+      : PriceSyncType.FULL;
 
     // Get last sync status
     const lastSync = await getLastSyncStatus();
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Check if sync is already in progress
     const inProgressSync = await db.priceSync.findFirst({
       where: {
-        status: "in_progress",
+        status: PriceSyncStatus.IN_PROGRESS,
         startedAt: {
           gte: new Date(Date.now() - 10 * 60 * 1000), // Within last 10 minutes
         },
@@ -78,7 +82,7 @@ export async function GET(request: NextRequest) {
         await db.priceSync.update({
           where: { id: syncRecord.id },
           data: {
-            status: result.success ? "success" : "failed",
+            status: result.success ? PriceSyncStatus.SUCCESS : PriceSyncStatus.FAILED,
             itemsSynced: result.itemsSynced,
             itemsUpdated: result.itemsUpdated,
             itemsCreated: result.itemsCreated,
@@ -91,7 +95,7 @@ export async function GET(request: NextRequest) {
         await db.priceSync.update({
           where: { id: syncRecord.id },
           data: {
-            status: "failed",
+            status: PriceSyncStatus.FAILED,
             errorMessage:
               error instanceof Error ? error.message : "Unknown error",
             completedAt: new Date(),
@@ -131,13 +135,16 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
 
     const body = await request.json().catch(() => ({}));
-    const cmd = (body.cmd as "prepaid" | "pasca" | "full") || "full";
+    const cmdParam = body.cmd || "full";
+    const cmd = Object.values(PriceSyncType).includes(cmdParam.toUpperCase() as PriceSyncType)
+      ? (cmdParam.toUpperCase() as PriceSyncType)
+      : PriceSyncType.FULL;
 
     // Create sync record
     const syncRecord = await db.priceSync.create({
       data: {
         syncType: cmd,
-        status: "in_progress",
+        status: PriceSyncStatus.IN_PROGRESS,
         startedAt: new Date(),
       },
     });
@@ -152,7 +159,7 @@ export async function POST(request: NextRequest) {
     await db.priceSync.update({
       where: { id: syncRecord.id },
       data: {
-        status: result.success ? "success" : "failed",
+        status: result.success ? PriceSyncStatus.SUCCESS : PriceSyncStatus.FAILED,
         itemsSynced: result.itemsSynced,
         itemsUpdated: result.itemsUpdated,
         itemsCreated: result.itemsCreated,

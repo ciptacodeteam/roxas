@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminTransactions } from "@/lib/queries";
 import {
   Select,
   SelectContent,
@@ -89,41 +90,18 @@ interface Transaction {
 }
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.append("status", statusFilter);
-      if (paymentStatusFilter !== "all") params.append("paymentStatus", paymentStatusFilter);
-      
-      const url = `/api/admin/transactions${params.toString() ? `?${params.toString()}` : ""}`;
-      const response = await fetch(url);
-      const data = await response.json();
+  // Use TanStack Query hook with filters
+  const { data: transactionsData, isLoading: loading } = useAdminTransactions({
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    paymentStatus: paymentStatusFilter !== "all" ? paymentStatusFilter : undefined,
+  });
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch transactions");
-      }
-
-      setTransactions(data.data || []);
-    } catch (err) {
-      console.error("Error fetching transactions:", err);
-      toast.error("Failed to load transactions");
-      setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [statusFilter, paymentStatusFilter]);
+  const transactions: Transaction[] = transactionsData || [];
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

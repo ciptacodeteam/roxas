@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Loader2, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAdminProductItems, useSyncStatus, useSyncPrices, queryKeys } from "@/lib/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -39,118 +41,56 @@ export interface PriceListItem {
 }
 
 export default function PriceListPage() {
-  const [priceList, setPriceList] = useState<PriceListItem[]>([]);
-  const [filteredList, setFilteredList] = useState<PriceListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [cmd, setCmd] = useState<"prepaid" | "pasca">("prepaid");
-  const [syncStatus, setSyncStatus] = useState<any>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchPriceList = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Fetch from database instead of Digiflazz API
-      const response = await fetch(`/api/admin/product-items`);
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch price list");
-      }
-
-      // Digiflazz API response structure: { success: true, data: { data: [...] } }
-      let items: PriceListItem[] = [];
-      
-      if (data.data && Array.isArray(data.data.data)) {
-        // Standard structure: data.data.data is the array
-        items = data.data.data;
-      } else if (Array.isArray(data.data)) {
-        // Fallback: data.data is directly an array
-        items = data.data;
-      } else {
-        console.warn("Unexpected response structure:", data);
-        items = [];
-      }
-      
-      console.log("Parsed items count:", items.length); // Debug log
-
-      setPriceList(items);
-      setFilteredList(items);
-    } catch (err) {
-      console.error("Error fetching price list:", err);
-      setError(err instanceof Error ? err.message : "Failed to load price list");
-      setPriceList([]);
-      setFilteredList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPriceList();
-    fetchSyncStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cmd]);
-
-  const fetchSyncStatus = async () => {
-    try {
-      const response = await fetch("/api/admin/sync-prices");
-      const data = await response.json();
-      if (data.lastSync) {
-        setSyncStatus(data.lastSync);
-      }
-    } catch (error) {
-      console.error("Error fetching sync status:", error);
-    }
-  };
-
-  const handleSyncPrices = async () => {
-    try {
-      setIsSyncing(true);
-      const response = await fetch("/api/admin/sync-prices", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cmd: "full",
-        }),
+  const { data: productItemsData, isLoading: loading, error: queryError } = useAdminProductItems();
+  const { data: syncStatus } = useSyncStatus();
+  const syncPricesMutation = useSyncPrices({
+    onSuccess: (data) => {
+      toast.success("Price sync completed", {
+        description: `Updated ${data.result?.itemsUpdated || 0} items`,
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success("Price sync completed", {
-          description: `Updated ${data.result?.itemsUpdated || 0} items`,
-        });
-      } else {
-        toast.error("Price sync failed", {
-          description: data.message || "Please try again",
-        });
-      }
-
-      // Refresh sync status
-      await fetchSyncStatus();
-    } catch (error) {
-      console.error("Sync error:", error);
-      toast.error("Sync failed", {
-        description: "An error occurred during sync",
+      queryClient.invalidateQueries({ queryKey: queryKeys.productItems.all });
+    },
+    onError: (error) => {
+      toast.error("Price sync failed", {
+        description: error instanceof Error ? error.message : "Please try again",
       });
-    } finally {
-      setIsSyncing(false);
+    },
+  });
+
+  // Parse product items data
+  const priceList: PriceListItem[] = useMemo(() => {
+    if (!productItemsData) return [];
+    
+    if (Array.isArray(productItemsData)) {
+      return productItemsData;
     }
-  };
+    
+    // Handle nested data structure
+    if (productItemsData && typeof productItemsData === "object" && "data" in productItemsData) {
+      const nestedData = (productItemsData as { data: unknown }).data;
+      if (Array.isArray(nestedData)) {
+        return nestedData;
+      }
+    }
+    
+    console.warn("Unexpected response structure:", productItemsData);
+    return [];
+  }, [productItemsData]);
 
+  const error = queryError 
+    ? (queryError instanceof Error ? queryError.message : "Failed to load price list") 
+    : null;
 
-  useEffect(() => {
+  const filteredList = useMemo(() => {
     if (search.trim() === "") {
-      setFilteredList(priceList);
-      return;
+      return priceList;
     }
 
-    const filtered = priceList.filter(
+    return priceList.filter(
       (item) =>
         item.buyer_sku_code.toLowerCase().includes(search.toLowerCase()) ||
         item.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -158,8 +98,16 @@ export default function PriceListPage() {
         item.brand.toLowerCase().includes(search.toLowerCase()) ||
         item.seller_name.toLowerCase().includes(search.toLowerCase())
     );
-    setFilteredList(filtered);
   }, [search, priceList]);
+
+  const handleSyncPrices = () => {
+    syncPricesMutation.mutate({ cmd: "full" });
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.productItems.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.priceSync.status() });
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -199,7 +147,7 @@ export default function PriceListPage() {
                   <div className="flex items-center justify-center py-12">
                     <div className="flex flex-col items-center gap-4">
                       <p className="text-red-400 text-lg">❌ {error}</p>
-                      <Button onClick={fetchPriceList} variant="outline">
+                      <Button onClick={handleRefresh} variant="outline">
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Try Again
                       </Button>
@@ -223,12 +171,12 @@ export default function PriceListPage() {
                             ? `${syncStatus.ageMinutes} minutes ago`
                             : "Never"}
                         </span>
-                        {syncStatus.status === "success" && (
+                        {(syncStatus.status === "SUCCESS" || syncStatus.status === "success") && (
                           <span className="text-green-400">
                             ✓ {syncStatus.itemsUpdated} items updated
                           </span>
                         )}
-                        {syncStatus.status === "failed" && (
+                        {(syncStatus.status === "FAILED" || syncStatus.status === "failed") && (
                           <span className="text-red-400">
                             ✗ Sync failed: {syncStatus.errorMessage || "Unknown error"}
                           </span>
@@ -254,12 +202,12 @@ export default function PriceListPage() {
                     <Button
                       onClick={handleSyncPrices}
                       variant="outline"
-                      disabled={isSyncing || loading}
+                      disabled={syncPricesMutation.isPending || loading}
                     >
-                      <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                      {isSyncing ? "Syncing..." : "Sync from API"}
+                      <RefreshCw className={`mr-2 h-4 w-4 ${syncPricesMutation.isPending ? "animate-spin" : ""}`} />
+                      {syncPricesMutation.isPending ? "Syncing..." : "Sync from API"}
                     </Button>
-                    <Button onClick={fetchPriceList} variant="outline" disabled={loading}>
+                    <Button onClick={handleRefresh} variant="outline" disabled={loading}>
                       <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                       Refresh
                     </Button>

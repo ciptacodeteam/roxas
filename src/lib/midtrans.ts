@@ -193,26 +193,28 @@ export function verifyWebhookSignature(
   return signatureKey === expectedSignature;
 }
 
+import { PaymentStatus } from "@prisma/client";
+
 /**
  * Map Midtrans status to our payment status
  */
 export function mapMidtransStatus(midtransStatus: string): {
-  status: string;
+  status: PaymentStatus;
   isPaid: boolean;
 } {
-  const statusMap: Record<string, { status: string; isPaid: boolean }> = {
-    pending: { status: "pending", isPaid: false },
-    settlement: { status: "settlement", isPaid: true },
-    capture: { status: "settlement", isPaid: true },
-    authorize: { status: "pending", isPaid: false },
-    deny: { status: "deny", isPaid: false },
-    expire: { status: "expire", isPaid: false },
-    cancel: { status: "cancel", isPaid: false },
-    refund: { status: "refund", isPaid: false },
-    partial_refund: { status: "refund", isPaid: false },
-    chargeback: { status: "refund", isPaid: false },
+  const statusMap: Record<string, { status: PaymentStatus; isPaid: boolean }> = {
+    pending: { status: PaymentStatus.PENDING, isPaid: false },
+    settlement: { status: PaymentStatus.SETTLEMENT, isPaid: true },
+    capture: { status: PaymentStatus.SETTLEMENT, isPaid: true },
+    authorize: { status: PaymentStatus.PENDING, isPaid: false },
+    deny: { status: PaymentStatus.DENY, isPaid: false },
+    expire: { status: PaymentStatus.EXPIRE, isPaid: false },
+    cancel: { status: PaymentStatus.CANCEL, isPaid: false },
+    refund: { status: PaymentStatus.REFUND, isPaid: false },
+    partial_refund: { status: PaymentStatus.REFUND, isPaid: false },
+    chargeback: { status: PaymentStatus.REFUND, isPaid: false },
   };
 
-  return statusMap[midtransStatus.toLowerCase()] || { status: "pending", isPaid: false };
+  return statusMap[midtransStatus.toLowerCase()] || { status: PaymentStatus.PENDING, isPaid: false };
 }
 

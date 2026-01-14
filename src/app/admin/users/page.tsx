@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
+import { useAdminUsers, useDeleteUser } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -36,17 +38,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface User {
   id: string;
@@ -64,89 +56,39 @@ interface User {
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    name: "",
-    password: "",
-    phone: "",
-    role: "USER",
-    emailVerified: false,
+
+  // Use TanStack Query hooks
+  const { data: users = [], isLoading: loading } = useAdminUsers({ search: search || undefined });
+
+  const deleteUserMutation = useDeleteUser({
+    onSuccess: () => {
+      toast.success("User deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete user");
+    },
   });
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/users");
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch users");
-      }
-
-      setUsers(data.data || []);
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      toast.error("Failed to load users");
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
+  
   const handleEdit = useCallback((user: User) => {
-    setEditingUser(user);
-    setFormData({
-      email: user.email,
-      name: user.name || "",
-      password: "", // Don't pre-fill password
-      phone: user.phone || "",
-      role: user.role,
-      emailVerified: user.emailVerified,
-    });
-    setIsDialogOpen(true);
-  }, []);
+    router.push(`/admin/users/${user.id}`);
+  }, [router]);
 
   const handleDeleteClick = useCallback((user: User) => {
     setUserToDelete(user);
     setIsDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!userToDelete) return;
-
-    try {
-      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to delete user");
-      }
-
-      toast.success("User deleted");
-      setIsDeleteDialogOpen(false);
-      setUserToDelete(null);
-      fetchUsers();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete user"
-      );
-    }
-  }, [userToDelete]);
+    deleteUserMutation.mutate(userToDelete.id);
+  }, [userToDelete, deleteUserMutation]);
 
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
@@ -259,14 +201,6 @@ export default function UsersPage() {
         },
       },
       {
-        accessorKey: "_count.orders",
-        header: "Orders",
-        cell: ({ row }) => {
-          const count = row.original._count.orders;
-          return <div>{count}</div>;
-        },
-      },
-      {
         accessorKey: "createdAt",
         header: ({ column }) => {
           return (
@@ -348,65 +282,6 @@ export default function UsersPage() {
     },
   });
 
-  const handleCreate = () => {
-    setEditingUser(null);
-    setFormData({
-      email: "",
-      name: "",
-      password: "",
-      phone: "",
-      role: "USER",
-      emailVerified: false,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (!formData.email) {
-        toast.error("Email is required");
-        return;
-      }
-
-      // Password is required when creating new user
-      if (!editingUser && !formData.password) {
-        toast.error("Password is required for new users");
-        return;
-      }
-
-      const url = editingUser
-        ? `/api/admin/users/${editingUser.id}`
-        : "/api/admin/users";
-      const method = editingUser ? "PUT" : "POST";
-
-      // Don't send password if it's empty (when editing)
-      const submitData = editingUser && !formData.password
-        ? (({ password, ...rest }) => rest)(formData)
-        : { ...formData };
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submitData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to save user");
-      }
-
-      toast.success(
-        editingUser ? "User updated" : "User created"
-      );
-      setIsDialogOpen(false);
-      fetchUsers();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save user"
-      );
-    }
-  };
 
   return (
     <SidebarProvider
@@ -431,125 +306,10 @@ export default function UsersPage() {
                       Atur dan pantau pengguna Anda di sini.
                     </p>
                   </div>
-                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={handleCreate}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Tambah
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-gray-900 text-gray-100 max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle className="text-gray-100">
-                          {editingUser ? "Edit User" : "Tambah User"}
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400">
-                          {editingUser
-                            ? "Edit data user yang telah tersedia."
-                            : "Tambahkan user baru."}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="email" className="text-gray-200">
-                            Email <span className="text-red-400">*</span>
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) =>
-                              setFormData({ ...formData, email: e.target.value })
-                            }
-                            placeholder="user@example.com"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                            required
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="name" className="text-gray-200">Name</Label>
-                          <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) =>
-                              setFormData({ ...formData, name: e.target.value })
-                            }
-                            placeholder="User name"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="password" className="text-gray-200">
-                            Password {!editingUser && <span className="text-red-400">*</span>}
-                            {editingUser && <span className="text-gray-500 text-xs">(leave empty to keep current)</span>}
-                          </Label>
-                          <Input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) =>
-                              setFormData({ ...formData, password: e.target.value })
-                            }
-                            placeholder={editingUser ? "New password (optional)" : "Password"}
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                            required={!editingUser}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="phone" className="text-gray-200">Phone</Label>
-                          <Input
-                            id="phone"
-                            value={formData.phone}
-                            onChange={(e) =>
-                              setFormData({ ...formData, phone: e.target.value })
-                            }
-                            placeholder="+62..."
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="role" className="text-gray-200">Role</Label>
-                          <Select
-                            value={formData.role}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, role: value })
-                            }
-                          >
-                            <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectItem value="USER" className="text-gray-100 hover:bg-gray-700">
-                                USER
-                              </SelectItem>
-                              <SelectItem value="ADMIN" className="text-gray-100 hover:bg-gray-700">
-                                ADMIN
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="emailVerified"
-                            checked={formData.emailVerified}
-                            onCheckedChange={(checked) =>
-                              setFormData({ ...formData, emailVerified: !!checked })
-                            }
-                          />
-                          <Label htmlFor="emailVerified" className="text-gray-200">Email Verified</Label>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
-                        >
-                          Batal
-                        </Button>
-                        <Button onClick={handleSubmit}>Simpan</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button onClick={() => router.push("/admin/users/new")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tambah
+                  </Button>
 
                   {/* Delete Confirmation Dialog */}
                   <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
