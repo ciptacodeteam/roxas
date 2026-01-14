@@ -60,7 +60,6 @@ interface PaymentMethod {
   vatType: FeeType;
   vatValue: number;
   isActive: boolean;
-  sortOrder: number;
   midtransCode: string;
   createdAt: string;
   updatedAt: string;
@@ -242,10 +241,6 @@ export default function PaymentMethodsPage() {
             </span>
           );
         },
-      },
-      {
-        accessorKey: "sortOrder",
-        header: "Sort",
       },
       {
         id: "actions",

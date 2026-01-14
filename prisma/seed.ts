@@ -99,7 +99,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 0, // VAT included in fee
       isActive: true,
-      sortOrder: 1,
       midtransCode: 'qris',
     },
     // E-Wallet - GoPay - 2% (VAT included) or IDR 2,500 for gaming/digital
@@ -115,7 +114,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 0, // VAT included in fee
       isActive: true,
-      sortOrder: 2,
       midtransCode: 'gopay',
     },
     // E-Wallet - ShopeePay - 2% (VAT included)
@@ -130,7 +128,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 0, // VAT included in fee
       isActive: true,
-      sortOrder: 3,
       midtransCode: 'shopeepay',
     },
     // Credit Card - 2.9% + IDR 2,000 (VAT applies)
@@ -145,7 +142,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11, // 11% VAT on fee
       isActive: true,
-      sortOrder: 4,
       midtransCode: 'credit_card',
     },
     // Mobile Banking - BCA - IDR 4,000 (VAT applies)
@@ -160,7 +156,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11, // 11% VAT on fee
       isActive: true,
-      sortOrder: 10,
       midtransCode: 'bca',
     },
     // Mobile Banking - BNI - IDR 4,000 (VAT applies)
@@ -175,7 +170,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 11,
       midtransCode: 'bni',
     },
     // Mobile Banking - Mandiri - IDR 4,000 (VAT applies)
@@ -190,7 +184,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 12,
       midtransCode: 'mandiri',
     },
     // Mobile Banking - Permata - IDR 4,000 (VAT applies)
@@ -205,7 +198,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 13,
       midtransCode: 'permata',
     },
     // Mobile Banking - BRI - IDR 4,000 (VAT applies)
@@ -220,7 +212,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 14,
       midtransCode: 'bri',
     },
     // Mobile Banking - BSI - IDR 4,000 (VAT applies)
@@ -235,7 +226,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 15,
       midtransCode: 'bsi',
     },
     // Mobile Banking - Danamon - IDR 4,000 (VAT applies)
@@ -250,7 +240,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 16,
       midtransCode: 'danamon',
     },
     // Mobile Banking - CIMB - IDR 4,000 (VAT applies)
@@ -265,7 +254,6 @@ async function main() {
       vatType: FeeType.PERCENTAGE,
       vatValue: 11,
       isActive: true,
-      sortOrder: 17,
       midtransCode: 'cimb',
     },
   ];
@@ -293,7 +281,6 @@ async function main() {
             vatType: pm.vatType,
             vatValue: pm.vatValue,
             midtransCode: pm.midtransCode,
-            sortOrder: pm.sortOrder,
             bank: pm.bank,
           },
         });

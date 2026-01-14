@@ -203,7 +203,8 @@ export async function POST(request: NextRequest) {
 
     // Map payment method type to Midtrans payment type
     // For E_WALLET, use the midtransCode to determine gopay or shopeepay
-    let midtransPaymentType: "credit_card" | "bank_transfer" | "qris" | "gopay" | "shopeepay";
+    // Note: QRIS is not directly supported in Core API, so we use gopay which generates QR code
+    let midtransPaymentType: "credit_card" | "bank_transfer" | "gopay" | "shopeepay";
     
     switch (paymentMethod.type) {
       case PaymentMethodType.CREDIT_CARD:
@@ -213,14 +214,15 @@ export async function POST(request: NextRequest) {
         midtransPaymentType = "bank_transfer";
         break;
       case PaymentMethodType.QRIS:
-        midtransPaymentType = "qris";
+        // QRIS not supported in Core API, use gopay which generates QR code
+        midtransPaymentType = "gopay";
         break;
       case PaymentMethodType.E_WALLET:
         // Use midtransCode to determine gopay or shopeepay
         midtransPaymentType = paymentMethod.midtransCode === "shopeepay" ? "shopeepay" : "gopay";
         break;
       default:
-        midtransPaymentType = "qris"; // fallback
+        midtransPaymentType = "gopay"; // fallback
     }
 
     // Prepare bank transfer config if needed
@@ -301,12 +303,20 @@ export async function POST(request: NextRequest) {
       if (deeplinkAction) {
         paymentData.deeplinkUrl = deeplinkAction.url;
       }
+      
+      // Look for QR code image URL
+      const qrCodeAction = coreResponse.actions.find(
+        (a: any) => a.name === "generate-qr-code"
+      );
+      if (qrCodeAction) {
+        paymentData.paymentUrl = qrCodeAction.url;
+      }
+      
       const redirectAction = coreResponse.actions.find(
         (a: any) => a.name === "get-status" || a.name === "redirect"
       );
       if (redirectAction) {
         paymentData.redirectUrl = redirectAction.url;
-        paymentData.paymentUrl = redirectAction.url;
       }
     }
 
@@ -346,7 +356,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Create payment error:", error);
+    console.error("Create payment error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error,
+    });
     return NextResponse.json(
       {
         success: false,

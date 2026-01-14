@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
         ...(isActive !== null && { isActive: isActive === "true" }),
       },
       orderBy: [
-        { sortOrder: "asc" },
         { createdAt: "desc" },
       ],
     });

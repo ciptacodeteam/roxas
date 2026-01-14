@@ -203,6 +203,9 @@ export function useProduct(slug: string, options?: Omit<UseQueryOptions<any>, "q
     queryKey: queryKeys.products.detail(slug),
     queryFn: () => fetchJSON<any>(`/api/products/${slug}`),
     enabled: !!slug,
+    staleTime: 0, // Always refetch
+    refetchOnWindowFocus: true,
+    refetchOnMount: "stale",
     ...options,
   });
 }
@@ -311,6 +314,10 @@ export function useAdminPaymentMethods(
   return useQuery({
     queryKey: queryKeys.paymentMethods.lists(),
     queryFn: () => fetchJSON<any[]>(`/api/admin/payment-methods?${queryParams.toString()}`),
+    staleTime: 0, // Data is always stale, refetch on mount
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    refetchOnMount: "stale", // Refetch if data is stale when component mounts
     ...options,
   });
 }
@@ -323,6 +330,10 @@ export function useAdminPaymentMethod(
     queryKey: queryKeys.paymentMethods.detail(id),
     queryFn: () => fetchJSON<any>(`/api/admin/payment-methods/${id}`),
     enabled: !!id,
+    staleTime: 0, // Data is always stale
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: true,
+    refetchOnMount: "stale",
     ...options,
   });
 }
@@ -406,6 +417,9 @@ export function useUserProfile(options?: Omit<UseQueryOptions<any>, "queryKey" |
       }
       return data.user;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "stale",
     ...options,
   });
 }

@@ -15,52 +15,68 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState<string>("");
 
+  const fetchOrder = async () => {
+    if (!orderId) return;
+    
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOrder(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch order:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!orderId) {
       setLoading(false);
       return;
     }
 
-    const fetchOrder = async () => {
-      try {
-        const response = await fetch(`/api/orders/${orderId}`);
-        const data = await response.json();
-        if (data.success) {
-          setOrder(data.data);
-          
-          // Calculate time left if expiresAt exists
-          if (data.data.payment?.expiresAt) {
-            const expiresAt = new Date(data.data.payment.expiresAt);
-            const updateTimeLeft = () => {
-              const now = new Date();
-              const diff = expiresAt.getTime() - now.getTime();
-              
-              if (diff <= 0) {
-                setTimeLeft("Expired");
-                return;
-              }
-              
-              const hours = Math.floor(diff / (1000 * 60 * 60));
-              const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-              const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-              
-              setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
-            };
-            
-            updateTimeLeft();
-            const interval = setInterval(updateTimeLeft, 1000);
-            return () => clearInterval(interval);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch order:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrder();
+    
+    // Poll for order updates every 5 seconds if payment is pending
+    const pollInterval = setInterval(() => {
+      fetchOrder();
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [orderId]);
+
+  // Separate effect for countdown timer
+  useEffect(() => {
+    if (!order?.payment?.expiresAt) return;
+
+    const expiresAt = new Date(order.payment.expiresAt);
+    const updateTimeLeft = () => {
+      const now = new Date();
+      const diff = expiresAt.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setTimeLeft("Expired");
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+    };
+    
+    updateTimeLeft();
+    const interval = setInterval(updateTimeLeft, 1000);
+    return () => clearInterval(interval);
+  }, [order?.payment?.expiresAt]);
 
   if (loading) {
     return (
@@ -132,6 +148,12 @@ export default function PaymentPage() {
                 </Badge>
               </Row>
 
+              {payment?.paidAt && (
+                <Row label="Waktu Pembayaran">
+                  {new Date(payment.paidAt).toLocaleString("id-ID")}
+                </Row>
+              )}
+
               {/* RINCIAN PEMBAYARAN */}
               <div className="space-y-2 border-t border-white/10 pt-3">
                 <div className="flex justify-between text-gray-400">
@@ -174,6 +196,9 @@ export default function PaymentPage() {
                 <div className="rounded-full bg-primary/70 px-4 py-2 text-center text-sm font-medium">
                   {timeLeft || "Calculating..."}
                 </div>
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                  {new Date(payment.expiresAt).toLocaleString("id-ID")}
+                </p>
               </div>
             )}
 

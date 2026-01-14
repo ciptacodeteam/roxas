@@ -34,6 +34,11 @@ export const auth = betterAuth({
         required: false,
         input: false, // Don't allow setting via API
       },
+      phone: {
+        type: "string",
+        required: false,
+        input: true,
+      },
     },
   },
   // Note: Role is set via Prisma default value

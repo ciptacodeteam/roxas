@@ -56,15 +56,18 @@ export async function GET(request: NextRequest) {
       take: limit ? parseInt(limit, 10) : undefined,
     });
 
-    // Transform to match frontend expectations and filter out "cek username" products
-    // Hide products that have items with SKU codes starting with "MLCU"
+    // Transform to match frontend expectations
+    // Only hide products that contain ONLY "cek username" verification items (all items are MLCU)
     const transformedProducts = products
       .filter((product) => {
-        // Check if any product item has SKU code starting with "MLCU"
-        const hasMLCUSku = product.items.some((item) => 
+        // Check if ALL product items have SKU codes starting with "MLCU"
+        if (product.items.length === 0) return true; // Show products with no items
+        
+        const allMLCUSku = product.items.every((item) => 
           item.skuCode && item.skuCode.toUpperCase().startsWith("MLCU")
         );
-        return !hasMLCUSku;
+        // Only hide if ALL items are MLCU (i.e., it's a verification-only product)
+        return !allMLCUSku;
       })
       .map((product) => ({
         id: product.id,

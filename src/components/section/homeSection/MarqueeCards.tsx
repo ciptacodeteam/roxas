@@ -9,67 +9,93 @@ import {
 import { Zap } from "lucide-react";
 
 import Image from "next/image";
-
 import Marquee from "react-fast-marquee";
+import { useEffect, useState } from "react";
 
-const items = [
-  {
-    id: 1,
-    title: "1155 Diamonds",
-    product: "Magic Chess: Go Go",
-    image: "/img/icon1.webp",
-    price: 378395,
-    oldPrice: 400008,
-    sold: 158,
-    stock: 300,
-  },
-  {
-    id: 2,
-    title: "Weekly Pass",
-    product: "Mobile Legends",
-    image: "/img/icon1.webp",
-    price: 299000,
-    oldPrice: 340000,
-    sold: 92,
-    stock: 300,
-  },
-  {
-    id: 3,
-    title: "(200 + 768 UC PASS) 24 Jam",
-    product: "PUBG Mobile",
-    image: "/img/icon1.webp",
-    price: 125000,
-    oldPrice: 150000,
-    sold: 201,
-    stock: 300,
-  },
-  {
-    id: 4,
-    title: "Membership 10 bulan",
-    product: "Genshin Impact",
-    image: "/img/icon1.webp",
-    price: 89000,
-    oldPrice: 100000,
-    sold: 45,
-    stock: 300,
-  },
-];
-
-const loopItems = [...items, ...items];
+interface FlashSaleItem {
+  id: string;
+  flashSaleId: string;
+  productItemId: string;
+  salePrice: number;
+  stock: number;
+  soldCount: number;
+  productItem: {
+    id: string;
+    name: string;
+    iconImage: string | null;
+    basePrice: number;
+    normalPrice: number;
+    sellPrice: number;
+    product: {
+      id: string;
+      name: string;
+    };
+  };
+}
 
 export default function MarqueeCards() {
+  const [items, setItems] = useState<FlashSaleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFlashSales = async () => {
+      try {
+        const response = await fetch("/api/flash-sales/active");
+        const data = await response.json();
+
+        if (data.success && data.data.length > 0) {
+          const allItems = data.data.flatMap(
+            (sale: any) => sale.items
+          );
+          setItems(allItems);
+        }
+      } catch (error) {
+        console.error("Failed to fetch flash sales:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlashSales();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="pb-8">
+        <div className="animate-pulse flex gap-4 px-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="w-80 h-48 bg-white/10 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="pb-8 px-8 text-center text-gray-400">
+        <p>No flash sales available at the moment</p>
+      </div>
+    );
+  }
+
+  const loopItems = [...items, ...items];
   return (
     <div className="overflow-hidden pb-8">
       <Marquee speed={30} gradient={false} pauseOnHover>
         {loopItems.map((item, i) => {
+          const originalPrice = item.productItem.normalPrice;
+          const salePrice = item.salePrice;
           const discount =
-            item.oldPrice > item.price
-              ? Math.round(((item.oldPrice - item.price) / item.oldPrice) * 100)
+            originalPrice > salePrice
+              ? Math.round(
+                  ((originalPrice - salePrice) / originalPrice) * 100
+                )
               : 0;
 
           const progress = Math.min(
             100,
-            Math.round((item.sold / item.stock) * 100),
+            Math.round((item.soldCount / item.stock) * 100)
           );
 
           return (
@@ -82,16 +108,16 @@ export default function MarqueeCards() {
               <CardHeader className="z-10">
                 <div>
                   <h1 className="text-xl font-medium text-white">
-                    {item.title}
+                    {item.productItem.name}
                   </h1>
-                  <p className="text-sm text-white">{item.product}</p>
+                  <p className="text-sm text-white">{item.productItem.product.name}</p>
                 </div>
 
                 <div className="z-10 mt-3 flex items-center gap-4">
                   <div>
                     <Image
-                      src={item.image}
-                      alt="icon"
+                      src={item.productItem.iconImage || "/img/icon1.webp"}
+                      alt={item.productItem.name}
                       width={80}
                       height={80}
                       className="rounded-sm"
@@ -100,10 +126,10 @@ export default function MarqueeCards() {
                   <div>
                     <div>
                       <p className="text-xl font-semibold text-white">
-                        Rp {item.price.toLocaleString("id-ID")}
+                        Rp {salePrice.toLocaleString("id-ID")}
                       </p>
                       <p className="text-sm text-red-400 line-through">
-                        Rp {item.oldPrice.toLocaleString("id-ID")}
+                        Rp {originalPrice.toLocaleString("id-ID")}
                       </p>
                     </div>
 
@@ -125,17 +151,17 @@ export default function MarqueeCards() {
                 </div>
 
                 <p className="mt-2 text-right text-xs text-white">
-                  {item.sold} / {item.stock} purchased
+                  {item.soldCount} / {item.stock} purchased
                 </p>
               </CardContent>
 
               <CardFooter className="absolute bottom-0 left-0 right-0 z-10 flex justify-between text-xs text-white bg-background py-4">
                 <div className="flex items-center gap-1">
-                    <Zap className="size-5 text-yellow-400"/><span>Pengiriman CEPAT</span>
+                  <Zap className="size-5 text-yellow-400" />
+                  <span>Pengiriman CEPAT</span>
                 </div>
                 <span className="rounded-sm bg-primary px-3 py-1 text-xs text-white">
-                  Hemat Rp{" "}
-                  {(item.oldPrice - item.price).toLocaleString("id-ID")}
+                  Hemat Rp {(originalPrice - salePrice).toLocaleString("id-ID")}
                 </span>
               </CardFooter>
             </Card>

@@ -44,7 +44,6 @@ export default function PaymentMethodAddPage() {
     vatType: FeeType.PERCENTAGE,
     vatValue: 0,
     isActive: true,
-    sortOrder: 0,
     midtransCode: "",
   });
 
@@ -433,26 +432,6 @@ export default function PaymentMethodAddPage() {
                               />
                             </div>
                           </div>
-                        </div>
-
-                        {/* Sort Order */}
-                        <div className="space-y-2">
-                          <Label htmlFor="sortOrder" className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            Sort Order
-                          </Label>
-                          <Input
-                            id="sortOrder"
-                            type="number"
-                            value={formData.sortOrder}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                sortOrder: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
                         </div>
 
                         {/* Active Status */}

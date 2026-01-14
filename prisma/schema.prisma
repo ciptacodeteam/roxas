@@ -92,7 +92,6 @@ model PaymentMethod {
   
   // Configuration
   isActive    Boolean           @default(true)
-  sortOrder   Int               @default(0)
   
   // Midtrans-specific configuration
   midtransCode String           // Code used in Midtrans API (e.g., "bca", "gopay", "credit_card")
@@ -106,8 +105,6 @@ model PaymentMethod {
   @@unique([type, bank]) // Ensure one payment method per type+bank combination
   @@index([isActive])
   @@index([type])
-  @@index([sortOrder])
-  @@index([isActive, sortOrder])
   @@map("payment_methods")
 }
 

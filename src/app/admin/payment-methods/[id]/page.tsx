@@ -42,7 +42,6 @@ interface PaymentMethodDetail {
   vatType: FeeType;
   vatValue: number;
   isActive: boolean;
-  sortOrder: number;
   midtransCode: string;
   createdAt: string;
   updatedAt: string;
@@ -63,12 +62,11 @@ export default function PaymentMethodEditPage() {
     name: string;
     description: string;
     icon: string;
-    feeType: FeeType;
+    feeType: string;
     feeValue: number;
-    vatType: FeeType;
+    vatType: string;
     vatValue: number;
     isActive: boolean;
-    sortOrder: number;
     midtransCode: string;
   }>({
     type: "",
@@ -76,12 +74,11 @@ export default function PaymentMethodEditPage() {
     name: "",
     description: "",
     icon: "",
-    feeType: FeeType.PERCENTAGE,
+    feeType: "PERCENTAGE",
     feeValue: 0,
-    vatType: FeeType.PERCENTAGE,
+    vatType: "PERCENTAGE",
     vatValue: 0,
     isActive: true,
-    sortOrder: 0,
     midtransCode: "",
   });
 
@@ -96,18 +93,21 @@ export default function PaymentMethodEditPage() {
       // Convert to string to ensure it matches SelectItem values exactly
       const typeValue = typedPaymentMethodData.type ? String(typedPaymentMethodData.type) as PaymentMethodType : "";
       
+      // Keep feeType and vatType as strings for consistent state management
+      const feeTypeValue = typedPaymentMethodData.feeType ? String(typedPaymentMethodData.feeType) : "PERCENTAGE";
+      const vatTypeValue = typedPaymentMethodData.vatType ? String(typedPaymentMethodData.vatType) : "PERCENTAGE";
+      
       setFormData({
         type: typeValue,
         bank: typedPaymentMethodData.bank || "",
         name: typedPaymentMethodData.name,
         description: typedPaymentMethodData.description || "",
         icon: typedPaymentMethodData.icon || "",
-        feeType: typedPaymentMethodData.feeType,
+        feeType: feeTypeValue,
         feeValue: typedPaymentMethodData.feeValue,
-        vatType: typedPaymentMethodData.vatType,
+        vatType: vatTypeValue,
         vatValue: typedPaymentMethodData.vatValue,
         isActive: typedPaymentMethodData.isActive,
-        sortOrder: typedPaymentMethodData.sortOrder,
         midtransCode: typedPaymentMethodData.midtransCode,
       });
       setIconPreview(typedPaymentMethodData.icon || null);
@@ -140,8 +140,16 @@ export default function PaymentMethodEditPage() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
+        throw new Error(data.message || `Upload failed with status ${response.status}`);
+      }
+
+      if (!data.success) {
         throw new Error(data.message || "Failed to upload image");
+      }
+
+      if (!data.data || !data.data.url) {
+        throw new Error("No URL returned from upload");
       }
 
       setFormData((prev) => ({ ...prev, icon: data.data.url }));
@@ -149,6 +157,7 @@ export default function PaymentMethodEditPage() {
 
       toast.success("Icon uploaded successfully");
     } catch (err) {
+      console.error("Icon upload error:", err);
       toast.error(
         err instanceof Error ? err.message : "Failed to upload icon"
       );
@@ -173,10 +182,18 @@ export default function PaymentMethodEditPage() {
     setSaving(true);
     const submitData = {
       ...formData,
+      feeType: formData.feeType as FeeType,
+      vatType: formData.vatType as FeeType,
       bank: String(formData.type) === "MOBILE_BANKING" ? formData.bank : null,
       description: formData.description || null,
       icon: formData.icon || null,
     };
+
+    console.log("Submitting payment method update:", {
+      feeType: submitData.feeType,
+      vatType: submitData.vatType,
+      fullData: submitData,
+    });
 
     updatePaymentMethodMutation.mutate(
       { id: paymentMethodId, data: submitData },
@@ -430,6 +447,8 @@ export default function PaymentMethodEditPage() {
                                       const file = e.target.files?.[0];
                                       if (file) {
                                         handleImageUpload(file);
+                                        // Reset file input
+                                        e.target.value = "";
                                       }
                                     }}
                                     disabled={uploadingIcon}
@@ -473,20 +492,22 @@ export default function PaymentMethodEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="feeType">Fee Type</Label>
                                 <Select
-                                  value={formData.feeType}
-                                  onValueChange={(value) =>
-                                    setFormData({
-                                      ...formData,
-                                      feeType: value as FeeType,
-                                    })
-                                  }
+                                  value={formData.feeType || "PERCENTAGE"}
+                                  onValueChange={(value) => {
+                                    if (value) {
+                                      setFormData({
+                                        ...formData,
+                                        feeType: value,
+                                      });
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                    <SelectValue />
+                                    <SelectValue placeholder="Select fee type" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                    <SelectItem value={FeeType.PERCENTAGE} className="hover:bg-gray-700">Percentage</SelectItem>
-                                    <SelectItem value={FeeType.FIXED} className="hover:bg-gray-700">Fixed Amount</SelectItem>
+                                    <SelectItem value="PERCENTAGE" className="hover:bg-gray-700">Percentage</SelectItem>
+                                    <SelectItem value="FIXED" className="hover:bg-gray-700">Fixed Amount</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -519,20 +540,23 @@ export default function PaymentMethodEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="vatType">VAT Type</Label>
                                 <Select
-                                  value={formData.vatType}
-                                  onValueChange={(value) =>
-                                    setFormData({
-                                      ...formData,
-                                      vatType: value as FeeType,
-                                    })
-                                  }
+                                  value={formData.vatType || "PERCENTAGE"}
+                                  onValueChange={(value) => {
+                                    if (value) {
+                                      console.log("VAT type changed to:", value);
+                                      setFormData({
+                                        ...formData,
+                                        vatType: value,
+                                      });
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                    <SelectValue />
+                                    <SelectValue placeholder="Select VAT type" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                    <SelectItem value={FeeType.PERCENTAGE} className="hover:bg-gray-700">Percentage</SelectItem>
-                                    <SelectItem value={FeeType.FIXED} className="hover:bg-gray-700">Fixed Amount</SelectItem>
+                                    <SelectItem value="PERCENTAGE" className="hover:bg-gray-700">Percentage</SelectItem>
+                                    <SelectItem value="FIXED" className="hover:bg-gray-700">Fixed Amount</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -553,26 +577,6 @@ export default function PaymentMethodEditPage() {
                                 />
                               </div>
                             </div>
-                          </div>
-
-                          {/* Sort Order */}
-                          <div className="space-y-2">
-                            <Label htmlFor="sortOrder" className="flex items-center gap-2">
-                              <CreditCard className="h-4 w-4" />
-                              Sort Order
-                            </Label>
-                            <Input
-                              id="sortOrder"
-                              type="number"
-                              value={formData.sortOrder}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  sortOrder: parseInt(e.target.value) || 0,
-                                })
-                              }
-                              className="bg-gray-800 text-gray-100 border-gray-700"
-                            />
                           </div>
 
                           {/* Active Status */}
@@ -670,10 +674,6 @@ export default function PaymentMethodEditPage() {
                           <p className="text-sm text-gray-200 font-mono">
                             {typedPaymentMethodData.midtransCode}
                           </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-400">Sort Order</span>
-                          <p className="text-sm text-gray-200">{typedPaymentMethodData.sortOrder}</p>
                         </div>
                       </CardContent>
                     </Card>

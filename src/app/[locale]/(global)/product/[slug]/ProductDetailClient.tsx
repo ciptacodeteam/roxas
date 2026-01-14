@@ -62,6 +62,7 @@ import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useSession } from "@/lib/auth-client";
 
 type ProductData = {
   id: string;
@@ -162,10 +163,20 @@ export default function ProductDetailClient({
   const [verifiedAccount, setVerifiedAccount] = useState<{ userId: string; serverId: string } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Get user session
+  const { data: session } = useSession();
+
   // Handle client-side mounting to prevent hydration issues
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Auto-fill phone number from user session
+  useEffect(() => {
+    if (session?.user?.phone && !phone) {
+      setPhone(session.user.phone);
+    }
+  }, [session, phone]);
 
   // Fetch payment methods
   useEffect(() => {
@@ -421,8 +432,8 @@ export default function ProductDetailClient({
 
   // Check if this is Mobile Legends product
   // Check by slug or by input fields (userId and serverId/zoneId)
-  const hasUserIdField = product.inputFields.some((field) => field.name === "userId");
-  const hasServerField = product.inputFields.some((field) => field.name === "serverId" || field.name === "zoneId");
+  const hasUserIdField = product?.inputFields?.some((field) => field.name === "userId") || false;
+  const hasServerField = product?.inputFields?.some((field) => field.name === "serverId" || field.name === "zoneId") || false;
   const isMobileLegends = 
     slug.includes("mobile-legends") || 
     productData?.slug?.includes("mobile-legends") ||
@@ -578,7 +589,7 @@ export default function ProductDetailClient({
                   <h2 className="font-medium text-white">Masukkan Data Akun</h2>
                 </div>
                 {/* Form */}
-                <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2" data-verification-section>
                   {/* ID */}
                   {product.inputFields.map((field) => (
                     <div key={field.name}>
@@ -734,7 +745,22 @@ export default function ProductDetailClient({
                                 return (
                                   <Card
                                     key={item.id}
-                                    onClick={() => setSelectedItem(item.id)}
+                                    onClick={() => {
+                                      // For Mobile Legends, prompt account validation before selecting nominal
+                                      if (isMobileLegends && !isVerified) {
+                                        toast.error("Verifikasi Akun Diperlukan", {
+                                          description: "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum memilih nominal.",
+                                          action: {
+                                            label: "Verifikasi Sekarang",
+                                            onClick: () => {
+                                              document.querySelector('[data-verification-section]')?.scrollIntoView({ behavior: 'smooth' });
+                                            },
+                                          },
+                                        });
+                                        return;
+                                      }
+                                      setSelectedItem(item.id);
+                                    }}
                                     className={cn(
                                       "group cursor-pointer overflow-hidden border-0 bg-[#313C4C] bg-[url(/img/background.png)] bg-cover bg-no-repeat px-0 py-0 pt-4 transition-all hover:outline-2 hover:outline-rose-500",
                                       isSelected && "outline-2 outline-rose-500",
@@ -842,7 +868,22 @@ export default function ProductDetailClient({
                                 return (
                                   <Card
                                     key={item.id}
-                                    onClick={() => setSelectedItem(item.id)}
+                                    onClick={() => {
+                                      // For Mobile Legends, prompt account validation before selecting nominal
+                                      if (isMobileLegends && !isVerified) {
+                                        toast.error("Verifikasi Akun Diperlukan", {
+                                          description: "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum memilih nominal.",
+                                          action: {
+                                            label: "Verifikasi Sekarang",
+                                            onClick: () => {
+                                              document.querySelector('[data-verification-section]')?.scrollIntoView({ behavior: 'smooth' });
+                                            },
+                                          },
+                                        });
+                                        return;
+                                      }
+                                      setSelectedItem(item.id);
+                                    }}
                                     className={cn(
                                       "group cursor-pointer overflow-hidden border-0 bg-[#313C4C] bg-[url(/img/background.png)] bg-cover bg-no-repeat px-0 py-0 pt-4 transition-all hover:outline-2 hover:outline-rose-500",
                                       isSelected && "outline-2 outline-rose-500",
@@ -981,350 +1022,357 @@ export default function ProductDetailClient({
                 </div>
 
                 <div className="p-4">
-                  <div className="flex flex-col space-y-6">
-                    {/* E-Wallet & QRIS Group */}
-                    {(() => {
-                      const ewalletMethods = paymentMethods.filter(
-                        (pm: any) => pm.type === "QRIS" || pm.type === "E_WALLET"
-                      );
-                      if (ewalletMethods.length === 0) return null;
-                      
-                      return (
-                        <div className="space-y-3">
-                          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                            E-Wallet & QRIS
-                          </h3>
-                          <div className="flex flex-col space-y-3">
-                            {ewalletMethods.map((pm: any) => {
-                        const isSelected = selectedPaymentMethod === pm.id;
-                        const isQRIS = pm.type === "QRIS";
-                        return (
-                          <div key={pm.id} className="group relative">
-                            <div
-                              onClick={() => setSelectedPaymentMethod(pm.id)}
-                              className={cn(
-                                "flex cursor-pointer items-center justify-between rounded-md bg-[#313C4C] px-6 py-4 ring-2 transition-all duration-200",
-                                isSelected ? "ring-primary" : "ring-transparent hover:ring-primary"
-                              )}
-                            >
-                              {/* Left */}
-                              <div className="flex flex-col gap-3">
-                                <h2 className="text-sm font-medium text-white">
-                                  {pm.name}
-                                </h2>
-                                {pm.description && (
-                                  <p className="text-xs text-gray-400">{pm.description}</p>
-                                )}
-                                {isQRIS && (
-                                  <div className="flex items-center gap-3">
-                                    <Image
-                                      src={qris}
-                                      alt="QRIS"
-                                      className="w-18 rounded-sm bg-white object-contain px-2 py-2"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Right */}
-                              <div className="text-right">
-                                {selectedItemData && (() => {
-                                  const baseAmount = baseAmountAfterCoupon;
-                                  const pmTotal = calculateTotalWithFees(baseAmount, pm);
-                                  return (
-                                    <div>
-                                      <p className="font-medium text-white">
-                                        Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
-                                      </p>
-                                      {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
-                                        <p className="text-xs text-gray-400">
-                                          Termasuk biaya & PPN
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-
-                            {/* Best Price Badge for QRIS */}
-                            {isQRIS && isSelected && (
-                              <div className="absolute -top-2 -right-2 aspect-square w-18 overflow-hidden rounded-sm">
-                                <div className="absolute top-0 left-0 h-2 w-2 bg-yellow-500/50"></div>
-                                <div className="absolute right-0 bottom-0 h-2 w-2 bg-yellow-500/50"></div>
-                                <div className="w-square-diagonal absolute right-0 bottom-0 block w-25 origin-bottom-right rotate-45 bg-yellow-500 py-1 text-center text-xs font-semibold text-black uppercase shadow-sm">
-                                  Best Price
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                            );
-                          })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Credit Card Group */}
-                    {(() => {
-                      const creditCardMethods = paymentMethods.filter(
-                        (pm: any) => pm.type === "CREDIT_CARD"
-                      );
-                      if (creditCardMethods.length === 0) return null;
-                      
-                      return (
-                        <div className="space-y-3">
-                          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                            Kartu Kredit
-                          </h3>
-                          <div className="flex flex-col space-y-3">
-                            {creditCardMethods.map((pm: any) => {
-                              const isSelected = selectedPaymentMethod === pm.id;
-                              return (
-                                <div key={pm.id}>
-                                  <div
-                                    onClick={() => {
-                                      setSelectedPaymentMethod(pm.id);
-                                      // Reset credit card form when switching cards
-                                      if (!isSelected) {
-                                        setCreditCardData({
-                                          cardNumber: "",
-                                          cardholderName: "",
-                                          expiryDate: "",
-                                          cvv: "",
-                                        });
-                                        setCreditCardErrors({});
-                                      }
-                                    }}
-                                    className={cn(
-                                      "flex cursor-pointer items-center justify-between rounded-md bg-[#313C4C] px-6 py-4 ring-2 transition-all duration-200",
-                                      isSelected ? "ring-primary" : "ring-transparent hover:ring-primary"
-                                    )}
-                                  >
-                                    <div className="flex flex-col gap-2">
-                                      <h2 className="text-sm font-medium text-white">
-                                        {pm.name}
-                                      </h2>
-                                      {pm.description && (
-                                        <p className="text-xs text-gray-400">{pm.description}</p>
-                                      )}
-                                    </div>
-                                    {selectedItemData && (() => {
-                                      const baseAmount = baseAmountAfterCoupon;
-                                      const pmTotal = calculateTotalWithFees(baseAmount, pm);
-                                      return (
-                                        <div className="text-right">
-                                          <p className="font-medium text-white">
-                                            Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
-                                          </p>
-                                          {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
-                                            <p className="text-xs text-gray-400">
-                                              Termasuk biaya & PPN
-                                            </p>
-                                          )}
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-
-                                  {/* Credit Card Form - Show when selected */}
-                                  {isSelected && (
-                                    <div className="mt-4 rounded-lg border border-primary/30 bg-[#2C3544] p-4">
-                                      <h4 className="mb-4 text-sm font-semibold text-white">
-                                        Informasi Kartu Kredit
-                                      </h4>
-                                      <div className="space-y-4">
-                                        {/* Card Number */}
-                                        <div className="space-y-2">
-                                          <Label htmlFor="cardNumber" className="text-sm text-gray-300">
-                                            Nomor Kartu <span className="text-red-400">*</span>
-                                          </Label>
-                                          <Input
-                                            id="cardNumber"
-                                            type="text"
-                                            placeholder="1234 5678 9012 3456"
-                                            value={creditCardData.cardNumber}
-                                            onChange={(e) => handleCardNumberChange(e.target.value)}
-                                            onBlur={() => {
-                                              const error = validateCardNumber(creditCardData.cardNumber);
-                                              setCreditCardErrors({ ...creditCardErrors, cardNumber: error });
-                                            }}
-                                            maxLength={19}
-                                            className={cn(
-                                              "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
-                                              creditCardErrors.cardNumber && "border-red-500 focus-visible:ring-red-500"
-                                            )}
-                                          />
-                                          {creditCardErrors.cardNumber && (
-                                            <p className="text-xs text-red-400">{creditCardErrors.cardNumber}</p>
-                                          )}
-                                        </div>
-
-                                        {/* Cardholder Name */}
-                                        <div className="space-y-2">
-                                          <Label htmlFor="cardholderName" className="text-sm text-gray-300">
-                                            Nama di Kartu <span className="text-red-400">*</span>
-                                          </Label>
-                                          <Input
-                                            id="cardholderName"
-                                            type="text"
-                                            placeholder="JOHN DOE"
-                                            value={creditCardData.cardholderName}
-                                            onChange={(e) => {
-                                              setCreditCardData({ ...creditCardData, cardholderName: e.target.value.toUpperCase() });
-                                              if (creditCardErrors.cardholderName) {
-                                                setCreditCardErrors({ ...creditCardErrors, cardholderName: undefined });
-                                              }
-                                            }}
-                                            onBlur={() => {
-                                              const error = !creditCardData.cardholderName.trim() ? "Cardholder name is required" : undefined;
-                                              setCreditCardErrors({ ...creditCardErrors, cardholderName: error });
-                                            }}
-                                            className={cn(
-                                              "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500 uppercase",
-                                              creditCardErrors.cardholderName && "border-red-500 focus-visible:ring-red-500"
-                                            )}
-                                          />
-                                          {creditCardErrors.cardholderName && (
-                                            <p className="text-xs text-red-400">{creditCardErrors.cardholderName}</p>
-                                          )}
-                                        </div>
-
-                                        {/* Expiry Date and CVV */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                          <div className="space-y-2">
-                                            <Label htmlFor="expiryDate" className="text-sm text-gray-300">
-                                              Tanggal Kadaluarsa <span className="text-red-400">*</span>
-                                            </Label>
-                                            <Input
-                                              id="expiryDate"
-                                              type="text"
-                                              placeholder="MM/YY"
-                                              value={creditCardData.expiryDate}
-                                              onChange={(e) => handleExpiryDateChange(e.target.value)}
-                                              onBlur={() => {
-                                                const error = validateExpiryDate(creditCardData.expiryDate);
-                                                setCreditCardErrors({ ...creditCardErrors, expiryDate: error });
-                                              }}
-                                              maxLength={5}
-                                              className={cn(
-                                                "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
-                                                creditCardErrors.expiryDate && "border-red-500 focus-visible:ring-red-500"
-                                              )}
-                                            />
-                                            {creditCardErrors.expiryDate && (
-                                              <p className="text-xs text-red-400">{creditCardErrors.expiryDate}</p>
-                                            )}
-                                          </div>
-
-                                          <div className="space-y-2">
-                                            <Label htmlFor="cvv" className="text-sm text-gray-300">
-                                              CVV <span className="text-red-400">*</span>
-                                            </Label>
-                                            <Input
-                                              id="cvv"
-                                              type="text"
-                                              placeholder="123"
-                                              value={creditCardData.cvv}
-                                              onChange={(e) => handleCVVChange(e.target.value)}
-                                              onBlur={() => {
-                                                const error = validateCVV(creditCardData.cvv);
-                                                setCreditCardErrors({ ...creditCardErrors, cvv: error });
-                                              }}
-                                              maxLength={4}
-                                              className={cn(
-                                                "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
-                                                creditCardErrors.cvv && "border-red-500 focus-visible:ring-red-500"
-                                              )}
-                                            />
-                                            {creditCardErrors.cvv && (
-                                              <p className="text-xs text-red-400">{creditCardErrors.cvv}</p>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {/* Security Note */}
-                                        <div className="rounded-md bg-blue-500/10 p-3">
-                                          <p className="flex items-start gap-2 text-xs text-blue-300">
-                                            <Image alt="" src={secure} className="mt-0.5 h-4 w-4" />
-                                            Informasi kartu Anda aman dan dienkripsi. Kami tidak menyimpan detail kartu Anda.
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Bank Transfer Methods */}
-                    {paymentMethods.filter((pm: any) => pm.type === "MOBILE_BANKING").length > 0 && (
-                      <div className="space-y-3">
-                        <Accordion
-                          type="single"
-                          collapsible
-                          className="overflow-hidden rounded-md bg-gray-800"
-                        >
-                          <AccordionItem
-                            value="bank-transfer"
-                            className="group border-none"
-                          >
+                  <div className="flex flex-col space-y-3">
+                    <Accordion
+                      type="single"
+                      collapsible
+                      defaultValue="qris-ewallet"
+                      className="w-full space-y-3"
+                    >
+                      {/* E-Wallet & QRIS Group */}
+                      {paymentMethods.filter((pm: any) => pm.type === "QRIS" || pm.type === "E_WALLET").length > 0 && (
+                        <div className="overflow-hidden rounded-md bg-gray-800">
+                          <AccordionItem value="qris-ewallet" className="group border-none">
                             <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
                               <span className="font-medium text-white uppercase tracking-wide">
-                                Transfer Bank
+                                💳 E-Wallet & QRIS
                               </span>
+                              <div className="flex items-center">
+                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="bg-[#313C4C] p-4">
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                {paymentMethods
+                                  .filter((pm: any) => pm.type === "QRIS" || pm.type === "E_WALLET")
+                                  .map((pm: any) => {
+                                    const isSelected = selectedPaymentMethod === pm.id;
+                                    const isQRIS = pm.type === "QRIS";
+                                    return (
+                                      <div key={pm.id}>
+                                        <div
+                                          onClick={() => setSelectedPaymentMethod(pm.id)}
+                                          className={cn(
+                                            "rounded-lg bg-[#2C3544] p-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-3",
+                                            isSelected ? "ring-2 ring-primary" : "hover:ring-2 hover:ring-primary"
+                                          )}
+                                        >
+                                          {pm.icon && (
+                                            <Image
+                                              src={pm.icon}
+                                              alt={pm.name}
+                                              width={80}
+                                              height={48}
+                                              className="rounded-md bg-white object-contain p-2"
+                                            />
+                                          )}
+                                          {isQRIS && !pm.icon && (
+                                            <Image
+                                              src={qris}
+                                              alt="QRIS"
+                                              className="w-20 rounded-sm bg-white object-contain px-2 py-2"
+                                            />
+                                          )}
+                                          <h3 className="font-medium text-white text-center text-sm">{pm.name}</h3>
+                                          {pm.description && (
+                                            <p className="text-xs text-gray-400 text-center">{pm.description}</p>
+                                          )}
+                                          {selectedItemData && (() => {
+                                            const baseAmount = baseAmountAfterCoupon;
+                                            const pmTotal = calculateTotalWithFees(baseAmount, pm);
+                                            return (
+                                              <div className="text-center w-full pt-2 border-t border-gray-600">
+                                                <p className="text-sm font-medium text-white">
+                                                  Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
+                                                </p>
+                                                {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
+                                                  <p className="text-xs text-gray-400">
+                                                    Termasuk biaya & PPN
+                                                  </p>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </div>
+                      )}
 
-                            <div className="flex items-center">
-                              <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
-                            </div>
-                          </AccordionTrigger>
-
-                          <AccordionContent className="bg-[#313C4C] p-4">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                              {paymentMethods
-                                .filter((pm: any) => pm.type === "MOBILE_BANKING")
-                                .map((pm: any) => {
-                                  const isSelected = selectedPaymentMethod === pm.id;
-                                  return (
-                                    <div
-                                      key={pm.id}
-                                      onClick={() => setSelectedPaymentMethod(pm.id)}
-                                      className={cn(
-                                        "rounded-2xl bg-[#2C3544] p-4 transition-all duration-200 cursor-pointer",
-                                        isSelected ? "ring-2 ring-primary" : "hover:ring-2 hover:ring-primary"
-                                      )}
-                                    >
-                                      <h3 className="font-medium text-white mb-2">{pm.name}</h3>
-                                      {selectedItemData && (() => {
-                                        const baseAmount = baseAmountAfterCoupon;
-                                        const pmTotal = calculateTotalWithFees(baseAmount, pm);
-                                        return (
-                                          <div>
-                                            <p className="text-sm font-medium text-white">
-                                              Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
-                                            </p>
-                                            {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
-                                              <p className="text-xs text-gray-400">
-                                                Termasuk biaya & PPN
-                                              </p>
+                      {/* Credit Card Group */}
+                      {paymentMethods.filter((pm: any) => pm.type === "CREDIT_CARD").length > 0 && (
+                        <div className="overflow-hidden rounded-md bg-gray-800">
+                          <AccordionItem value="credit-card" className="group border-none">
+                            <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
+                              <span className="font-medium text-white uppercase tracking-wide">
+                                💳 Kartu Kredit
+                              </span>
+                              <div className="flex items-center">
+                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="bg-[#313C4C] p-4">
+                              <div className="space-y-4">
+                                {paymentMethods
+                                  .filter((pm: any) => pm.type === "CREDIT_CARD")
+                                  .map((pm: any) => {
+                                    const isSelected = selectedPaymentMethod === pm.id;
+                                    return (
+                                      <div key={pm.id}>
+                                        <div
+                                          onClick={() => {
+                                            setSelectedPaymentMethod(pm.id);
+                                            if (!isSelected) {
+                                              setCreditCardData({
+                                                cardNumber: "",
+                                                cardholderName: "",
+                                                expiryDate: "",
+                                                cvv: "",
+                                              });
+                                              setCreditCardErrors({});
+                                            }
+                                          }}
+                                          className={cn(
+                                            "flex cursor-pointer items-center justify-between rounded-md bg-[#2C3544] px-6 py-4 ring-2 transition-all duration-200",
+                                            isSelected ? "ring-primary" : "ring-transparent hover:ring-primary"
+                                          )}
+                                        >
+                                          <div className="flex items-center gap-4">
+                                            {pm.icon && (
+                                              <Image
+                                                src={pm.icon}
+                                                alt={pm.name}
+                                                width={48}
+                                                height={48}
+                                                className="rounded-md bg-white object-contain p-2"
+                                              />
                                             )}
+                                            <div className="flex flex-col gap-2">
+                                              <h2 className="text-sm font-medium text-white">
+                                                {pm.name}
+                                              </h2>
+                                              {pm.description && (
+                                                <p className="text-xs text-gray-400">{pm.description}</p>
+                                              )}
+                                            </div>
                                           </div>
-                                        );
-                                      })()}
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                      </div>
-                    )}
+                                          {selectedItemData && (() => {
+                                            const baseAmount = baseAmountAfterCoupon;
+                                            const pmTotal = calculateTotalWithFees(baseAmount, pm);
+                                            return (
+                                              <div className="text-right">
+                                                <p className="font-medium text-white">
+                                                  Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
+                                                </p>
+                                                {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
+                                                  <p className="text-xs text-gray-400">
+                                                    Termasuk biaya & PPN
+                                                  </p>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
 
+                                        {isSelected && (
+                                          <div className="mt-4 rounded-lg border border-primary/30 bg-[#2C3544] p-4">
+                                            <h4 className="mb-4 text-sm font-semibold text-white">
+                                              Informasi Kartu Kredit
+                                            </h4>
+                                            <div className="space-y-4">
+                                              <div className="space-y-2">
+                                                <Label htmlFor="cardNumber" className="text-sm text-gray-300">
+                                                  Nomor Kartu <span className="text-red-400">*</span>
+                                                </Label>
+                                                <Input
+                                                  id="cardNumber"
+                                                  type="text"
+                                                  placeholder="1234 5678 9012 3456"
+                                                  value={creditCardData.cardNumber}
+                                                  onChange={(e) => handleCardNumberChange(e.target.value)}
+                                                  onBlur={() => {
+                                                    const error = validateCardNumber(creditCardData.cardNumber);
+                                                    setCreditCardErrors({ ...creditCardErrors, cardNumber: error });
+                                                  }}
+                                                  maxLength={19}
+                                                  className={cn(
+                                                    "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
+                                                    creditCardErrors.cardNumber && "border-red-500 focus-visible:ring-red-500"
+                                                  )}
+                                                />
+                                                {creditCardErrors.cardNumber && (
+                                                  <p className="text-xs text-red-400">{creditCardErrors.cardNumber}</p>
+                                                )}
+                                              </div>
+
+                                              <div className="space-y-2">
+                                                <Label htmlFor="cardholderName" className="text-sm text-gray-300">
+                                                  Nama di Kartu <span className="text-red-400">*</span>
+                                                </Label>
+                                                <Input
+                                                  id="cardholderName"
+                                                  type="text"
+                                                  placeholder="JOHN DOE"
+                                                  value={creditCardData.cardholderName}
+                                                  onChange={(e) => {
+                                                    setCreditCardData({ ...creditCardData, cardholderName: e.target.value.toUpperCase() });
+                                                    if (creditCardErrors.cardholderName) {
+                                                      setCreditCardErrors({ ...creditCardErrors, cardholderName: undefined });
+                                                    }
+                                                  }}
+                                                  onBlur={() => {
+                                                    const error = !creditCardData.cardholderName.trim() ? "Cardholder name is required" : undefined;
+                                                    setCreditCardErrors({ ...creditCardErrors, cardholderName: error });
+                                                  }}
+                                                  className={cn(
+                                                    "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500 uppercase",
+                                                    creditCardErrors.cardholderName && "border-red-500 focus-visible:ring-red-500"
+                                                  )}
+                                                />
+                                                {creditCardErrors.cardholderName && (
+                                                  <p className="text-xs text-red-400">{creditCardErrors.cardholderName}</p>
+                                                )}
+                                              </div>
+
+                                              <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="expiryDate" className="text-sm text-gray-300">
+                                                    Tanggal Kadaluarsa <span className="text-red-400">*</span>
+                                                  </Label>
+                                                  <Input
+                                                    id="expiryDate"
+                                                    type="text"
+                                                    placeholder="MM/YY"
+                                                    value={creditCardData.expiryDate}
+                                                    onChange={(e) => handleExpiryDateChange(e.target.value)}
+                                                    onBlur={() => {
+                                                      const error = validateExpiryDate(creditCardData.expiryDate);
+                                                      setCreditCardErrors({ ...creditCardErrors, expiryDate: error });
+                                                    }}
+                                                    maxLength={5}
+                                                    className={cn(
+                                                      "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
+                                                      creditCardErrors.expiryDate && "border-red-500 focus-visible:ring-red-500"
+                                                    )}
+                                                  />
+                                                  {creditCardErrors.expiryDate && (
+                                                    <p className="text-xs text-red-400">{creditCardErrors.expiryDate}</p>
+                                                  )}
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                  <Label htmlFor="cvv" className="text-sm text-gray-300">
+                                                    CVV <span className="text-red-400">*</span>
+                                                  </Label>
+                                                  <Input
+                                                    id="cvv"
+                                                    type="text"
+                                                    placeholder="123"
+                                                    value={creditCardData.cvv}
+                                                    onChange={(e) => handleCVVChange(e.target.value)}
+                                                    onBlur={() => {
+                                                      const error = validateCVV(creditCardData.cvv);
+                                                      setCreditCardErrors({ ...creditCardErrors, cvv: error });
+                                                    }}
+                                                    maxLength={4}
+                                                    className={cn(
+                                                      "bg-gray-800 text-white border-gray-700 placeholder:text-gray-500",
+                                                      creditCardErrors.cvv && "border-red-500 focus-visible:ring-red-500"
+                                                    )}
+                                                  />
+                                                  {creditCardErrors.cvv && (
+                                                    <p className="text-xs text-red-400">{creditCardErrors.cvv}</p>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              <div className="rounded-md bg-blue-500/10 p-3">
+                                                <p className="flex items-start gap-2 text-xs text-blue-300">
+                                                  <Image alt="" src={secure} className="mt-0.5 h-4 w-4" />
+                                                  Informasi kartu Anda aman dan dienkripsi. Kami tidak menyimpan detail kartu Anda.
+                                                </p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </div>
+                      )}
+
+                      {/* Bank Transfer Group */}
+                      {paymentMethods.filter((pm: any) => pm.type === "MOBILE_BANKING").length > 0 && (
+                        <div className="overflow-hidden rounded-md bg-gray-800">
+                          <AccordionItem value="bank-transfer" className="group border-none">
+                            <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
+                              <span className="font-medium text-white uppercase tracking-wide">
+                                🏦 Transfer Bank
+                              </span>
+                              <div className="flex items-center">
+                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="bg-[#313C4C] p-4">
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                {paymentMethods
+                                  .filter((pm: any) => pm.type === "MOBILE_BANKING")
+                                  .map((pm: any) => {
+                                    const isSelected = selectedPaymentMethod === pm.id;
+                                    return (
+                                      <div
+                                        key={pm.id}
+                                        onClick={() => setSelectedPaymentMethod(pm.id)}
+                                        className={cn(
+                                          "rounded-lg bg-[#2C3544] p-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-3",
+                                          isSelected ? "ring-2 ring-primary" : "hover:ring-2 hover:ring-primary"
+                                        )}
+                                      >
+                                        {pm.icon && (
+                                          <Image
+                                            src={pm.icon}
+                                            alt={pm.name}
+                                            width={80}
+                                            height={48}
+                                            className="rounded-md bg-white object-contain p-2"
+                                          />
+                                        )}
+                                        <h3 className="font-medium text-white text-center text-sm">{pm.name}</h3>
+                                        {pm.description && (
+                                          <p className="text-xs text-gray-400 text-center">{pm.description}</p>
+                                        )}
+                                        {selectedItemData && (() => {
+                                          const baseAmount = baseAmountAfterCoupon;
+                                          const pmTotal = calculateTotalWithFees(baseAmount, pm);
+                                          return (
+                                            <div className="text-center w-full pt-2 border-t border-gray-600">
+                                              <p className="text-sm font-medium text-white">
+                                                Rp {pmTotal.totalAmount.toLocaleString("id-ID")}
+                                              </p>
+                                              {(pmTotal.paymentFee > 0 || pmTotal.vatAmount > 0) && (
+                                                <p className="text-xs text-gray-400">
+                                                  Termasuk biaya & PPN
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </div>
+                      )}
+                    </Accordion>
                     {/* Convenience Store Methods */}
                     {false && paymentMethods.filter((pm: any) => pm.type === "ECHANNEL").length > 0 && (
                       <div className="space-y-3">
@@ -1923,9 +1971,17 @@ export default function ProductDetailClient({
 
                       <Button
                         className="bg-primary cursor-pointer"
-                        disabled={!isAgree || isLoading || !selectedItemData || !selectedPaymentMethod}
+                        disabled={!isAgree || isLoading || !selectedItemData || !selectedPaymentMethod || (isMobileLegends && !isVerified)}
                         onClick={async () => {
                           if (!selectedItemData || !selectedPaymentMethod) return;
+
+                          // Validate Mobile Legends account verification
+                          if (isMobileLegends && !isVerified) {
+                            toast.error("Verifikasi Akun Diperlukan", {
+                              description: "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum membuat pesanan.",
+                            });
+                            return;
+                          }
 
                           // Validate credit card if credit card payment method is selected
                           const selectedPM = paymentMethods.find((pm: any) => pm.id === selectedPaymentMethod);
@@ -1950,7 +2006,7 @@ export default function ProductDetailClient({
                           try {
                             // Prepare customer data
                             const customerData: any = {};
-                            product.inputFields.forEach((field) => {
+                            (product?.inputFields || []).forEach((field) => {
                               if (field.name === "userId") {
                                 customerData.userId = userId;
                               } else if (field.name === "serverId") {
@@ -1979,16 +2035,29 @@ export default function ProductDetailClient({
 
                             const data = await response.json();
 
+                            if (!response.ok) {
+                              console.error("Payment creation failed:", data);
+                              toast.error("Gagal membuat pesanan", {
+                                description: data.message || `Error ${response.status}: ${response.statusText}`,
+                              });
+                              setIsLoading(false);
+                              return;
+                            }
+
                             if (data.success) {
                               // Redirect to payment page with order ID
                               router.push(`/payment?orderId=${data.data.orderId}`);
                             } else {
-                              alert(data.message || "Gagal membuat pesanan. Silakan coba lagi.");
+                              toast.error("Gagal membuat pesanan", {
+                                description: data.message || "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.",
+                              });
                               setIsLoading(false);
                             }
                           } catch (error) {
                             console.error("Payment creation error:", error);
-                            alert("Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.");
+                            toast.error("Terjadi kesalahan", {
+                              description: error instanceof Error ? error.message : "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.",
+                            });
                             setIsLoading(false);
                           }
                         }}

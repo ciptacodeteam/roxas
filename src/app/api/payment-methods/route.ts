@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
         ...(isActive !== null ? { isActive: isActive === "true" } : { isActive: true }),
       },
       orderBy: [
-        { sortOrder: "asc" },
         { createdAt: "desc" },
       ],
     });
