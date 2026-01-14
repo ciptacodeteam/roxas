@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Always return success to prevent email enumeration
     // But only send email if user exists and has a password
-    if (user && user.password) {
+    if (user?.password) {
       // Generate reset token
       const token = crypto.randomBytes(32).toString("hex");
       const expires = new Date();
@@ -51,15 +51,22 @@ export async function POST(request: NextRequest) {
       });
 
       // Create reset URL
-      const baseUrl = env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+      const baseUrl =
+        env.AUTH_URL ||
+        process.env.NEXT_PUBLIC_APP_URL ||
+        "http://localhost:3000";
+      const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email as string)}`;
 
       // Send reset email
       try {
         await sendEmail({
           to: user.email,
           subject: "Reset Kata Sandi - Roxas Store",
-          html: getPasswordResetEmailTemplate(user.name, user.email, resetUrl),
+          html: getPasswordResetEmailTemplate(
+            user.name as string,
+            user.email as string,
+            resetUrl,
+          ),
         });
 
         console.log("Password reset email sent to:", user.email);
@@ -69,32 +76,39 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Log for debugging but don't reveal if user exists
-      console.log("Password reset requested for email (user not found or OAuth only):", validatedData.email);
+      console.log(
+        "Password reset requested for email (user not found or OAuth only):",
+        validatedData.email,
+      );
     }
 
     // Always return success to prevent email enumeration
     return NextResponse.json(
       {
         success: true,
-        message: "If an account with that email exists, a password reset link has been sent.",
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     if (error instanceof z.ZodError) {
       const firstError = error.issues[0];
       return NextResponse.json(
         { success: false, message: firstError?.message || "Validation error" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.error("Forgot password error:", error);
     // Still return success to prevent email enumeration
     return NextResponse.json(
-      { success: true, message: "If an account with that email exists, a password reset link has been sent." },
-      { status: 200 }
+      {
+        success: true,
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      },
+      { status: 200 },
     );
   }
 }
-
