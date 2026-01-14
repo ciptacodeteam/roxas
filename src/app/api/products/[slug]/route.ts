@@ -72,6 +72,7 @@ export async function GET(
           name: item.name,
           skuCode: item.skuCode,
           iconImage: item.iconImage,
+          group: item.group,
           basePrice: item.basePrice,
           normalPrice: item.normalPrice,
           discountedPrice: item.discountedPrice,

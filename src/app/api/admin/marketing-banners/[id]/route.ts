@@ -3,6 +3,50 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 
 /**
+ * GET /api/admin/marketing-banners/[id]
+ * Get marketing banner details
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const banner = await db.marketingBanner.findUnique({
+      where: { id },
+    });
+
+    if (!banner) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Marketing banner not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: banner,
+    });
+  } catch (error) {
+    console.error("Get marketing banner error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get marketing banner",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/marketing-banners/[id]
  * Update a marketing banner
  */

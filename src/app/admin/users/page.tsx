@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
 import { useAdminUsers, useDeleteUser } from "@/lib/queries";
+import { formatDateTime } from "@/lib/date-utils";
 import {
   Dialog,
   DialogContent,
@@ -221,8 +222,8 @@ export default function UsersPage() {
           );
         },
         cell: ({ row }) => {
-          const date = new Date(row.getValue("createdAt"));
-          return date.toLocaleDateString("id-ID");
+          const date = row.getValue("createdAt") as string;
+          return formatDateTime(date);
         },
       },
       {

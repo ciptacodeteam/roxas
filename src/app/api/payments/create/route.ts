@@ -202,27 +202,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Map payment method type to Midtrans payment type
-    const midtransPaymentTypeMap: Record<PaymentMethodType, string> = {
-      [PaymentMethodType.CREDIT_CARD]: "credit_card",
-      [PaymentMethodType.BANK_TRANSFER]: "bank_transfer",
-      [PaymentMethodType.ECHANNEL]: "echannel",
-      [PaymentMethodType.QRIS]: "qris",
-      [PaymentMethodType.QRIS_STATIC]: "qris",
-      [PaymentMethodType.GOPAY]: "gopay",
-      [PaymentMethodType.SHOPEEPAY]: "shopeepay",
-    };
-
-    const midtransPaymentType = midtransPaymentTypeMap[paymentMethod.type] as
-      | "credit_card"
-      | "bank_transfer"
-      | "echannel"
-      | "qris"
-      | "gopay"
-      | "shopeepay";
+    // For E_WALLET, use the midtransCode to determine gopay or shopeepay
+    let midtransPaymentType: "credit_card" | "bank_transfer" | "qris" | "gopay" | "shopeepay";
+    
+    switch (paymentMethod.type) {
+      case PaymentMethodType.CREDIT_CARD:
+        midtransPaymentType = "credit_card";
+        break;
+      case PaymentMethodType.MOBILE_BANKING:
+        midtransPaymentType = "bank_transfer";
+        break;
+      case PaymentMethodType.QRIS:
+        midtransPaymentType = "qris";
+        break;
+      case PaymentMethodType.E_WALLET:
+        // Use midtransCode to determine gopay or shopeepay
+        midtransPaymentType = paymentMethod.midtransCode === "shopeepay" ? "shopeepay" : "gopay";
+        break;
+      default:
+        midtransPaymentType = "qris"; // fallback
+    }
 
     // Prepare bank transfer config if needed
     const bankTransfer =
-      paymentMethod.type === PaymentMethodType.BANK_TRANSFER && paymentMethod.bank
+      paymentMethod.type === PaymentMethodType.MOBILE_BANKING && paymentMethod.bank
         ? {
             bank: paymentMethod.bank.toLowerCase() as "bca" | "bni" | "permata" | "mandiri",
           }

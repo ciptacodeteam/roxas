@@ -10,7 +10,6 @@ import {
   IconUsersGroup,
   IconSettings,
   IconHelp,
-  IconChartBar,
   IconCurrencyDollar,
   IconFolder,
   IconTags,
@@ -18,6 +17,8 @@ import {
   IconReceipt,
   IconFlame,
   IconPhoto,
+  IconTicket,
+  IconStar,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -86,22 +87,22 @@ const data = {
       icon: IconUsers,
     },
     {
-      title: "Analytics",
-      url: "/admin/analytics",
-      icon: IconChartBar,
+      title: "Payment Methods",
+      url: "/admin/payment-methods",
+      icon: IconCurrencyDollar,
+    },
+    {
+      title: "Coupons",
+      url: "/admin/coupons",
+      icon: IconTicket,
+    },
+    {
+      title: "Ratings",
+      url: "/admin/ratings",
+      icon: IconStar,
     },
   ],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "/admin/settings",
-      icon: IconSettings,
-    },
-    {
-      title: "Help",
-      url: "/admin/help",
-      icon: IconHelp,
-    },
   ],
 }
 
@@ -113,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/admin">
                 <span className="text-base font-semibold">ROXAS</span>

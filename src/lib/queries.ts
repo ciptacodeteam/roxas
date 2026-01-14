@@ -30,6 +30,8 @@ export const queryKeys = {
     lists: () => [...queryKeys.productItems.all, "list"] as const,
     list: (filters?: { category?: string; search?: string }) =>
       [...queryKeys.productItems.lists(), filters] as const,
+    details: () => [...queryKeys.productItems.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.productItems.details(), id] as const,
   },
 
   // Orders
@@ -42,12 +44,20 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.orders.details(), id] as const,
   },
 
+  // Dashboard
+  dashboard: {
+    all: ["dashboard"] as const,
+    stats: () => [...queryKeys.dashboard.all, "stats"] as const,
+  },
+
   // Transactions
   transactions: {
     all: ["transactions"] as const,
     user: () => [...queryKeys.transactions.all, "user"] as const,
     admin: (filters?: { status?: string; paymentStatus?: string }) =>
       [...queryKeys.transactions.all, "admin", filters] as const,
+    details: () => [...queryKeys.transactions.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.transactions.details(), id] as const,
   },
 
   // Users
@@ -76,6 +86,16 @@ export const queryKeys = {
   flashSales: {
     all: ["flash-sales"] as const,
     lists: () => [...queryKeys.flashSales.all, "list"] as const,
+    details: () => [...queryKeys.flashSales.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.flashSales.details(), id] as const,
+  },
+
+  // Payment Methods
+  paymentMethods: {
+    all: ["payment-methods"] as const,
+    lists: () => [...queryKeys.paymentMethods.all, "list"] as const,
+    details: () => [...queryKeys.paymentMethods.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.paymentMethods.details(), id] as const,
   },
 
   // Price Sync
@@ -98,6 +118,17 @@ export const queryKeys = {
     all: ["payment-methods"] as const,
     lists: () => [...queryKeys.paymentMethods.all, "list"] as const,
     active: () => [...queryKeys.paymentMethods.all, "active"] as const,
+    details: () => [...queryKeys.paymentMethods.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.paymentMethods.details(), id] as const,
+  },
+
+  // Ratings
+  ratings: {
+    all: ["ratings"] as const,
+    lists: () => [...queryKeys.ratings.all, "list"] as const,
+    list: (filters?: { productId?: string; isActive?: boolean; search?: string }) =>
+      [...queryKeys.ratings.lists(), filters] as const,
+    detail: (id: string) => [...queryKeys.ratings.all, "detail", id] as const,
   },
 };
 
@@ -223,6 +254,18 @@ export function useAdminTransactions(
   });
 }
 
+export function useAdminTransaction(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.transactions.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/transactions/${id}`),
+    enabled: !!id,
+    ...options,
+  });
+}
+
 // Marketing Banners
 export function useMarketingBanners(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
@@ -266,8 +309,20 @@ export function useAdminPaymentMethods(
   if (filters?.isActive !== undefined) queryParams.set("isActive", filters.isActive.toString());
 
   return useQuery({
-    queryKey: ["admin", "payment-methods", filters],
+    queryKey: queryKeys.paymentMethods.lists(),
     queryFn: () => fetchJSON<any[]>(`/api/admin/payment-methods?${queryParams.toString()}`),
+    ...options,
+  });
+}
+
+export function useAdminPaymentMethod(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.paymentMethods.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/payment-methods/${id}`),
+    enabled: !!id,
     ...options,
   });
 }
@@ -307,6 +362,34 @@ export function useValidateCoupon(
         body: JSON.stringify({ code, orderAmount }),
       });
     },
+    ...options,
+  });
+}
+
+// Admin Coupons
+export function useAdminCoupons(
+  filters?: { isActive?: boolean; search?: string },
+  options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">
+) {
+  const queryParams = new URLSearchParams();
+  if (filters?.isActive !== undefined) queryParams.set("isActive", filters.isActive.toString());
+  if (filters?.search) queryParams.set("search", filters.search);
+
+  return useQuery({
+    queryKey: queryKeys.coupons.list(filters),
+    queryFn: () => fetchJSON<any[]>(`/api/admin/coupons?${queryParams.toString()}`),
+    ...options,
+  });
+}
+
+export function useAdminCoupon(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.coupons.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/coupons/${id}`),
+    enabled: !!id,
     ...options,
   });
 }
@@ -355,6 +438,21 @@ export function useAdminProducts(options?: Omit<UseQueryOptions<any[]>, "queryKe
   return useQuery({
     queryKey: ["admin", "products"],
     queryFn: () => fetchJSON<any[]>("/api/admin/products"),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+// Admin Product Detail
+export function useAdminProduct(
+  productId: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: ["admin", "products", productId],
+    queryFn: () => fetchJSON<any>(`/api/admin/products/${productId}`),
+    enabled: !!productId,
     ...options,
   });
 }
@@ -364,6 +462,21 @@ export function useAdminCategories(options?: Omit<UseQueryOptions<any[]>, "query
   return useQuery({
     queryKey: ["admin", "categories"],
     queryFn: () => fetchJSON<any[]>("/api/admin/categories"),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+// Admin Category Detail
+export function useAdminCategory(
+  categoryId: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: ["admin", "categories", categoryId],
+    queryFn: () => fetchJSON<any>(`/api/admin/categories/${categoryId}`),
+    enabled: !!categoryId,
     ...options,
   });
 }
@@ -379,6 +492,8 @@ export function useAdminUsers(
   return useQuery({
     queryKey: queryKeys.users.list(filters),
     queryFn: () => fetchJSON<any[]>(`/api/admin/users?${queryParams.toString()}`),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
     ...options,
   });
 }
@@ -412,6 +527,18 @@ export function useAdminProductItems(
   });
 }
 
+export function useAdminProductItem(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.productItems.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/product-items/${id}`),
+    enabled: !!id,
+    ...options,
+  });
+}
+
 // Admin Product Items Select (for dropdowns)
 export function useAdminProductItemsSelect(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
@@ -430,11 +557,35 @@ export function useAdminFlashSales(options?: Omit<UseQueryOptions<any[]>, "query
   });
 }
 
+export function useAdminFlashSale(id: string, options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">) {
+  return useQuery({
+    queryKey: queryKeys.flashSales.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/flash-sales/${id}`),
+    enabled: !!id,
+    ...options,
+  });
+}
+
 // Admin Marketing Banners (full list)
 export function useAdminMarketingBanners(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.banners.lists(),
     queryFn: () => fetchJSON<any[]>("/api/admin/marketing-banners"),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+// Admin Marketing Banner Detail
+export function useAdminMarketingBanner(
+  bannerId: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: ["admin", "marketing-banners", bannerId],
+    queryFn: () => fetchJSON<any>(`/api/admin/marketing-banners/${bannerId}`),
+    enabled: !!bannerId,
     ...options,
   });
 }
@@ -450,6 +601,30 @@ export function useAdminOrders(
   return useQuery({
     queryKey: queryKeys.orders.list(filters),
     queryFn: () => fetchJSON<any[]>(`/api/admin/orders?${queryParams.toString()}`),
+    ...options,
+  });
+}
+
+export function useAdminOrder(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.orders.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/orders/${id}`),
+    enabled: !!id,
+    ...options,
+  });
+}
+
+export function useAdminDashboard(
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.dashboard.stats(),
+    queryFn: () => fetchJSON<any>("/api/admin/dashboard"),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
     ...options,
   });
 }
@@ -721,6 +896,7 @@ export function useCreateMarketingBanner(
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.banners.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.banners.all });
     },
     ...options,
@@ -740,6 +916,7 @@ export function useUpdateMarketingBanner(
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.banners.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.banners.all });
     },
     ...options,
@@ -758,6 +935,7 @@ export function useDeleteMarketingBanner(
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.banners.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.banners.all });
     },
     ...options,
@@ -785,6 +963,26 @@ export function useUpdateOrder(
   });
 }
 
+// Product Items Mutations
+export function useUpdateProductItem(
+  options?: Omit<UseMutationOptions<any, Error, { id: string; data: any }>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return fetchJSON<any>(`/api/admin/product-items/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.productItems.all });
+    },
+    ...options,
+  });
+}
+
 // Payment Methods Mutations
 export function useCreatePaymentMethod(
   options?: Omit<UseMutationOptions<any, Error, any>, "mutationFn">
@@ -799,8 +997,12 @@ export function useCreatePaymentMethod(
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "payment-methods"] });
+      // Invalidate all payment method queries
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.all });
+      // Also invalidate the lists query specifically
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
+      // Invalidate active payment methods for public API
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.active() });
     },
     ...options,
   });
@@ -818,9 +1020,15 @@ export function useUpdatePaymentMethod(
         body: JSON.stringify(data),
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "payment-methods"] });
+    onSuccess: (data, variables) => {
+      // Invalidate all payment method queries
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.all });
+      // Also invalidate the lists query specifically
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
+      // Invalidate the specific detail query
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.detail(variables.id) });
+      // Invalidate active payment methods for public API
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.active() });
     },
     ...options,
   });
@@ -838,8 +1046,154 @@ export function useDeletePaymentMethod(
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "payment-methods"] });
+      // Invalidate all payment method queries
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.all });
+      // Also invalidate the lists query specifically
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.lists() });
+      // Invalidate active payment methods for public API
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.active() });
+    },
+    ...options,
+  });
+}
+
+// Coupons Mutations
+export function useCreateCoupon(
+  options?: Omit<UseMutationOptions<any, Error, any>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: any) => {
+      return fetchJSON<any>("/api/admin/coupons", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.coupons.all });
+    },
+    ...options,
+  });
+}
+
+export function useUpdateCoupon(
+  options?: Omit<UseMutationOptions<any, Error, { id: string; data: any }>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return fetchJSON<any>(`/api/admin/coupons/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.coupons.all });
+    },
+    ...options,
+  });
+}
+
+export function useDeleteCoupon(
+  options?: Omit<UseMutationOptions<any, Error, string>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return fetchJSON<any>(`/api/admin/coupons/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.coupons.all });
+    },
+    ...options,
+  });
+}
+
+// Admin Ratings
+export function useAdminRatings(
+  filters?: { productId?: string; isActive?: boolean; search?: string },
+  options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">
+) {
+  const queryParams = new URLSearchParams();
+  if (filters?.productId) queryParams.set("productId", filters.productId);
+  if (filters?.isActive !== undefined) queryParams.set("isActive", filters.isActive.toString());
+  if (filters?.search) queryParams.set("search", filters.search);
+
+  return useQuery({
+    queryKey: queryKeys.ratings.list(filters),
+    queryFn: () => fetchJSON<any>(`/api/admin/ratings?${queryParams.toString()}`).then((res) => res.data || []),
+    ...options,
+  });
+}
+
+export function useAdminRating(
+  id: string,
+  options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.ratings.detail(id),
+    queryFn: () => fetchJSON<any>(`/api/admin/ratings/${id}`).then((res) => res.data),
+    enabled: !!id,
+    ...options,
+  });
+}
+
+export function useCreateRating(
+  options?: Omit<UseMutationOptions<any, Error, any>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: any) => {
+      return fetchJSON<any>("/api/admin/ratings", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ratings.all });
+    },
+    ...options,
+  });
+}
+
+export function useUpdateRating(
+  options?: Omit<UseMutationOptions<any, Error, { id: string; data: any }>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return fetchJSON<any>(`/api/admin/ratings/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ratings.all });
+    },
+    ...options,
+  });
+}
+
+export function useDeleteRating(
+  options?: Omit<UseMutationOptions<any, Error, string>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return fetchJSON<any>(`/api/admin/ratings/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ratings.all });
     },
     ...options,
   });
@@ -847,15 +1201,15 @@ export function useDeletePaymentMethod(
 
 // Sync Prices Mutation
 export function useSyncPrices(
-  options?: Omit<UseMutationOptions<any, Error, { cmd?: string }>, "mutationFn">
+  options?: Omit<UseMutationOptions<any, Error, { cmd?: string; jsonData?: { prepaid?: any[]; pasca?: any[] }; autoCreate?: boolean }>, "mutationFn">
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ cmd = "full" }: { cmd?: string } = {}) => {
+    mutationFn: async ({ cmd = "full", jsonData, autoCreate }: { cmd?: string; jsonData?: { prepaid?: any[]; pasca?: any[] }; autoCreate?: boolean } = {}) => {
       return fetchJSON<any>("/api/admin/sync-prices", {
         method: "POST",
-        body: JSON.stringify({ cmd }),
+        body: JSON.stringify({ cmd, jsonData, autoCreate }),
       });
     },
     onSuccess: () => {

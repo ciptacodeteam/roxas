@@ -53,13 +53,10 @@ enum FeeType {
 }
 
 enum PaymentMethodType {
-  CREDIT_CARD
-  BANK_TRANSFER
-  ECHANNEL
   QRIS
-  QRIS_STATIC
-  GOPAY
-  SHOPEEPAY
+  E_WALLET
+  MOBILE_BANKING
+  CREDIT_CARD
 }
 
 enum BankTransferBank {
@@ -237,6 +234,7 @@ model Product {
 
   category Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   items    ProductItem[]
+  ratings  ProductRating[]
 
   @@index([categoryId])
   @@index([slug])
@@ -249,6 +247,7 @@ model ProductItem {
   name      String // "86 Diamonds"
   skuCode   String   @unique // Digiflazz buyer_sku_code
   iconImage String?  // Icon/image for this specific product item
+  group     String?  // Group name for organizing items (e.g., "Diamond", "Weekly Pass")
   
   // Pricing
   basePrice      Int // Cost from Digiflazz (in IDR)
@@ -542,4 +541,27 @@ model DigiflazzTransaction {
   @@index([orderId])
   @@index([trxId])
   @@map("digiflazz_transactions")
+}
+
+// ============================================
+// RATING MODELS
+// ============================================
+
+model ProductRating {
+  id        String   @id @default(uuid())
+  productId String
+  rating    Int      // 1-5 stars
+  comment   String?  // Optional review comment
+  userName  String?  // Display name for the reviewer
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([productId, isActive])
+  @@index([isActive])
+  @@map("product_ratings")
 }

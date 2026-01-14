@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,8 +31,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminProducts, useAdminCategories, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/lib/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAdminProducts, useDeleteProduct } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -39,17 +39,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { formatDateTime } from "@/lib/date-utils";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
+import { EmptyState } from "@/components/admin/empty-state";
+import { Package } from "lucide-react";
 
 interface Product {
   id: string;
@@ -68,53 +62,14 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  const queryClient = useQueryClient();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    categoryId: "",
-    image: "",
-    bannerImage: "",
-    isActive: true,
-    sortOrder: 0,
-  });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   // Use TanStack Query hooks
   const { data: products = [], isLoading: loading } = useAdminProducts();
-  const { data: categories = [] } = useAdminCategories();
-  
-  const createProductMutation = useCreateProduct({
-    onSuccess: () => {
-      toast.success("Product created successfully");
-      setIsDialogOpen(false);
-      resetForm();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create product");
-    },
-  });
-
-  const updateProductMutation = useUpdateProduct({
-    onSuccess: () => {
-      toast.success("Product updated successfully");
-      setIsDialogOpen(false);
-      resetForm();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update product");
-    },
-  });
 
   const deleteProductMutation = useDeleteProduct({
     onSuccess: () => {
@@ -127,92 +82,14 @@ export default function ProductsPage() {
     },
   });
 
-  const handleImageUpload = async (file: File, type: "image" | "banner") => {
-    try {
-      if (type === "image") {
-        setUploadingImage(true);
-      } else {
-        setUploadingBanner(true);
-      }
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=products`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      if (type === "image") {
-        setFormData((prev) => ({ ...prev, image: data.data.url }));
-        setImagePreview(data.data.url);
-      } else {
-        setFormData((prev) => ({ ...prev, bannerImage: data.data.url }));
-        setBannerPreview(data.data.url);
-      }
-
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      if (type === "image") {
-        setUploadingImage(false);
-      } else {
-        setUploadingBanner(false);
-      }
-    }
-  };
-
-  const handleCreate = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
-
   const handleEdit = useCallback((product: Product) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      slug: product.slug,
-      description: product.description || "",
-      categoryId: product.category.id,
-      image: product.image || "",
-      bannerImage: product.bannerImage || "",
-      isActive: product.isActive,
-      sortOrder: product.sortOrder,
-    });
-    setImagePreview(product.image || null);
-    setBannerPreview(product.bannerImage || null);
-    setIsDialogOpen(true);
-  }, []);
+    router.push(`/admin/products/${product.id}`);
+  }, [router]);
 
   const handleDeleteClick = useCallback((product: Product) => {
     setProductToDelete(product);
     setIsDeleteDialogOpen(true);
   }, []);
-
-  const resetForm = useCallback(() => {
-    setEditingProduct(null);
-    setFormData({
-      name: "",
-      slug: "",
-      description: "",
-      categoryId: categories[0]?.id || "",
-      image: "",
-      bannerImage: "",
-      isActive: true,
-      sortOrder: 0,
-    });
-    setImagePreview(null);
-    setBannerPreview(null);
-  }, [categories]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!productToDelete) return;
@@ -331,8 +208,8 @@ export default function ProductsPage() {
           );
         },
         cell: ({ row }) => {
-          const date = new Date(row.getValue("createdAt"));
-          return date.toLocaleDateString("id-ID");
+          const date = row.getValue("createdAt") as string;
+          return formatDateTime(date);
         },
       },
       {
@@ -422,13 +299,6 @@ export default function ProductsPage() {
     },
   });
 
-  const handleSubmit = async () => {
-    if (editingProduct) {
-      updateProductMutation.mutate({ id: editingProduct.id, data: formData });
-    } else {
-      createProductMutation.mutate(formData);
-    }
-  };
 
   return (
     <SidebarProvider
@@ -453,301 +323,47 @@ export default function ProductsPage() {
                       Atur dan pantau produk Anda di sini.
                     </p>
                   </div>
-                  <Dialog
-                    open={isDialogOpen}
-                    onOpenChange={(open) => {
-                      setIsDialogOpen(open);
-                      if (!open) {
-                        setImagePreview(null);
-                        setBannerPreview(null);
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button onClick={handleCreate}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Tambah
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl bg-gray-900 text-gray-100">
-                      <DialogHeader>
-                        <DialogTitle className="text-gray-100">
-                          {editingProduct ? "Edit Produk" : "Tambah Produk"}
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400">
-                          {editingProduct
-                            ? "Edit data produk yang telah tersedia."
-                            : "Tambahkan produk baru."}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="name" className="text-gray-200">Nama Produk</Label>
-                          <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => {
-                              setFormData({
-                                ...formData,
-                                name: e.target.value,
-                                slug: e.target.value
-                                  .toLowerCase()
-                                  .replace(/[^a-z0-9]+/g, "-")
-                                  .replace(/(^-|-$)/g, ""),
-                              });
-                            }}
-                            placeholder="e.g. Mobile Legends"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="slug" className="text-gray-200">Slug</Label>
-                          <Input
-                            id="slug"
-                            value={formData.slug}
-                            onChange={(e) =>
-                              setFormData({ ...formData, slug: e.target.value })
-                            }
-                            placeholder="e.g. mobile-legends"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="categoryId" className="text-gray-200">Kategori</Label>
-                          <Select
-                            value={formData.categoryId}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, categoryId: value })
-                            }
-                          >
-                            <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectValue placeholder="Pilih kategori" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                              {categories.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id} className="text-gray-100 hover:bg-gray-700">
-                                  {cat.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="description" className="text-gray-200">Deskripsi</Label>
-                          <Input
-                            id="description"
-                            value={formData.description}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                description: e.target.value,
-                              })
-                            }
-                            placeholder="Optional description"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="image" className="text-gray-200">Image (for homepage)</Label>
-                          <div className="space-y-2">
-                            {imagePreview ? (
-                              <div className="relative">
-                                <div className="relative h-32 w-full overflow-hidden rounded-md border">
-                                  <Image
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    fill
-                                    className="object-cover"
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-2 top-2"
-                                  onClick={() => {
-                                    setImagePreview(null);
-                                    setFormData((prev) => ({ ...prev, image: "" }));
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  id="image-file"
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleImageUpload(file, "image");
-                                    }
-                                  }}
-                                  className="hidden"
-                                />
-                                <Label
-                                  htmlFor="image-file"
-                                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {uploadingImage ? "Uploading..." : "Upload Image"}
-                                  </span>
-                                </Label>
-                                <Input
-                                  id="image-url"
-                                  value={formData.image}
-                                  onChange={(e) => {
-                                    setFormData({ ...formData, image: e.target.value });
-                                    setImagePreview(e.target.value || null);
-                                  }}
-                                  placeholder="Or enter image URL"
-                                  className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="bannerImage" className="text-gray-200">Banner Image</Label>
-                          <div className="space-y-2">
-                            {bannerPreview ? (
-                              <div className="relative">
-                                <div className="relative h-32 w-full overflow-hidden rounded-md border">
-                                  <Image
-                                    src={bannerPreview}
-                                    alt="Banner Preview"
-                                    fill
-                                    className="object-cover"
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-2 top-2"
-                                  onClick={() => {
-                                    setBannerPreview(null);
-                                    setFormData((prev) => ({ ...prev, bannerImage: "" }));
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  id="banner-file"
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleImageUpload(file, "banner");
-                                    }
-                                  }}
-                                  className="hidden"
-                                />
-                                <Label
-                                  htmlFor="banner-file"
-                                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {uploadingBanner ? "Uploading..." : "Upload Banner"}
-                                  </span>
-                                </Label>
-                                <Input
-                                  id="banner-url"
-                                  value={formData.bannerImage}
-                                  onChange={(e) => {
-                                    setFormData({ ...formData, bannerImage: e.target.value });
-                                    setBannerPreview(e.target.value || null);
-                                  }}
-                                  placeholder="Or enter banner URL"
-                                  className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="sortOrder" className="text-gray-200">Sort Order</Label>
-                          <Input
-                            id="sortOrder"
-                            type="number"
-                            value={formData.sortOrder}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                sortOrder: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="isActive"
-                            checked={formData.isActive}
-                            onCheckedChange={(checked) =>
-                              setFormData({ ...formData, isActive: !!checked })
-                            }
-                          />
-                          <Label htmlFor="isActive" className="text-gray-200">Active</Label>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
-                          className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
-                        >
-                          Batal
-                        </Button>
-                        <Button onClick={handleSubmit}>Simpan</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* Delete Confirmation Dialog */}
-                  <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                    <DialogContent className="bg-gray-900 text-gray-100">
-                      <DialogHeader>
-                        <DialogTitle className="text-gray-100">
-                          Hapus Produk
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400">
-                          Apakah Anda yakin ingin menghapus produk{" "}
-                          <span className="font-semibold text-gray-200">
-                            {productToDelete?.name}
-                          </span>
-                          ? Tindakan ini tidak dapat dibatalkan.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setIsDeleteDialogOpen(false);
-                            setProductToDelete(null);
-                          }}
-                          className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
-                        >
-                          Batal
-                        </Button>
-                        <Button
-                          onClick={handleDeleteConfirm}
-                          className="bg-red-600 text-white hover:bg-red-700"
-                        >
-                          Hapus
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button onClick={() => router.push("/admin/products/new")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tambah
+                  </Button>
                 </div>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <DialogContent className="bg-gray-900 text-gray-100">
+                    <DialogHeader>
+                      <DialogTitle className="text-gray-100">
+                        Hapus Produk
+                      </DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Apakah Anda yakin ingin menghapus produk{" "}
+                        <span className="font-semibold text-gray-200">
+                          {productToDelete?.name}
+                        </span>
+                        ? Tindakan ini tidak dapat dibatalkan.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsDeleteDialogOpen(false);
+                          setProductToDelete(null);
+                        }}
+                        className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        onClick={handleDeleteConfirm}
+                        className="bg-red-600 text-white hover:bg-red-700"
+                      >
+                        Hapus
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 <div className="mb-4">
                   <div className="relative">
@@ -763,9 +379,28 @@ export default function ProductsPage() {
                 </div>
 
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
-                  </div>
+                  <TableSkeleton columns={8} rows={10} />
+                ) : table.getFilteredRowModel().rows.length === 0 ? (
+                  <EmptyState
+                    icon={Package}
+                    title={search ? "No products found" : "No products yet"}
+                    description={
+                      search
+                        ? "Try adjusting your search criteria to find what you're looking for."
+                        : "Get started by creating your first product. Products are the items you sell to customers."
+                    }
+                    action={
+                      search
+                        ? {
+                            label: "Clear search",
+                            onClick: () => setSearch(""),
+                          }
+                        : {
+                            label: "Create product",
+                            onClick: () => router.push("/admin/products/new"),
+                          }
+                    }
+                  />
                 ) : (
                   <>
                     <div className="rounded-lg border">
@@ -787,32 +422,21 @@ export default function ProductsPage() {
                           ))}
                         </TableHeader>
                         <TableBody>
-                          {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                              <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                              >
-                                {row.getVisibleCells().map((cell) => (
-                                  <TableCell key={cell.id}>
-                                    {flexRender(
-                                      cell.column.columnDef.cell,
-                                      cell.getContext()
-                                    )}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell
-                                colSpan={columns.length}
-                                className="py-8 text-center text-gray-400"
-                              >
-                                No products found
-                              </TableCell>
+                          {table.getRowModel().rows.map((row) => (
+                            <TableRow
+                              key={row.id}
+                              data-state={row.getIsSelected() && "selected"}
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell key={cell.id}>
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext()
+                                  )}
+                                </TableCell>
+                              ))}
                             </TableRow>
-                          )}
+                          ))}
                         </TableBody>
                       </Table>
                     </div>

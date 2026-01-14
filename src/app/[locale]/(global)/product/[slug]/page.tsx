@@ -119,6 +119,7 @@ export default async function ProductDetailPage({
           normalPrice: item.normalPrice,
           discountedPrice: item.discountedPrice,
           skuCode: item.skuCode,
+          group: item.group, // Include group field
         }))
         .sort((a, b) => a.price - b.price), // Sort by price ascending
       instructionImages: product.category.instructionImages.map((img) => ({

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Search, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Search, Pencil, ArrowUpDown, ArrowUp, ArrowDown, Download, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,17 +29,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { toast } from "sonner";
-import { useAdminOrders, useUpdateOrder } from "@/lib/queries";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { useAdminOrders } from "@/lib/queries";
 import {
   Select,
   SelectContent,
@@ -46,6 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatDateTime } from "@/lib/date-utils";
+import { exportToCSV, formatOrderForExport } from "@/lib/export-utils";
+import { toast } from "sonner";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
+import { EmptyState } from "@/components/admin/empty-state";
+import { PackageSearch, RefreshCw } from "lucide-react";
 
 interface Order {
   id: string;
@@ -80,8 +83,13 @@ interface Order {
   payment: {
     id: string;
     transactionId: string | null;
-    paymentMethod: string | null;
-    paymentChannel: string | null;
+    paymentMethodId: string | null;
+    paymentMethod: {
+      id: string;
+      name: string;
+      type: string;
+      bank: string | null;
+    } | null;
     status: string | null;
     amount: number;
     paidAt: string | null;
@@ -96,12 +104,10 @@ interface Order {
 }
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   // Use TanStack Query hook with filters
   const { data: ordersData, isLoading: loading } = useAdminOrders({
@@ -110,28 +116,9 @@ export default function OrdersPage() {
 
   const orders: Order[] = ordersData || [];
 
-  const updateOrderMutation = useUpdateOrder({
-    onSuccess: () => {
-      toast.success("Order updated successfully");
-      setIsDialogOpen(false);
-      setEditingOrder(null);
-      setSelectedStatus("");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update order");
-    },
-  });
-
   const handleEdit = useCallback((order: Order) => {
-    setEditingOrder(order);
-    setSelectedStatus(order.status);
-    setIsDialogOpen(true);
-  }, []);
-
-  const handleStatusUpdate = () => {
-    if (!editingOrder || !selectedStatus) return;
-    updateOrderMutation.mutate({ id: editingOrder.id, data: { status: selectedStatus } });
-  };
+    router.push(`/admin/orders/${order.id}`);
+  }, [router]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -281,7 +268,7 @@ export default function OrdersPage() {
             <div>
               <div className="text-sm">{payment.status || "-"}</div>
               {payment.paymentMethod && (
-                <div className="text-xs text-gray-400">{payment.paymentMethod}</div>
+                <div className="text-xs text-gray-400">{payment.paymentMethod.name}</div>
               )}
             </div>
           );
@@ -308,13 +295,8 @@ export default function OrdersPage() {
           );
         },
         cell: ({ row }) => {
-          const date = new Date(row.getValue("createdAt"));
-          return (
-            <div>
-              <div>{date.toLocaleDateString("id-ID")}</div>
-              <div className="text-xs text-gray-400">{date.toLocaleTimeString("id-ID")}</div>
-            </div>
-          );
+          const date = row.getValue("createdAt") as string;
+          return date ? formatDateTime(date) : "-";
         },
       },
       {
@@ -369,6 +351,24 @@ export default function OrdersPage() {
     },
   });
 
+  const handleExportCSV = useCallback(() => {
+    try {
+      const filteredOrders = table.getFilteredRowModel().rows.map((row) => row.original);
+      if (filteredOrders.length === 0) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportData = filteredOrders.map(formatOrderForExport);
+      exportToCSV(exportData, "orders");
+      toast.success(`Exported ${filteredOrders.length} orders to CSV`);
+    } catch (error) {
+      toast.error("Failed to export orders", {
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    }
+  }, [table]);
+
   return (
     <SidebarProvider
       style={
@@ -385,11 +385,30 @@ export default function OrdersPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
-                <div className="mb-6">
-                  <h1 className="text-3xl font-bold">Kelola Orders</h1>
-                  <p className="mt-2 text-gray-400">
-                    Atur dan pantau pesanan Anda di sini.
-                  </p>
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold">Kelola Orders</h1>
+                    <p className="mt-2 text-gray-400">
+                      Atur dan pantau pesanan Anda di sini.
+                    </p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        disabled={loading || orders.length === 0}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export as CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 <div className="mb-4 flex gap-4">
@@ -421,9 +440,28 @@ export default function OrdersPage() {
                 </div>
 
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
-                  </div>
+                  <TableSkeleton columns={7} rows={10} />
+                ) : table.getFilteredRowModel().rows.length === 0 ? (
+                  <EmptyState
+                    icon={search || statusFilter !== "all" ? PackageSearch : PackageSearch}
+                    title={search || statusFilter !== "all" ? "No orders found" : "No orders yet"}
+                    description={
+                      search || statusFilter !== "all"
+                        ? "Try adjusting your search or filter criteria to find what you're looking for."
+                        : "Orders will appear here once customers start placing them. You can also sync products to get started."
+                    }
+                    action={
+                      search || statusFilter !== "all"
+                        ? {
+                            label: "Clear filters",
+                            onClick: () => {
+                              setSearch("");
+                              setStatusFilter("all");
+                            },
+                          }
+                        : undefined
+                    }
+                  />
                 ) : (
                   <>
                     <div className="rounded-lg border">
@@ -445,32 +483,21 @@ export default function OrdersPage() {
                           ))}
                         </TableHeader>
                         <TableBody>
-                          {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                              <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                              >
-                                {row.getVisibleCells().map((cell) => (
-                                  <TableCell key={cell.id}>
-                                    {flexRender(
-                                      cell.column.columnDef.cell,
-                                      cell.getContext()
-                                    )}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell
-                                colSpan={columns.length}
-                                className="py-8 text-center text-gray-400"
-                              >
-                                No orders found
-                              </TableCell>
+                          {table.getRowModel().rows.map((row) => (
+                            <TableRow
+                              key={row.id}
+                              data-state={row.getIsSelected() && "selected"}
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell key={cell.id}>
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext()
+                                  )}
+                                </TableCell>
+                              ))}
                             </TableRow>
-                          )}
+                          ))}
                         </TableBody>
                       </Table>
                     </div>
@@ -514,77 +541,6 @@ export default function OrdersPage() {
           </div>
         </div>
       </SidebarInset>
-
-      {/* Edit Order Status Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-gray-900 text-gray-100">
-          <DialogHeader>
-            <DialogTitle className="text-gray-100">Update Order Status</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Update the status of order {editingOrder?.orderNumber}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="status" className="text-gray-200">Status</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                  <SelectItem value="PENDING" className="text-gray-100 hover:bg-gray-700">
-                    PENDING
-                  </SelectItem>
-                  <SelectItem value="PAID" className="text-gray-100 hover:bg-gray-700">
-                    PAID
-                  </SelectItem>
-                  <SelectItem value="PROCESSING" className="text-gray-100 hover:bg-gray-700">
-                    PROCESSING
-                  </SelectItem>
-                  <SelectItem value="COMPLETED" className="text-gray-100 hover:bg-gray-700">
-                    COMPLETED
-                  </SelectItem>
-                  <SelectItem value="FAILED" className="text-gray-100 hover:bg-gray-700">
-                    FAILED
-                  </SelectItem>
-                  <SelectItem value="REFUNDED" className="text-gray-100 hover:bg-gray-700">
-                    REFUNDED
-                  </SelectItem>
-                  <SelectItem value="EXPIRED" className="text-gray-100 hover:bg-gray-700">
-                    EXPIRED
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {editingOrder && (
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-gray-400">User:</span> {editingOrder.user.email}
-                </div>
-                <div>
-                  <span className="text-gray-400">Product:</span> {editingOrder.productItem.product.name}
-                </div>
-                <div>
-                  <span className="text-gray-400">Price:</span> {formatPrice(editingOrder.finalPrice)}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDialogOpen(false);
-                setEditingOrder(null);
-              }}
-              className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
-            >
-              Batal
-            </Button>
-            <Button onClick={handleStatusUpdate}>Update Status</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </SidebarProvider>
   );
 }

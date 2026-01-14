@@ -24,9 +24,29 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Ensure data structure matches frontend expectations
+    // Prisma returns dates as Date objects which get serialized to ISO strings automatically
+    // But we need to ensure the structure is consistent
+    const formattedProducts = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      image: product.image,
+      bannerImage: product.bannerImage,
+      category: {
+        id: product.category.id,
+        name: product.category.name,
+      },
+      isActive: product.isActive,
+      sortOrder: product.sortOrder,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: products,
+      data: formattedProducts,
     });
   } catch (error) {
     console.error("Get products error:", error);

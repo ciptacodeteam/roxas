@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Save, User, Mail, Phone, Shield } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, Save, User, Mail, Phone, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PhoneInput, validateIndonesianPhone } from "@/components/ui/phone-input";
+import { BackButton } from "@/components/admin/back-button";
 import {
   Select,
   SelectContent,
@@ -23,10 +26,11 @@ import {
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCreateUser } from "@/lib/queries";
+import { useCreateUser, queryKeys } from "@/lib/queries";
 
 export default function UserAddPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -38,7 +42,10 @@ export default function UserAddPage() {
   });
 
   const createUserMutation = useCreateUser({
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Ensure queries are invalidated and refetched
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      await queryClient.refetchQueries({ queryKey: queryKeys.users.all });
       toast.success("User created successfully");
       router.push("/admin/users");
     },
@@ -54,6 +61,15 @@ export default function UserAddPage() {
     if (!formData.email || !formData.password) {
       toast.error("Email and password are required");
       return;
+    }
+
+    // Validate phone number if provided
+    if (formData.phone) {
+      const phoneValidation = validateIndonesianPhone(formData.phone);
+      if (!phoneValidation.isValid) {
+        toast.error(phoneValidation.error || "Invalid phone number");
+        return;
+      }
     }
 
     setSaving(true);
@@ -81,22 +97,13 @@ export default function UserAddPage() {
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
               {/* Header */}
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push("/admin/users")}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Users
-                  </Button>
-                  <div>
-                    <h1 className="text-3xl font-bold">Tambah User</h1>
-                    <p className="mt-2 text-gray-400">
-                      Create a new user account
-                    </p>
-                  </div>
+              <div className="mb-6">
+                <BackButton href="/admin/users" label="Back to Users" />
+                <div>
+                  <h1 className="text-3xl font-bold">Tambah User</h1>
+                  <p className="mt-2 text-gray-400">
+                    Create a new user account
+                  </p>
                 </div>
               </div>
 
@@ -152,22 +159,13 @@ export default function UserAddPage() {
                       </div>
 
                       {/* Phone */}
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          Phone Number
-                        </Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
-                          placeholder="+62..."
-                          className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                        />
-                      </div>
+                      <PhoneInput
+                        value={formData.phone}
+                        onChange={(value) =>
+                          setFormData({ ...formData, phone: value })
+                        }
+                        className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                      />
 
                       {/* Password */}
                       <div className="space-y-2">
@@ -258,6 +256,7 @@ export default function UserAddPage() {
                     </form>
                   </CardContent>
                 </Card>
+              </div>
               </div>
             </div>
           </div>

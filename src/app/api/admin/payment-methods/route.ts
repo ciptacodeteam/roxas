@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Bank should be null for non-bank transfer methods
-    const bankValue = type === PaymentMethodType.BANK_TRANSFER ? bank : null;
+    // Bank should be null for non-mobile banking methods
+    const bankValue = type === PaymentMethodType.MOBILE_BANKING ? bank : null;
 
     const paymentMethod = await db.paymentMethod.create({
       data: {

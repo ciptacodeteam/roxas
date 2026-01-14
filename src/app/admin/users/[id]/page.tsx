@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, User, Mail, Phone, Shield, Calendar, ShoppingCart, DollarSign, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Save, User, Mail, Phone, Shield, Calendar, ShoppingCart, DollarSign, CheckCircle2, XCircle, KeyRound, MailCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { PhoneInput, validateIndonesianPhone } from "@/components/ui/phone-input";
+import { BackButton } from "@/components/admin/back-button";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAdminUser, useUpdateUser } from "@/lib/queries";
+import { formatDateTime } from "@/lib/date-utils";
 
 interface UserDetail {
   id: string;
@@ -67,13 +69,18 @@ export default function UserEditPage() {
   const userId = params?.id as string;
 
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [formData, setFormData] = useState<{
+    email: string;
+    name: string;
+    phone: string | null;
+    role: string;
+  }>({
     email: "",
     name: "",
-    phone: "",
+    phone: null,
     role: "USER",
-    emailVerified: false,
-    password: "",
   });
 
   // Use React Query to fetch user data
@@ -83,13 +90,14 @@ export default function UserEditPage() {
   // Update form data when user data changes
   useEffect(() => {
     if (typedUserData) {
+      // Ensure role is a valid string value, default to "USER" if empty
+      const roleValue = typedUserData.role?.trim() || "USER";
+      
       setFormData({
         email: typedUserData.email,
         name: typedUserData.name || "",
-        phone: typedUserData.phone || "",
-        role: typedUserData.role,
-        emailVerified: typedUserData.emailVerified,
-        password: "", // Don't pre-fill password
+        phone: typedUserData.phone || null,
+        role: roleValue,
       });
     }
   }, [typedUserData]);
@@ -106,15 +114,20 @@ export default function UserEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate phone number if provided
+    if (formData.phone) {
+      const phoneValidation = validateIndonesianPhone(formData.phone);
+      if (!phoneValidation.isValid) {
+        toast.error(phoneValidation.error || "Invalid phone number");
+        return;
+      }
+    }
+
     setSaving(true);
 
-    // Don't send password if it's empty
-    const submitData = formData.password
-      ? { ...formData }
-      : (({ password, ...rest }) => rest)(formData);
-
     updateUserMutation.mutate(
-      { id: userId, data: submitData },
+      { id: userId, data: formData },
       {
         onSettled: () => {
           setSaving(false);
@@ -212,22 +225,13 @@ export default function UserEditPage() {
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
               {/* Header */}
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push("/admin/users")}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Users
-                  </Button>
-                  <div>
-                    <h1 className="text-3xl font-bold">Edit User</h1>
-                    <p className="mt-2 text-gray-400">
-                      Manage user account information and view related data
-                    </p>
-                  </div>
+              <div className="mb-6">
+                <BackButton href="/admin/users" label="Back to Users" />
+                <div>
+                  <h1 className="text-3xl font-bold">Edit User</h1>
+                  <p className="mt-2 text-gray-400">
+                    Manage user account information and view related data
+                  </p>
                 </div>
               </div>
 
@@ -283,21 +287,13 @@ export default function UserEditPage() {
                         </div>
 
                         {/* Phone */}
-                        <div className="space-y-2">
-                          <Label htmlFor="phone" className="flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            Phone Number
-                          </Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) =>
-                              setFormData({ ...formData, phone: e.target.value })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                          />
-                        </div>
+                        <PhoneInput
+                          value={formData.phone || ""}
+                          onChange={(value) =>
+                            setFormData({ ...formData, phone: value ? value : null })
+                          }
+                          className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                        />
 
                         {/* Role */}
                         <div className="space-y-2">
@@ -306,54 +302,21 @@ export default function UserEditPage() {
                             Role
                           </Label>
                           <Select
-                            value={formData.role}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, role: value })
-                            }
+                            value={formData.role || "USER"}
+                            onValueChange={(value) => {
+                              // Prevent empty values from being set
+                              if (!value?.trim()) return;
+                              setFormData(prev => ({ ...prev, role: value }));
+                            }}
                           >
                             <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectValue />
+                              <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                             <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
                               <SelectItem value="USER">User</SelectItem>
                               <SelectItem value="ADMIN">Admin</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
-
-                        {/* Password */}
-                        <div className="space-y-2">
-                          <Label htmlFor="password">Password</Label>
-                          <Input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) =>
-                              setFormData({ ...formData, password: e.target.value })
-                            }
-                            placeholder="Leave empty to keep current password"
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                          />
-                          <p className="text-xs text-gray-400">
-                            Leave empty to keep the current password
-                          </p>
-                        </div>
-
-                        {/* Email Verified */}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="emailVerified"
-                            checked={formData.emailVerified}
-                            onCheckedChange={(checked) =>
-                              setFormData({
-                                ...formData,
-                                emailVerified: !!checked,
-                              })
-                            }
-                          />
-                          <Label htmlFor="emailVerified" className="cursor-pointer">
-                            Email Verified
-                          </Label>
                         </div>
 
                         <Separator className="bg-gray-700" />
@@ -389,6 +352,152 @@ export default function UserEditPage() {
 
                 {/* Right Column - Related Information */}
                 <div className="space-y-6">
+                  {/* Password Reset Card */}
+                  {typedUserData && (
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <KeyRound className="h-5 w-5" />
+                          Password Reset
+                        </CardTitle>
+                        <CardDescription>
+                          Send password reset link to user's email
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          onClick={async () => {
+                            setSendingPasswordReset(true);
+                            try {
+                              const response = await fetch(`/api/admin/users/${userId}/send-password-reset`, {
+                                method: "POST",
+                              });
+                              const data = await response.json();
+                              
+                              if (response.ok && data.success) {
+                                toast.success("Password reset email sent", {
+                                  description: "The user will receive a password reset link in their email.",
+                                });
+                              } else {
+                                toast.error("Failed to send password reset email", {
+                                  description: data.message || "Please try again.",
+                                });
+                              }
+                            } catch (error) {
+                              toast.error("Failed to send password reset email", {
+                                description: "An error occurred. Please try again.",
+                              });
+                            } finally {
+                              setSendingPasswordReset(false);
+                            }
+                          }}
+                          disabled={sendingPasswordReset}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          {sendingPasswordReset ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="mr-2 h-4 w-4" />
+                              Send Password Reset Link
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Link expires in 1 hour
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Email Verification Card */}
+                  {typedUserData && !typedUserData.emailVerified && (
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MailCheck className="h-5 w-5" />
+                          Email Verification
+                        </CardTitle>
+                        <CardDescription>
+                          Send verification email to activate user's account
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2 mb-4">
+                          <XCircle className="h-4 w-4 text-yellow-400" />
+                          <span className="text-sm text-yellow-400">Email not verified</span>
+                        </div>
+                        <Button
+                          onClick={async () => {
+                            setSendingVerification(true);
+                            try {
+                              const response = await fetch(`/api/admin/users/${userId}/send-verification`, {
+                                method: "POST",
+                              });
+                              const data = await response.json();
+                              
+                              if (response.ok && data.success) {
+                                toast.success("Verification email sent", {
+                                  description: "The user will receive a verification link in their email.",
+                                });
+                              } else {
+                                toast.error("Failed to send verification email", {
+                                  description: data.message || "Please try again.",
+                                });
+                              }
+                            } catch (error) {
+                              toast.error("Failed to send verification email", {
+                                description: "An error occurred. Please try again.",
+                              });
+                            } finally {
+                              setSendingVerification(false);
+                            }
+                          }}
+                          disabled={sendingVerification}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          {sendingVerification ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <MailCheck className="mr-2 h-4 w-4" />
+                              Send Verification Email
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Link expires in 24 hours
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Email Verified Status */}
+                  {typedUserData && typedUserData.emailVerified && (
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MailCheck className="h-5 w-5" />
+                          Email Status
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-400" />
+                          <span className="text-sm text-green-400">Email verified</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Account Stats */}
                   <Card className="bg-gray-900 border-gray-800">
                     <CardHeader>
@@ -455,13 +564,7 @@ export default function UserEditPage() {
                           <span className="text-sm">Created At</span>
                         </div>
                         <p className="text-sm">
-                          {new Date(typedUserData.createdAt).toLocaleDateString("id-ID", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {formatDateTime(typedUserData.createdAt)}
                         </p>
                       </div>
                       <div>
@@ -470,13 +573,7 @@ export default function UserEditPage() {
                           <span className="text-sm">Last Updated</span>
                         </div>
                         <p className="text-sm">
-                          {new Date(typedUserData.updatedAt).toLocaleDateString("id-ID", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {formatDateTime(typedUserData.updatedAt)}
                         </p>
                       </div>
                       <Separator className="bg-gray-700" />
@@ -529,7 +626,7 @@ export default function UserEditPage() {
                               </div>
                               <div className="flex items-center justify-between mt-2">
                                 <span className="text-xs text-gray-400">
-                                  {new Date(order.createdAt).toLocaleDateString("id-ID")}
+                                  {formatDateTime(order.createdAt)}
                                 </span>
                                 <span className="text-sm font-semibold">
                                   Rp {order.totalAmount.toLocaleString("id-ID")}
@@ -552,6 +649,7 @@ export default function UserEditPage() {
                     </Card>
                   )}
                 </div>
+              </div>
               </div>
             </div>
           </div>

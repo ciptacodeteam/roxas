@@ -8,6 +8,9 @@ import {
 } from "@/lib/sync-prices";
 import { db } from "@/server/db";
 import { PriceSyncType, PriceSyncStatus } from "@prisma/client";
+import { apiCache } from "@/lib/api-cache";
+import { rateLimiter } from "@/lib/rate-limiter";
+import { getSyncConfig, getDigiflazzRateLimitKey } from "@/lib/sync-config";
 
 /**
  * GET /api/admin/sync-prices
@@ -20,16 +23,35 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const force = searchParams.get("force") === "true";
+    const clearCache = searchParams.get("clearCache") === "true";
+    const clearRateLimit = searchParams.get("clearRateLimit") === "true";
     const cmdParam = searchParams.get("cmd") || "full";
     const cmd = Object.values(PriceSyncType).includes(cmdParam.toUpperCase() as PriceSyncType)
       ? (cmdParam.toUpperCase() as PriceSyncType)
       : PriceSyncType.FULL;
 
+    // Clear cache if requested
+    if (clearCache) {
+      apiCache.clear();
+      console.log("[Sync] Cache cleared");
+    }
+
+    // Clear rate limit if requested (useful in development)
+    if (clearRateLimit) {
+      rateLimiter.reset(getDigiflazzRateLimitKey("price-list"));
+      console.log("[Sync] Rate limit cleared");
+    }
+
     // Get last sync status
     const lastSync = await getLastSyncStatus();
+    const config = getSyncConfig();
+
+    // Check rate limit status
+    const rateLimitStatus = rateLimiter.status(getDigiflazzRateLimitKey("price-list"));
+    const cacheStats = apiCache.stats();
 
     // Check if sync is needed
-    const syncNeeded = force || (await isPriceSyncNeeded(30));
+    const syncNeeded = force || (await isPriceSyncNeeded());
 
     if (!syncNeeded && !force) {
       return NextResponse.json({
@@ -37,6 +59,13 @@ export async function GET(request: NextRequest) {
         message: "Prices are up to date",
         lastSync,
         syncNeeded: false,
+        config: {
+          environment: config.logDebugInfo ? "development" : "production",
+          cacheTtlMinutes: Math.round(config.cacheTtlMs / 60000),
+          rateLimitMinutes: Math.round(config.rateLimit.windowMs / 60000),
+        },
+        rateLimit: rateLimitStatus,
+        cache: cacheStats,
       });
     }
 
@@ -61,6 +90,26 @@ export async function GET(request: NextRequest) {
               (1000 * 60)
           ),
         },
+        rateLimit: rateLimitStatus,
+        cache: cacheStats,
+      });
+    }
+
+    // Check rate limit before syncing
+    const { allowed, waitMs } = rateLimiter.check(
+      getDigiflazzRateLimitKey("price-list"),
+      config.rateLimit
+    );
+
+    if (!allowed && !clearRateLimit && !force) {
+      const waitMinutes = Math.ceil(waitMs / 60000);
+      return NextResponse.json({
+        success: false,
+        message: `Rate limit reached. Please wait ${waitMinutes} minute(s) or use clearRateLimit=true parameter.`,
+        waitMs,
+        waitMinutes,
+        rateLimit: rateLimitStatus,
+        cache: cacheStats,
       });
     }
 
@@ -68,7 +117,7 @@ export async function GET(request: NextRequest) {
     const syncRecord = await db.priceSync.create({
       data: {
         syncType: cmd,
-        status: "in_progress",
+        status: PriceSyncStatus.IN_PROGRESS,
         startedAt: new Date(),
       },
     });
@@ -111,6 +160,14 @@ export async function GET(request: NextRequest) {
         ...syncRecord,
         ageMinutes: 0,
       },
+      config: {
+        environment: config.logDebugInfo ? "development" : "production",
+        cacheTtlMinutes: Math.round(config.cacheTtlMs / 60000),
+        rateLimitMinutes: Math.round(config.rateLimit.windowMs / 60000),
+        useMockData: config.useMockData,
+      },
+      rateLimit: rateLimitStatus,
+      cache: cacheStats,
     });
   } catch (error) {
     console.error("Sync prices error:", error);
@@ -128,6 +185,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/admin/sync-prices
  * Force immediate sync (synchronous, waits for completion)
+ * Accepts optional JSON data in body: { cmd?: string, jsonData?: { prepaid?: [], pasca?: [] }, autoCreate?: boolean }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -140,6 +198,17 @@ export async function POST(request: NextRequest) {
       ? (cmdParam.toUpperCase() as PriceSyncType)
       : PriceSyncType.FULL;
 
+    // Check if JSON data is provided
+    const jsonData = body.jsonData ? {
+      prepaid: body.jsonData.prepaid || undefined,
+      pasca: body.jsonData.pasca || undefined,
+    } : undefined;
+
+    // Determine autoCreate: use body.autoCreate if provided, otherwise check if first sync
+    const autoCreate = body.autoCreate !== undefined 
+      ? Boolean(body.autoCreate)
+      : await isFirstSync();
+
     // Create sync record
     const syncRecord = await db.priceSync.create({
       data: {
@@ -149,11 +218,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Check if this is first sync (auto-create products)
-    const firstSync = await isFirstSync();
-
-    // Run sync synchronously
-    const result = await syncPricesFromDigiflazz(cmd, firstSync);
+    // Run sync synchronously with optional JSON data
+    const result = await syncPricesFromDigiflazz(cmd, autoCreate, jsonData);
 
     // Update sync record
     await db.priceSync.update({

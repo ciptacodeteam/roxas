@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Loader2, Search, RefreshCw } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, Search, RefreshCw, Upload, Pencil } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAdminProductItems, useSyncStatus, useSyncPrices, queryKeys } from "@/lib/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { useSyncStatus, useSyncPrices, queryKeys } from "@/lib/queries";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -14,6 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
 import {
@@ -23,6 +39,7 @@ import {
 import { toast } from "sonner";
 
 export interface PriceListItem {
+  id?: string; // Product item ID for editing
   product_name: string;
   category: string;
   brand: string;
@@ -41,11 +58,37 @@ export interface PriceListItem {
 }
 
 export default function PriceListPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [cmd, setCmd] = useState<"prepaid" | "pasca">("prepaid");
+  const [isJsonInputDialogOpen, setIsJsonInputDialogOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState("");
+  const [autoCreate, setAutoCreate] = useState(true);
   const queryClient = useQueryClient();
 
-  const { data: productItemsData, isLoading: loading, error: queryError } = useAdminProductItems();
+  const handleEdit = useCallback((item: PriceListItem) => {
+    if (item.id) {
+      router.push(`/admin/product-items/${item.id}`);
+    } else {
+      // Fallback: try to find by SKU code
+      toast.error("Product item ID not found. Please use the Product Items page to edit.");
+    }
+  }, [router]);
+
+  const { data: productItemsData, isLoading: loading, error: queryError } = useQuery({
+    queryKey: [...queryKeys.productItems.list(), "priceList"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/product-items?format=priceList");
+      if (!response.ok) {
+        throw new Error("Failed to fetch product items");
+      }
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch product items");
+      }
+      return data.data || [];
+    },
+  });
   const { data: syncStatus } = useSyncStatus();
   const syncPricesMutation = useSyncPrices({
     onSuccess: (data) => {
@@ -101,13 +144,59 @@ export default function PriceListPage() {
   }, [search, priceList]);
 
   const handleSyncPrices = () => {
-    syncPricesMutation.mutate({ cmd: "full" });
+    syncPricesMutation.mutate({ cmd: "full", autoCreate });
+  };
+
+  const handleSyncFromJson = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      
+      // Handle different JSON structures
+      let prepaid: PriceListItem[] | undefined;
+      let pasca: PriceListItem[] | undefined;
+
+      // Check if it's the Digiflazz API response format
+      if (parsed.data?.data && Array.isArray(parsed.data.data)) {
+        // Single array - determine type from cmd
+        if (cmd === "prepaid") {
+          prepaid = parsed.data.data;
+        } else if (cmd === "pasca") {
+          pasca = parsed.data.data;
+        }
+      } else if (Array.isArray(parsed)) {
+        // Direct array
+        if (cmd === "prepaid") {
+          prepaid = parsed;
+        } else if (cmd === "pasca") {
+          pasca = parsed;
+        }
+      } else if (parsed.prepaid || parsed.pasca) {
+        // Object with prepaid/pasca keys
+        prepaid = Array.isArray(parsed.prepaid) ? parsed.prepaid : undefined;
+        pasca = Array.isArray(parsed.pasca) ? parsed.pasca : undefined;
+      } else {
+        throw new Error("Invalid JSON format. Expected array or object with 'data.data' array, or object with 'prepaid'/'pasca' arrays");
+      }
+
+      syncPricesMutation.mutate({ 
+        cmd: "full", 
+        jsonData: { prepaid, pasca },
+        autoCreate 
+      });
+      setIsJsonInputDialogOpen(false);
+      setJsonInput("");
+    } catch (error) {
+      toast.error("Invalid JSON", {
+        description: error instanceof Error ? error.message : "Please check your JSON format",
+      });
+    }
   };
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.productItems.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.priceSync.status() });
   };
+
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -172,9 +261,16 @@ export default function PriceListPage() {
                             : "Never"}
                         </span>
                         {(syncStatus.status === "SUCCESS" || syncStatus.status === "success") && (
-                          <span className="text-green-400">
-                            ✓ {syncStatus.itemsUpdated} items updated
-                          </span>
+                          <>
+                            <span className="text-green-400">
+                              ✓ {syncStatus.itemsUpdated || 0} items updated
+                            </span>
+                            {syncStatus.itemsCreated > 0 && (
+                              <span className="text-blue-400">
+                                + {syncStatus.itemsCreated} items created
+                              </span>
+                            )}
+                          </>
                         )}
                         {(syncStatus.status === "FAILED" || syncStatus.status === "failed") && (
                           <span className="text-red-400">
@@ -184,35 +280,114 @@ export default function PriceListPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={cmd === "prepaid" ? "default" : "outline"}
-                      onClick={() => setCmd("prepaid")}
-                      disabled={loading}
-                    >
-                      Prepaid
-                    </Button>
-                    <Button
-                      variant={cmd === "pasca" ? "default" : "outline"}
-                      onClick={() => setCmd("pasca")}
-                      disabled={loading}
-                    >
-                      Pascabayar
-                    </Button>
-                    <Button
-                      onClick={handleSyncPrices}
-                      variant="outline"
-                      disabled={syncPricesMutation.isPending || loading}
-                    >
-                      <RefreshCw className={`mr-2 h-4 w-4 ${syncPricesMutation.isPending ? "animate-spin" : ""}`} />
-                      {syncPricesMutation.isPending ? "Syncing..." : "Sync from API"}
-                    </Button>
-                    <Button onClick={handleRefresh} variant="outline" disabled={loading}>
-                      <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                      Refresh
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant={cmd === "prepaid" ? "default" : "outline"}
+                        onClick={() => setCmd("prepaid")}
+                        disabled={loading}
+                      >
+                        Prepaid
+                      </Button>
+                      <Button
+                        variant={cmd === "pasca" ? "default" : "outline"}
+                        onClick={() => setCmd("pasca")}
+                        disabled={loading}
+                      >
+                        Pascabayar
+                      </Button>
+                      <Button
+                        onClick={handleSyncPrices}
+                        variant="outline"
+                        disabled={syncPricesMutation.isPending || loading}
+                      >
+                        <RefreshCw className={`mr-2 h-4 w-4 ${syncPricesMutation.isPending ? "animate-spin" : ""}`} />
+                        {syncPricesMutation.isPending ? "Syncing..." : "Sync from API"}
+                      </Button>
+                      <Button
+                        onClick={() => setIsJsonInputDialogOpen(true)}
+                        variant="outline"
+                        disabled={syncPricesMutation.isPending || loading}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Sync from JSON
+                      </Button>
+                      <Button onClick={handleRefresh} variant="outline" disabled={loading}>
+                        <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        Refresh
+                      </Button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="auto-create-sync"
+                        checked={autoCreate}
+                        onCheckedChange={(checked) => setAutoCreate(checked === true)}
+                      />
+                      <Label htmlFor="auto-create-sync" className="text-sm cursor-pointer">
+                        Auto-create new products
+                      </Label>
+                    </div>
                   </div>
                 </div>
+                <Dialog open={isJsonInputDialogOpen} onOpenChange={setIsJsonInputDialogOpen}>
+                  <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Sync Prices from JSON</DialogTitle>
+                      <DialogDescription>
+                        Paste JSON data from Digiflazz API. Supports array format or object with 'data.data' array, or object with 'prepaid'/'pasca' arrays.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="json-input">JSON Data</Label>
+                        <Textarea
+                          id="json-input"
+                          value={jsonInput}
+                          onChange={(e) => setJsonInput(e.target.value)}
+                          placeholder='Paste JSON here... Example: {"data": {"data": [...]}} or [{"buyer_sku_code": "...", ...}]'
+                          className="bg-gray-900 text-gray-100 border-gray-700 font-mono text-sm min-h-[300px]"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="auto-create"
+                          checked={autoCreate}
+                          onCheckedChange={(checked) => setAutoCreate(checked === true)}
+                        />
+                        <Label htmlFor="auto-create" className="cursor-pointer">
+                          Auto-create new products (creates Category → Product → ProductItem for new items)
+                        </Label>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsJsonInputDialogOpen(false);
+                          setJsonInput("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSyncFromJson}
+                        disabled={!jsonInput.trim() || syncPricesMutation.isPending}
+                      >
+                        {syncPricesMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Sync from JSON
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
               <div className="mb-4">
                 <div className="relative">
@@ -239,6 +414,7 @@ export default function PriceListPage() {
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Price (IDR)</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -279,11 +455,32 @@ export default function PriceListPage() {
                           : "inactive"}
                       </span>
                     </TableCell>
+                    <TableCell className="text-right">
+                      {item.id ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(item)}
+                              className="hover:bg-rose-500/10 hover:text-rose-400"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit Product Item</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-xs text-gray-500">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-gray-400">
+                  <TableCell colSpan={8} className="py-8 text-center text-gray-400">
                     {priceList.length === 0
                       ? "No products found"
                       : "No products match your search"}

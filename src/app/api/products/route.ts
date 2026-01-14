@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       where.category = { name: categoryName };
     }
 
-    // Fetch products
+    // Fetch products with their items to check for MLCU SKU codes
     const products = await db.product.findMany({
       where,
       include: {
@@ -44,6 +44,11 @@ export async function GET(request: NextRequest) {
             slug: true,
           },
         },
+        items: {
+          select: {
+            skuCode: true,
+          },
+        },
       },
       orderBy: {
         sortOrder: "asc",
@@ -51,20 +56,29 @@ export async function GET(request: NextRequest) {
       take: limit ? parseInt(limit, 10) : undefined,
     });
 
-    // Transform to match frontend expectations
-    const transformedProducts = products.map((product) => ({
-      id: product.id,
-      title: product.name,
-      subtitle: product.category.name,
-      image: product.image || "/img/ffcover.webp", // fallback image
-      slug: product.slug,
-      description: product.description,
-      category: {
-        id: product.category.id,
-        name: product.category.name,
-        slug: product.category.slug,
-      },
-    }));
+    // Transform to match frontend expectations and filter out "cek username" products
+    // Hide products that have items with SKU codes starting with "MLCU"
+    const transformedProducts = products
+      .filter((product) => {
+        // Check if any product item has SKU code starting with "MLCU"
+        const hasMLCUSku = product.items.some((item) => 
+          item.skuCode && item.skuCode.toUpperCase().startsWith("MLCU")
+        );
+        return !hasMLCUSku;
+      })
+      .map((product) => ({
+        id: product.id,
+        title: product.name,
+        subtitle: product.category.name,
+        image: product.image || "/img/ffcover.webp", // fallback image
+        slug: product.slug,
+        description: product.description,
+        category: {
+          id: product.category.id,
+          name: product.category.name,
+          slug: product.category.slug,
+        },
+      }));
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,100 @@ import { db } from "@/server/db";
 import { OrderStatus } from "@prisma/client";
 
 /**
+ * GET /api/admin/orders/[id]
+ * Get a single order
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const order = await db.order.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+        productItem: {
+          include: {
+            product: {
+              include: {
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            transactionId: true,
+            paymentMethodId: true,
+            paymentMethod: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                bank: true,
+              },
+            },
+            status: true,
+            amount: true,
+            paidAt: true,
+          },
+        },
+        digiflazzTx: {
+          select: {
+            id: true,
+            refId: true,
+            trxId: true,
+            status: true,
+            message: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Order not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    console.error("Get order error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get order",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/orders/[id]
  * Update order status
  */
@@ -73,8 +167,15 @@ export async function PUT(
           select: {
             id: true,
             transactionId: true,
-            paymentMethod: true,
-            paymentChannel: true,
+            paymentMethodId: true,
+            paymentMethod: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                bank: true,
+              },
+            },
             status: true,
             amount: true,
             paidAt: true,
