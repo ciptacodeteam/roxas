@@ -4,6 +4,50 @@ import { db } from "@/server/db";
 import { PaymentMethodType, BankTransferBank, FeeType } from "@prisma/client";
 
 /**
+ * GET /api/admin/payment-methods/[id]
+ * Get a single payment method
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const paymentMethod = await db.paymentMethod.findUnique({
+      where: { id },
+    });
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Payment method not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: paymentMethod,
+    });
+  } catch (error) {
+    console.error("Get payment method error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get payment method",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/payment-methods/[id]
  * Update a payment method
  */
@@ -90,12 +134,12 @@ export async function PUT(
     const updateType = type || existing.type;
     
     // Bank validation
-    if (updateType === PaymentMethodType.BANK_TRANSFER) {
+    if (updateType === PaymentMethodType.MOBILE_BANKING) {
       if (bank === null || bank === undefined) {
         return NextResponse.json(
           {
             success: false,
-            message: "Bank is required for BANK_TRANSFER payment method",
+            message: "Bank is required for MOBILE_BANKING payment method",
           },
           { status: 400 }
         );
@@ -115,7 +159,7 @@ export async function PUT(
     if (midtransCode !== undefined) updateData.midtransCode = midtransCode;
     if (type !== undefined) updateData.type = type;
     if (bank !== undefined) {
-      updateData.bank = updateType === PaymentMethodType.BANK_TRANSFER ? bank : null;
+      updateData.bank = updateType === PaymentMethodType.MOBILE_BANKING ? bank : null;
     }
 
     const paymentMethod = await db.paymentMethod.update({

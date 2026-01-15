@@ -16,6 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  PhoneInput,
+  validateIndonesianPhone,
+} from "@/components/ui/phone-input";
+import { BackButton } from "@/components/admin/back-button";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,10 +39,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCreateUser } from "@/lib/queries";
+import { useCreateUser, queryKeys } from "@/lib/queries";
 
 export default function UserAddPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -49,7 +55,10 @@ export default function UserAddPage() {
   });
 
   const createUserMutation = useCreateUser({
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Ensure queries are invalidated and refetched
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      await queryClient.refetchQueries({ queryKey: queryKeys.users.all });
       toast.success("User created successfully");
       router.push("/admin/users");
     },
@@ -67,6 +76,15 @@ export default function UserAddPage() {
     if (!formData.email || !formData.password) {
       toast.error("Email and password are required");
       return;
+    }
+
+    // Validate phone number if provided
+    if (formData.phone) {
+      const phoneValidation = validateIndonesianPhone(formData.phone);
+      if (!phoneValidation.isValid) {
+        toast.error(phoneValidation.error || "Invalid phone number");
+        return;
+      }
     }
 
     setSaving(true);

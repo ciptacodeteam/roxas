@@ -7,8 +7,8 @@ import crypto from "crypto";
  */
 
 const MIDTRANS_BASE_URL = env.MIDTRANS_IS_PRODUCTION === "true"
-  ? "https://app.midtrans.com"
-  : "https://app.sandbox.midtrans.com";
+  ? "https://api.midtrans.com"
+  : "https://api.sandbox.midtrans.com";
 
 const MIDTRANS_SNAP_URL = env.MIDTRANS_IS_PRODUCTION === "true"
   ? "https://app.midtrans.com"
@@ -73,6 +73,12 @@ export async function createSnapTransaction(params: {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Failed to create transaction" }));
+    console.error("Midtrans Snap API error response:", {
+      status: response.status,
+      statusText: response.statusText,
+      error,
+      url,
+    });
     throw new Error(error.message || `Midtrans API error: ${response.status}`);
   }
 
@@ -90,7 +96,7 @@ export async function createSnapTransaction(params: {
 export async function createCoreTransaction(params: {
   orderId: string;
   grossAmount: number;
-  paymentType: "credit_card" | "bank_transfer" | "echannel" | "qris" | "gopay" | "shopeepay";
+  paymentType: "credit_card" | "bank_transfer" | "echannel" | "gopay" | "shopeepay";
   customerDetails: {
     firstName: string;
     lastName?: string;
@@ -111,6 +117,13 @@ export async function createCoreTransaction(params: {
 }): Promise<any> {
   const url = `${MIDTRANS_BASE_URL}/v2/charge`;
 
+  console.log("=== MIDTRANS REQUEST ===", {
+    url,
+    paymentType: params.paymentType,
+    orderId: params.orderId,
+    amount: params.grossAmount,
+  });
+
   const payload: any = {
     payment_type: params.paymentType,
     transaction_details: {
@@ -129,11 +142,13 @@ export async function createCoreTransaction(params: {
   };
 
   // Add payment-specific parameters
-  if (params.paymentType === "bank_transfer" && params.bankTransfer) {
+  if (params.paymentType == "bank_transfer" && params.bankTransfer) {
     payload.bank_transfer = {
       bank: params.bankTransfer.bank,
     };
   }
+
+  console.log("=== MIDTRANS PAYLOAD ===", JSON.stringify(payload, null, 2));
 
   const response = await fetch(url, {
     method: "POST",
@@ -143,6 +158,12 @@ export async function createCoreTransaction(params: {
       Authorization: `Basic ${Buffer.from(env.MIDTRANS_SERVER_KEY + ":").toString("base64")}`,
     },
     body: JSON.stringify(payload),
+  });
+
+  console.log("=== MIDTRANS HTTP RESPONSE ===", {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
   });
 
   if (!response.ok) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, Search, Eye, ArrowUpDown, ArrowUp, ArrowDown, Download, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,6 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { toast } from "sonner";
 import { useAdminTransactions } from "@/lib/queries";
 import {
   Select,
@@ -37,6 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatDateTime } from "@/lib/date-utils";
+import { exportToCSV, formatTransactionForExport } from "@/lib/export-utils";
+import { toast } from "sonner";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
+import { EmptyState } from "@/components/admin/empty-state";
+import { Receipt, RefreshCw } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -72,8 +84,13 @@ interface Transaction {
   payment: {
     id: string;
     transactionId: string | null;
-    paymentMethod: string | null;
-    paymentChannel: string | null;
+    paymentMethodId: string | null;
+    paymentMethod: {
+      id: string;
+      name: string;
+      type: string;
+      bank: string | null;
+    } | null;
     status: string | null;
     amount: number;
     paidAt: string | null;
@@ -90,10 +107,15 @@ interface Transaction {
 }
 
 export default function TransactionsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  const handleView = useCallback((transaction: Transaction) => {
+    router.push(`/admin/transactions/${transaction.id}`);
+  }, [router]);
 
   // Use TanStack Query hook with filters
   const { data: transactionsData, isLoading: loading } = useAdminTransactions({
@@ -266,7 +288,7 @@ export default function TransactionsPage() {
                 {payment.status?.toUpperCase() || "-"}
               </span>
               {payment.paymentMethod && (
-                <div className="text-xs text-gray-400 mt-1">{payment.paymentMethod}</div>
+                <div className="text-xs text-gray-400 mt-1">{payment.paymentMethod.name}</div>
               )}
             </div>
           );
@@ -309,17 +331,30 @@ export default function TransactionsPage() {
           );
         },
         cell: ({ row }) => {
-          const date = new Date(row.getValue("createdAt"));
+          const date = row.getValue("createdAt") as string;
+          return date ? formatDateTime(date) : "-";
+        },
+      },
+      {
+        id: "actions",
+        header: "Aksi",
+        cell: ({ row }) => {
+          const transaction = row.original;
           return (
-            <div>
-              <div>{date.toLocaleDateString("id-ID")}</div>
-              <div className="text-xs text-gray-400">{date.toLocaleTimeString("id-ID")}</div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleView(transaction)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
             </div>
           );
         },
       },
     ],
-    []
+    [handleView]
   );
 
   const table = useReactTable({
@@ -354,6 +389,24 @@ export default function TransactionsPage() {
     },
   });
 
+  const handleExportCSV = useCallback(() => {
+    try {
+      const filteredTransactions = table.getFilteredRowModel().rows.map((row) => row.original);
+      if (filteredTransactions.length === 0) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportData = filteredTransactions.map(formatTransactionForExport);
+      exportToCSV(exportData, "transactions");
+      toast.success(`Exported ${filteredTransactions.length} transactions to CSV`);
+    } catch (error) {
+      toast.error("Failed to export transactions", {
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    }
+  }, [table]);
+
   return (
     <SidebarProvider
       style={
@@ -370,11 +423,30 @@ export default function TransactionsPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
-                <div className="mb-6">
-                  <h1 className="text-3xl font-bold">Kelola Transactions</h1>
-                  <p className="mt-2 text-gray-400">
-                    Lihat dan pantau semua transaksi pembayaran dan topup di sini.
-                  </p>
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold">Kelola Transactions</h1>
+                    <p className="mt-2 text-gray-400">
+                      Lihat dan pantau semua transaksi pembayaran dan topup di sini.
+                    </p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        disabled={loading || transactions.length === 0}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export as CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 <div className="mb-4 flex gap-4">
@@ -420,9 +492,29 @@ export default function TransactionsPage() {
                 </div>
 
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
-                  </div>
+                  <TableSkeleton columns={8} rows={10} />
+                ) : table.getFilteredRowModel().rows.length === 0 ? (
+                  <EmptyState
+                    icon={search || statusFilter !== "all" || paymentStatusFilter !== "all" ? Receipt : Receipt}
+                    title={search || statusFilter !== "all" || paymentStatusFilter !== "all" ? "No transactions found" : "No transactions yet"}
+                    description={
+                      search || statusFilter !== "all" || paymentStatusFilter !== "all"
+                        ? "Try adjusting your search or filter criteria to find what you're looking for."
+                        : "Transactions will appear here once customers complete their orders and payments are processed."
+                    }
+                    action={
+                      search || statusFilter !== "all" || paymentStatusFilter !== "all"
+                        ? {
+                            label: "Clear filters",
+                            onClick: () => {
+                              setSearch("");
+                              setStatusFilter("all");
+                              setPaymentStatusFilter("all");
+                            },
+                          }
+                        : undefined
+                    }
+                  />
                 ) : (
                   <>
                     <div className="rounded-lg border">
@@ -444,32 +536,21 @@ export default function TransactionsPage() {
                           ))}
                         </TableHeader>
                         <TableBody>
-                          {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                              <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                              >
-                                {row.getVisibleCells().map((cell) => (
-                                  <TableCell key={cell.id}>
-                                    {flexRender(
-                                      cell.column.columnDef.cell,
-                                      cell.getContext()
-                                    )}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell
-                                colSpan={columns.length}
-                                className="py-8 text-center text-gray-400"
-                              >
-                                No transactions found
-                              </TableCell>
+                          {table.getRowModel().rows.map((row) => (
+                            <TableRow
+                              key={row.id}
+                              data-state={row.getIsSelected() && "selected"}
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell key={cell.id}>
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext()
+                                  )}
+                                </TableCell>
+                              ))}
                             </TableRow>
-                          )}
+                          ))}
                         </TableBody>
                       </Table>
                     </div>

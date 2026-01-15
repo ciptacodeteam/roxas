@@ -1,8 +1,4 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-floating-promises */
 
 "use client";
 
@@ -18,6 +14,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useMarketingBanners } from "@/lib/queries";
+import { HeroSkeleton } from "./skeletons";
 
 interface MarketingBanner {
   id: string;
@@ -36,7 +33,12 @@ const DEFAULT_BANNER: MarketingBanner = {
 };
 
 export default function HeroSection() {
-  const { data: bannersData, isLoading: loading } = useMarketingBanners();
+  const {
+    data: bannersData,
+    isLoading,
+    isError,
+    error,
+  } = useMarketingBanners();
 
   const autoplay = useRef(
     Autoplay({
@@ -78,75 +80,94 @@ export default function HeroSection() {
     }
   }, [emblaApi, banners]);
 
+  // Show skeleton while loading
+  if (isLoading) {
+    return <HeroSkeleton />;
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <section className="bg-muted-foreground pt-38 pb-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-stretch gap-4">
+            <div className="relative w-3/4 overflow-hidden rounded-2xl">
+              <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
+                <div className="text-red-400">
+                  {error?.message || "Failed to load banners"}
+                </div>
+              </div>
+            </div>
+            <div className="w-1/4">
+              <div className="bg-card rounded-2xl h-full" />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-muted-foreground pt-38 pb-14">
       <div className="mx-auto max-w-7xl">
         <div className="flex items-stretch gap-4">
           {/* LEFT SLIDER */}
           <div className="relative w-3/4 overflow-hidden rounded-2xl">
-            {loading ? (
-              <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl bg-gray-800 flex items-center justify-center">
-                <div className="text-white">Loading banners...</div>
-              </div>
-            ) : (
-              <>
-                {/* Embla viewport */}
-                <div className="embla" ref={emblaRef}>
-                  <div className="embla__container flex">
-                    {banners.map((banner) => {
-                      const slideContent = (
-                        <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl">
-                          <Image
-                            src={banner.image}
-                            alt={banner.title || banner.description || "Banner"}
-                            fill
-                            priority
-                            className="object-cover"
-                          />
-                        </div>
-                      );
-
-                      return (
-                        <div className="embla__slide flex-[0_0_100%]" key={banner.id}>
-                          {banner.link ? (
-                            <Link href={banner.link} className="block">
-                              {slideContent}
-                            </Link>
-                          ) : (
-                            slideContent
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* DOT INDICATOR (animasi scale) */}
-                {banners.length > 1 && (
-                  <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
-                    {banners.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => emblaApi?.scrollTo(index)}
-                        className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                          selectedIndex === index
-                            ? "bg-primary w-6 scale-110 opacity-100"
-                            : "scale-90 bg-white/40 opacity-60"
-                        } `}
+            {/* Embla viewport */}
+            <div className="embla" ref={emblaRef}>
+              <div className="embla__container flex">
+                {banners.map((banner) => {
+                  const slideContent = (
+                    <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl">
+                      <Image
+                        src={banner.image}
+                        alt={banner.title || banner.description || "Banner"}
+                        fill
+                        priority
+                        className="object-cover"
                       />
-                    ))}
-                  </div>
-                )}
-              </>
+                    </div>
+                  );
+
+                  return (
+                    <div className="embla__slide flex-[0_0_100%]" key={banner.id}>
+                      {banner.link ? (
+                        <Link href={banner.link} className="block">
+                          {slideContent}
+                        </Link>
+                      ) : (
+                        slideContent
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* DOT INDICATOR */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                {banners.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => emblaApi?.scrollTo(index)}
+                    aria-label={`Go to banner ${index + 1}`}
+                    className={`h-3 w-3 rounded-full transition-all duration-300 ${selectedIndex === index
+                        ? "bg-primary w-6 scale-110 opacity-100"
+                        : "scale-90 bg-white/40 opacity-60"
+                      } `}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
-          {/* RIGHT CARD — tidak berubah */}
+          {/* RIGHT CARD */}
           <div className="w-1/4">
             <div className="group relative h-full overflow-hidden rounded-2xl">
               <div className="absolute inset-0 overflow-hidden rounded-2xl">
                 <Image
-                  alt=""
+                  alt="Background"
                   src={bgCharacter}
                   fill
                   priority
@@ -156,7 +177,7 @@ export default function HeroSection() {
 
               <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                 <Image
-                  alt=""
+                  alt="Character"
                   src={character}
                   className="absolute -bottom-1 left-1/2 -translate-x-1/2 scale-[1.3] transition-transform duration-500 ease-out group-hover:scale-[1.4]"
                 />
@@ -173,7 +194,7 @@ export default function HeroSection() {
                 </div>
 
                 <div className="relative z-10">
-                  <Button className="bg-primary w-full cursor-pointer rounded-none py-6 font-semibold text-white">
+                  <Button className="bg-primary w-full cursor-pointer rounded-none py-6 font-semibold text-white hover:bg-primary/90">
                     Hubungi Kami
                   </Button>
                 </div>

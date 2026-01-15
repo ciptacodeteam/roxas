@@ -3,6 +3,70 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 
 /**
+ * GET /api/admin/flash-sales/[id]
+ * Get a single flash sale
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const flashSale = await db.flashSale.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            productItem: {
+              include: {
+                product: {
+                  include: {
+                    category: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!flashSale) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Flash sale not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: flashSale,
+    });
+  } catch (error) {
+    console.error("Get flash sale error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get flash sale",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/flash-sales/[id]
  * Update a flash sale
  */

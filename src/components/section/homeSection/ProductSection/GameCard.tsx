@@ -1,12 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
-export default function GameCard({ item }: { item: any }) {
+interface GameCardProps {
+  item: {
+    id: string;
+    title: string;
+    subtitle: string;
+    image: string;
+    slug: string;
+  };
+}
+
+export default function GameCard({ item }: GameCardProps) {
   const locale = useLocale();
 
   return (

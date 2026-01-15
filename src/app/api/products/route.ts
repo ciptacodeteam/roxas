@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       where.category = { name: categoryName };
     }
 
-    // Fetch products
+    // Fetch products with their items to check for MLCU SKU codes
     const products = await db.product.findMany({
       where,
       include: {
@@ -44,6 +44,11 @@ export async function GET(request: NextRequest) {
             slug: true,
           },
         },
+        items: {
+          select: {
+            skuCode: true,
+          },
+        },
       },
       orderBy: {
         sortOrder: "asc",
@@ -52,19 +57,31 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to match frontend expectations
-    const transformedProducts = products.map((product) => ({
-      id: product.id,
-      title: product.name,
-      subtitle: product.category.name,
-      image: product.image || "/img/ffcover.webp", // fallback image
-      slug: product.slug,
-      description: product.description,
-      category: {
-        id: product.category.id,
-        name: product.category.name,
-        slug: product.category.slug,
-      },
-    }));
+    // Only hide products that contain ONLY "cek username" verification items (all items are MLCU)
+    const transformedProducts = products
+      .filter((product) => {
+        // Check if ALL product items have SKU codes starting with "MLCU"
+        if (product.items.length === 0) return true; // Show products with no items
+        
+        const allMLCUSku = product.items.every((item) => 
+          item.skuCode && item.skuCode.toUpperCase().startsWith("MLCU")
+        );
+        // Only hide if ALL items are MLCU (i.e., it's a verification-only product)
+        return !allMLCUSku;
+      })
+      .map((product) => ({
+        id: product.id,
+        title: product.name,
+        subtitle: product.category.name,
+        image: product.image || "/img/ffcover.webp", // fallback image
+        slug: product.slug,
+        description: product.description,
+        category: {
+          id: product.category.id,
+          name: product.category.name,
+          slug: product.category.slug,
+        },
+      }));
 
     return NextResponse.json({
       success: true,

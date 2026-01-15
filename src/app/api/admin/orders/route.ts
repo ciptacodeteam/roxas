@@ -47,8 +47,15 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             transactionId: true,
-            paymentMethod: true,
-            paymentChannel: true,
+            paymentMethodId: true,
+            paymentMethod: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                bank: true,
+              },
+            },
             status: true,
             amount: true,
             paidAt: true,

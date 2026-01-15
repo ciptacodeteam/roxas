@@ -11,6 +11,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'api.sandbox.midtrans.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.midtrans.com',
+      },
     ],
   },
   // Disable source maps to avoid Turbopack source map parsing errors

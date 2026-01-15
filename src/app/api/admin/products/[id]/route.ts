@@ -3,6 +3,71 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
 
 /**
+ * GET /api/admin/products/[id]
+ * Get product details
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+
+    const { id } = await params;
+
+    const product = await db.product.findUnique({
+      where: { id },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        items: {
+          select: {
+            id: true,
+            name: true,
+            skuCode: true,
+            isActive: true,
+          },
+        },
+        _count: {
+          select: {
+            items: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Product not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    console.error("Get product error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to get product",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/products/[id]
  * Update a product
  */

@@ -202,27 +202,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Map payment method type to Midtrans payment type
-    const midtransPaymentTypeMap: Record<PaymentMethodType, string> = {
-      [PaymentMethodType.CREDIT_CARD]: "credit_card",
-      [PaymentMethodType.BANK_TRANSFER]: "bank_transfer",
-      [PaymentMethodType.ECHANNEL]: "echannel",
-      [PaymentMethodType.QRIS]: "qris",
-      [PaymentMethodType.QRIS_STATIC]: "qris",
-      [PaymentMethodType.GOPAY]: "gopay",
-      [PaymentMethodType.SHOPEEPAY]: "shopeepay",
-    };
-
-    const midtransPaymentType = midtransPaymentTypeMap[paymentMethod.type] as
-      | "credit_card"
-      | "bank_transfer"
-      | "echannel"
-      | "qris"
-      | "gopay"
-      | "shopeepay";
+    // For E_WALLET, use the midtransCode to determine gopay or shopeepay
+    // Note: QRIS is not directly supported in Core API, so we use gopay which generates QR code
+    let midtransPaymentType: "credit_card" | "bank_transfer" | "gopay" | "shopeepay";
+    
+    switch (paymentMethod.type) {
+      case PaymentMethodType.CREDIT_CARD:
+        midtransPaymentType = "credit_card";
+        break;
+      case PaymentMethodType.MOBILE_BANKING:
+        midtransPaymentType = "bank_transfer";
+        break;
+      case PaymentMethodType.QRIS:
+        // QRIS not supported in Core API, use gopay which generates QR code
+        midtransPaymentType = "gopay";
+        break;
+      case PaymentMethodType.E_WALLET:
+        // Use midtransCode to determine gopay or shopeepay
+        midtransPaymentType = paymentMethod.midtransCode === "shopeepay" ? "shopeepay" : "gopay";
+        break;
+      default:
+        midtransPaymentType = "gopay"; // fallback
+    }
 
     // Prepare bank transfer config if needed
     const bankTransfer =
-      paymentMethod.type === PaymentMethodType.BANK_TRANSFER && paymentMethod.bank
+      paymentMethod.type === PaymentMethodType.MOBILE_BANKING && paymentMethod.bank
         ? {
             bank: paymentMethod.bank.toLowerCase() as "bca" | "bni" | "permata" | "mandiri",
           }
@@ -298,12 +303,20 @@ export async function POST(request: NextRequest) {
       if (deeplinkAction) {
         paymentData.deeplinkUrl = deeplinkAction.url;
       }
+      
+      // Look for QR code image URL
+      const qrCodeAction = coreResponse.actions.find(
+        (a: any) => a.name === "generate-qr-code"
+      );
+      if (qrCodeAction) {
+        paymentData.paymentUrl = qrCodeAction.url;
+      }
+      
       const redirectAction = coreResponse.actions.find(
         (a: any) => a.name === "get-status" || a.name === "redirect"
       );
       if (redirectAction) {
         paymentData.redirectUrl = redirectAction.url;
-        paymentData.paymentUrl = redirectAction.url;
       }
     }
 
@@ -343,7 +356,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Create payment error:", error);
+    console.error("Create payment error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error,
+    });
     return NextResponse.json(
       {
         success: false,

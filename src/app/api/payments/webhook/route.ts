@@ -11,9 +11,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    console.log("=== MIDTRANS WEBHOOK RECEIVED ===", JSON.stringify(body, null, 2));
+
     // Midtrans webhook format
     const {
       transaction_status,
+      status_code,
       order_id,
       gross_amount,
       signature_key,
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Verify signature
     const isValidSignature = verifyWebhookSignature(
       order_id,
-      transaction_status,
+      status_code,
       gross_amount.toString(),
       signature_key
     );
@@ -55,8 +58,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("=== PAYMENT FOUND ===", {
+      paymentId: payment.id,
+      orderId: payment.orderId,
+      currentStatus: payment.status,
+      currentOrderStatus: payment.order.status,
+    });
+
     // Map Midtrans status
     const { status: paymentStatus, isPaid } = mapMidtransStatus(transaction_status);
+
+    console.log("=== MAPPED STATUS ===", {
+      midtransStatus: transaction_status,
+      mappedStatus: paymentStatus,
+      isPaid,
+    });
 
     // Update payment
     // Note: paymentMethodId is already set during payment creation, so we don't need to update it here
@@ -70,9 +86,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log("=== PAYMENT UPDATED ===", {
+      paymentId: updatedPayment.id,
+      newStatus: updatedPayment.status,
+      paidAt: updatedPayment.paidAt,
+    });
+
     // Update order status if payment is successful
     if (isPaid && payment.order.status === OrderStatus.PENDING) {
-      await db.order.update({
+      const updatedOrder = await db.order.update({
         where: { id: payment.order.id },
         data: {
           status: OrderStatus.PAID,
@@ -80,8 +102,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log("=== ORDER UPDATED ===", {
+        orderId: updatedOrder.id,
+        newStatus: updatedOrder.status,
+        paidAt: updatedOrder.paidAt,
+      });
+
       // TODO: Trigger Digiflazz transaction here
       // This is where you would call your Digiflazz API to process the topup
+    } else {
+      console.log("=== ORDER NOT UPDATED ===", {
+        isPaid,
+        currentOrderStatus: payment.order.status,
+        reason: !isPaid ? "Payment not settled" : "Order already processed",
+      });
     }
 
     // Handle expired/cancelled payments

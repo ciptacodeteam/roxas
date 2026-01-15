@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
 
     // Fetch all product items with their related data
+    // Note: productId is required, so all items should have a product
     const productItems = await db.productItem.findMany({
       select: {
         id: true,
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
         sellPrice: true,
         isActive: true,
         digiflazzStatus: true,
+        createdAt: true,
         product: {
           select: {
             id: true,
@@ -47,34 +49,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Transform to PriceListItem format
-    const items = productItems.map((item) => {
-      const digiflazzStatus = item.digiflazzStatus;
-      const isActiveStatus = digiflazzStatus === DigiflazzItemStatus.ACTIVE || item.isActive;
-      return {
-        product_name: item.name,
-        category: item.product.category.name,
-        brand: item.product.name,
-        type: "Umum", // Default, can be enhanced later
-        seller_name: "Internal", // Default
-        price: item.basePrice,
-        buyer_sku_code: item.skuCode,
-        buyer_product_status: isActiveStatus,
-        seller_product_status: isActiveStatus,
-        unlimited_stock: true,
-        stock: 0,
-        multi: true,
-        start_cut_off: "0:0",
-        end_cut_off: "0:0",
-        desc: item.product.description || "",
-      };
-    });
-
     // Filter by category if provided
-    let filteredItems = items;
+    let filteredItems = productItems;
     if (category) {
       filteredItems = filteredItems.filter(
-        (item) => item.category.toLowerCase() === category.toLowerCase()
+        (item) => item.product.category.name.toLowerCase() === category.toLowerCase()
       );
     }
 
@@ -83,18 +62,79 @@ export async function GET(request: NextRequest) {
       const searchLower = search.toLowerCase();
       filteredItems = filteredItems.filter(
         (item) =>
-          item.product_name.toLowerCase().includes(searchLower) ||
-          item.buyer_sku_code.toLowerCase().includes(searchLower) ||
-          item.category.toLowerCase().includes(searchLower) ||
-          item.brand.toLowerCase().includes(searchLower)
+          item.name.toLowerCase().includes(searchLower) ||
+          item.skuCode.toLowerCase().includes(searchLower) ||
+          item.product.category.name.toLowerCase().includes(searchLower) ||
+          item.product.name.toLowerCase().includes(searchLower)
       );
     }
 
+    // Check if format=priceList is requested (for price list page)
+    const format = searchParams.get("format");
+    
+    if (format === "priceList") {
+      // Transform ProductItem data to PriceListItem format expected by price list page
+      const priceListItems = filteredItems.map((item) => {
+        // Determine buyer_product_status and seller_product_status from digiflazzStatus
+        // If digiflazzStatus is ACTIVE, both are true; otherwise both are false
+        // Handle null digiflazzStatus (default to inactive)
+        const isActive = item.digiflazzStatus === DigiflazzItemStatus.ACTIVE;
+        const buyer_product_status = isActive;
+        const seller_product_status = isActive;
+
+        return {
+          id: item.id, // Include product item ID for editing
+          buyer_sku_code: item.skuCode || "",
+          product_name: item.name || "",
+          seller_name: "Digiflazz", // Default seller name, can be updated if stored in DB
+          category: item.product.category.name || "N/A",
+          type: "", // Type field not stored in ProductItem, can be derived from category if needed
+          price: item.sellPrice || item.normalPrice || item.basePrice || 0, // Use sellPrice, fallback to normalPrice or basePrice
+          buyer_product_status: buyer_product_status,
+          seller_product_status: seller_product_status,
+          unlimited_stock: false, // Not stored in ProductItem
+          stock: 0, // Not stored in ProductItem
+          multi: false, // Not stored in ProductItem
+          start_cut_off: "", // Not stored in ProductItem
+          end_cut_off: "", // Not stored in ProductItem
+          desc: item.product.description || "", // Use product description
+          brand: item.product.name || "", // Use product name as brand
+        };
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: priceListItems,
+      });
+    }
+
+    // Default: Return raw ProductItem format (for product items page)
+    // Transform dates to ISO strings for JSON serialization
+    const formattedProductItems = filteredItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      skuCode: item.skuCode,
+      iconImage: item.iconImage,
+      basePrice: item.basePrice,
+      normalPrice: item.normalPrice,
+      discountedPrice: item.discountedPrice,
+      sellPrice: item.sellPrice,
+      isActive: item.isActive,
+      digiflazzStatus: item.digiflazzStatus,
+      createdAt: item.createdAt.toISOString(),
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        category: {
+          id: item.product.category.id,
+          name: item.product.category.name,
+        },
+      },
+    }));
+
     return NextResponse.json({
       success: true,
-      data: {
-        data: filteredItems,
-      },
+      data: formattedProductItems,
     });
   } catch (error) {
     console.error("Get product items error:", error);
