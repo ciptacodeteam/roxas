@@ -93,6 +93,7 @@ export async function GET() {
           product: {
             id: item.productItem.product.id,
             name: item.productItem.product.name,
+            slug: item.productItem.product.slug,
           },
         },
       })),

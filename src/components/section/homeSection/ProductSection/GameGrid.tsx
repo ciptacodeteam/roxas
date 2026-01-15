@@ -1,14 +1,26 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import GameCard from "./GameCard";
 
-export default function GameGrid({ items }: any) {
+interface GameItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  slug: string;
+}
+
+interface GameGridProps {
+  items: GameItem[];
+}
+
+export default function GameGrid({ items }: GameGridProps) {
+  if (!items || items.length === 0) {
+    return null;
+  }
+
   return (
     <div className="grid grid-cols-6 gap-4 mt-6">
-      {items.map((item: any, index: number) => (
-        <GameCard key={index} item={item} />
+      {items.map((item) => (
+        <GameCard key={item.id} item={item} />
       ))}
     </div>
   );

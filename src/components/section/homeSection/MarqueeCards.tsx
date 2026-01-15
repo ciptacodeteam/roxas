@@ -9,8 +9,16 @@ import {
 import { Zap } from "lucide-react";
 
 import Image from "next/image";
+import Link from "next/link";
 import Marquee from "react-fast-marquee";
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
+
+interface ProductData {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 interface FlashSaleItem {
   id: string;
@@ -26,16 +34,14 @@ interface FlashSaleItem {
     basePrice: number;
     normalPrice: number;
     sellPrice: number;
-    product: {
-      id: string;
-      name: string;
-    };
+    product: ProductData;
   };
 }
 
 export default function MarqueeCards() {
   const [items, setItems] = useState<FlashSaleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const locale = useLocale();
 
   useEffect(() => {
     const fetchFlashSales = async () => {
@@ -79,18 +85,20 @@ export default function MarqueeCards() {
     );
   }
 
-  const loopItems = [...items, ...items];
+  // Only duplicate items if there are less than 4 items for smooth marquee effect
+  const displayItems = items.length < 4 ? [...items, ...items] : items;
+
   return (
     <div className="overflow-hidden pb-8">
       <Marquee speed={30} gradient={false} pauseOnHover>
-        {loopItems.map((item, i) => {
+        {displayItems.map((item, i) => {
           const originalPrice = item.productItem.normalPrice;
           const salePrice = item.salePrice;
           const discount =
             originalPrice > salePrice
               ? Math.round(
-                  ((originalPrice - salePrice) / originalPrice) * 100
-                )
+                ((originalPrice - salePrice) / originalPrice) * 100
+              )
               : 0;
 
           const progress = Math.min(
@@ -98,73 +106,80 @@ export default function MarqueeCards() {
             Math.round((item.soldCount / item.stock) * 100)
           );
 
+          const productUrl = `/${locale}/product/${item.productItem.product.slug}`;
+
           return (
-            <Card
+            <Link
               key={i}
-              className="relative bg-no-repeat mr-4 w-80 border-card overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover transition-all duration-300 hover:border-primary cursor-pointer"
+              href={productUrl}
+              className="block"
             >
-              <div className="absolute inset-0 bg-rose-950/60" />
+              <Card
+                className="relative bg-no-repeat mr-4 w-80 border-card overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover transition-all duration-300 hover:border-primary cursor-pointer"
+              >
+                <div className="absolute inset-0 bg-rose-950/60" />
 
-              <CardHeader className="z-10">
-                <div>
-                  <h1 className="text-xl font-medium text-white">
-                    {item.productItem.name}
-                  </h1>
-                  <p className="text-sm text-white">{item.productItem.product.name}</p>
-                </div>
-
-                <div className="z-10 mt-3 flex items-center gap-4">
+                <CardHeader className="z-10">
                   <div>
-                    <Image
-                      src={item.productItem.iconImage || "/img/icon1.webp"}
-                      alt={item.productItem.name}
-                      width={80}
-                      height={80}
-                      className="rounded-sm"
+                    <h1 className="text-xl font-medium text-white">
+                      {item.productItem.name}
+                    </h1>
+                    <p className="text-sm text-white">{item.productItem.product.name}</p>
+                  </div>
+
+                  <div className="z-10 mt-3 flex items-center gap-4">
+                    <div>
+                      <Image
+                        src={item.productItem.iconImage || "/img/icon1.webp"}
+                        alt={item.productItem.name}
+                        width={80}
+                        height={80}
+                        className="rounded-sm"
+                      />
+                    </div>
+                    <div>
+                      <div>
+                        <p className="text-xl font-semibold text-white">
+                          Rp {salePrice.toLocaleString("id-ID")}
+                        </p>
+                        <p className="text-sm text-red-400 line-through">
+                          Rp {originalPrice.toLocaleString("id-ID")}
+                        </p>
+                      </div>
+
+                      {discount > 0 && (
+                        <span className="bg-primary w-fit rounded-md px-2 py-0.5 text-xs font-bold text-white">
+                          -{discount}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="relative z-10 pb-12">
+                  <div className="h-2 w-full rounded-full bg-white/20">
+                    <div
+                      className="h-full rounded-full bg-yellow-400"
+                      style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <div>
-                    <div>
-                      <p className="text-xl font-semibold text-white">
-                        Rp {salePrice.toLocaleString("id-ID")}
-                      </p>
-                      <p className="text-sm text-red-400 line-through">
-                        Rp {originalPrice.toLocaleString("id-ID")}
-                      </p>
-                    </div>
 
-                    {discount > 0 && (
-                      <span className="bg-primary w-fit rounded-md px-2 py-0.5 text-xs font-bold text-white">
-                        -{discount}%
-                      </span>
-                    )}
+                  <p className="mt-2 text-right text-xs text-white">
+                    {item.soldCount} / {item.stock} purchased
+                  </p>
+                </CardContent>
+
+                <CardFooter className="absolute bottom-0 left-0 right-0 z-10 flex justify-between text-xs text-white bg-background py-4">
+                  <div className="flex items-center gap-1">
+                    <Zap className="size-5 text-yellow-400" />
+                    <span>Pengiriman CEPAT</span>
                   </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="relative z-10 pb-12">
-                <div className="h-2 w-full rounded-full bg-white/20">
-                  <div
-                    className="h-full rounded-full bg-yellow-400"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                <p className="mt-2 text-right text-xs text-white">
-                  {item.soldCount} / {item.stock} purchased
-                </p>
-              </CardContent>
-
-              <CardFooter className="absolute bottom-0 left-0 right-0 z-10 flex justify-between text-xs text-white bg-background py-4">
-                <div className="flex items-center gap-1">
-                  <Zap className="size-5 text-yellow-400" />
-                  <span>Pengiriman CEPAT</span>
-                </div>
-                <span className="rounded-sm bg-primary px-3 py-1 text-xs text-white">
-                  Hemat Rp {(originalPrice - salePrice).toLocaleString("id-ID")}
-                </span>
-              </CardFooter>
-            </Card>
+                  <span className="rounded-sm bg-primary px-3 py-1 text-xs text-white">
+                    Hemat Rp {(originalPrice - salePrice).toLocaleString("id-ID")}
+                  </span>
+                </CardFooter>
+              </Card>
+            </Link>
           );
         })}
       </Marquee>

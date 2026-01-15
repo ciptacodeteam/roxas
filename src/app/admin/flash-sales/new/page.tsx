@@ -19,14 +19,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCreateFlashSale, useAdminProductItemsSelect, queryKeys } from "@/lib/queries";
+import { ProductSelectCombobox } from "@/components/admin/product-select-combobox";
 
 export default function FlashSaleAddPage() {
   const router = useRouter();
@@ -64,23 +58,27 @@ export default function FlashSaleAddPage() {
   };
 
   const updateItem = (index: number, field: "productItemId" | "salePrice" | "stock", value: string | number) => {
-    const newItems = [...items];
-    const currentItem = newItems[index];
-    if (!currentItem) return;
-    
-    const updatedItem: { productItemId: string; salePrice: number; stock: number } = {
-      productItemId: field === "productItemId" ? (value as string) : currentItem.productItemId,
-      salePrice: field === "salePrice" ? (value as number) : currentItem.salePrice,
-      stock: field === "stock" ? (value as number) : currentItem.stock,
-    };
-    
-    newItems[index] = updatedItem;
-    setItems(newItems);
+    console.log('updateItem called:', { index, field, value });
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      const currentItem = newItems[index];
+      if (!currentItem) return prevItems;
+
+      const updatedItem: { productItemId: string; salePrice: number; stock: number } = {
+        productItemId: field === "productItemId" ? (value as string) : currentItem.productItemId,
+        salePrice: field === "salePrice" ? (value as number) : currentItem.salePrice,
+        stock: field === "stock" ? (value as number) : currentItem.stock,
+      };
+
+      newItems[index] = updatedItem;
+      console.log('Updated items:', newItems);
+      return newItems;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.startTime || !formData.endTime) {
       toast.error("Name, start time, and end time are required");
       return;
@@ -213,27 +211,19 @@ export default function FlashSaleAddPage() {
                                 <div key={index} className="flex gap-2 items-end p-3 border border-gray-700 rounded-md">
                                   <div className="flex-1">
                                     <Label className="text-gray-200 text-xs mb-1 block">Product Item</Label>
-                                    <Select
-                                      value={item.productItemId}
+                                    <ProductSelectCombobox
+                                      items={productItems}
+                                      value={item.productItemId || ""}
                                       onValueChange={(value) => {
-                                        const product = productItems.find(p => p.id === value);
+                                        if (!value?.trim()) return;
+                                        const product = productItems.find(p => String(p.id) === String(value));
                                         updateItem(index, "productItemId", value);
                                         if (product) {
                                           updateItem(index, "salePrice", product.sellPrice);
                                         }
                                       }}
-                                    >
-                                      <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                        <SelectValue placeholder="Select product" />
-                                      </SelectTrigger>
-                                      <SelectContent className="bg-gray-800 text-gray-100">
-                                        {productItems.map((product) => (
-                                          <SelectItem key={product.id} value={product.id} className="hover:bg-gray-700">
-                                            {product.product.name} - {product.name} ({product.product.category.name})
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      placeholder="Search product..."
+                                    />
                                   </div>
                                   <div className="w-32">
                                     <Label className="text-gray-200 text-xs mb-1 block">Sale Price</Label>

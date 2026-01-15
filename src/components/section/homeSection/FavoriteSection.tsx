@@ -1,10 +1,13 @@
 "use client";
 
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { useProducts } from "@/lib/queries";
+import { FavoriteSectionSkeleton } from "./skeletons";
 
 import fire from "public/gif/fire.gif";
 
@@ -18,23 +21,36 @@ interface Product {
 
 export default function FavoriteSection() {
   const locale = useLocale();
-  const { data: games = [], isLoading: loading } = useProducts({ limit: 6 });
+  const {
+    data: games = [],
+    isLoading,
+    isError,
+    error,
+  } = useProducts({ limit: 6 });
 
-  if (loading) {
+  // Show skeleton while loading
+  if (isLoading) {
+    return <FavoriteSectionSkeleton />;
+  }
+
+  // Show error state
+  if (isError) {
     return (
       <section>
         <div className="mx-auto mb-16 max-w-7xl">
           <div>
             <div className="mb-2 flex gap-2 text-3xl">
               <span>
-                <Image src={fire} alt="fire" className="w-8"/>
+                <Image src={fire} alt="fire" className="w-8" />
               </span>
               <p className="font-medium text-white">POPULER SEKARANG !</p>
             </div>
             <p className="text-white">Silahkan Temukan Game Kamu.</p>
           </div>
           <div className="mt-8 flex items-center justify-center py-12">
-            <p className="text-white">Loading...</p>
+            <p className="text-red-400">
+              {error?.message || "Failed to load products. Please try again."}
+            </p>
           </div>
         </div>
       </section>
@@ -47,19 +63,23 @@ export default function FavoriteSection() {
         <div>
           <div className="mb-2 flex gap-2 text-3xl">
             <span>
-              <Image src={fire} alt="fire" className="w-8"/>
+              <Image src={fire} alt="fire" className="w-8" />
             </span>
             <p className="font-medium text-white">POPULER SEKARANG !</p>
           </div>
           <p className="text-white">Silahkan Temukan Game Kamu.</p>
         </div>
 
-        {games.length > 0 ? (
+        {games && games.length > 0 ? (
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {games.map((game) => (
-              <Link key={game.id} href={`/${locale}/product/${game.slug}`}>
-                <Card className="hover:border-primary border-background relative cursor-pointer overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover bg-center py-1 transition-all">
-                  {/* overlay hitam */}
+            {games.map((game: Product) => (
+              <Link
+                key={game.id}
+                href={`/${locale}/product/${game.slug}`}
+                prefetch
+              >
+                <Card className="hover:border-primary border-background relative cursor-pointer overflow-hidden rounded-xl bg-[url(/img/bgroxas.webp)] bg-cover bg-center py-1 transition-all hover:shadow-lg">
+                  {/* overlay */}
                   <div className="absolute inset-0 bg-rose-950/60"></div>
 
                   <CardContent className="relative z-10 flex items-center gap-4 p-4">

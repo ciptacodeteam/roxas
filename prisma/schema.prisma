@@ -103,6 +103,7 @@ model PaymentMethod {
   payments    Payment[]
 
   @@unique([type, bank]) // Ensure one payment method per type+bank combination
+  @@unique([midtransCode]) // Ensure no duplicate Midtrans codes
   @@index([isActive])
   @@index([type])
   @@map("payment_methods")
@@ -117,6 +118,8 @@ model User {
   password      String?
   phone         String? // Custom field
   role          UserRole @default(USER) // Custom field
+  isActive      Boolean  @default(true) // Soft disable accounts
+  lastLoginAt   DateTime? // Track last login time
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -124,7 +127,13 @@ model User {
   sessions Session[]
   orders   Order[]
   couponUsages CouponUsage[]
+  productRatings ProductRating[]
+  auditLogs AuditLog[]
 
+  @@index([email])
+  @@index([role])
+  @@index([isActive, createdAt])
+  @@index([role, isActive])
   @@map("users")
 }
 
@@ -146,21 +155,26 @@ model Account {
 
   @@unique([accountId, providerId, userId])
   @@index([userId])
+  @@index([providerId])
   @@map("accounts")
 }
 
 model Session {
-  id        String   @id @default(uuid())
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid())
+  expiresAt       DateTime
+  token           String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  ipAddress       String?
+  userAgent       String?
+  userId          String
+  lastActivityAt  DateTime @default(now()) // Track active sessions
+  revokedAt       DateTime? // Manual session revocation
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([token])
+  @@index([userId, revokedAt]) // For valid sessions only
   @@map("sessions")
 }
 
@@ -194,6 +208,7 @@ model Category {
   products Product[]
   instructionImages CategoryInstructionImage[]
 
+  @@index([isActive, sortOrder])
   @@map("categories")
 }
 
@@ -235,6 +250,7 @@ model Product {
 
   @@index([categoryId])
   @@index([slug])
+  @@index([isActive, sortOrder])
   @@map("products")
 }
 
@@ -267,6 +283,7 @@ model ProductItem {
 
   @@index([productId])
   @@index([skuCode])
+  @@index([productId, isActive, skuCode])
   @@map("product_items")
 }
 
@@ -320,7 +337,7 @@ model Coupon {
 
   @@index([isActive])
   @@index([endDate])
-  @@index([isActive, endDate])
+  @@index([isActive, endDate, createdAt])
   @@map("coupons")
 }
 
@@ -360,7 +377,7 @@ model FlashSale {
   @@index([isActive])
   @@index([startTime])
   @@index([endTime])
-  @@index([isActive, startTime, endTime])
+  @@index([isActive, endTime, startTime])
   @@map("flash_sales")
 }
 
@@ -402,8 +419,8 @@ model MarketingBanner {
   @@index([sortOrder])
   @@index([startDate])
   @@index([endDate])
-  @@index([isActive, sortOrder])
-  @@index([startDate, endDate])
+  @@index([isActive, sortOrder, createdAt])
+  @@index([startDate, endDate, isActive])
   @@map("marketing_banners")
 }
 
@@ -444,6 +461,12 @@ model Order {
 
   // Status
   status OrderStatus @default(PENDING)
+  
+  // Payment and refund tracking
+  paymentExpiresAt DateTime? // When payment window closes
+  refundAmount     Int? @default(0)
+  refundReason     String?
+  refundedAt       DateTime?
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -464,8 +487,9 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([userId, status, createdAt])
-  @@index([status, createdAt])
+  @@index([status, createdAt, userId])
   @@index([paymentMethodId])
+  @@index([paymentExpiresAt])
   @@map("orders")
 }
 
@@ -507,6 +531,7 @@ model Payment {
   @@index([status])
   @@index([orderId])
   @@index([paymentMethodId])
+  @@index([createdAt, status])
   @@map("payments")
 }
 
@@ -537,6 +562,7 @@ model DigiflazzTransaction {
   @@index([status])
   @@index([orderId])
   @@index([trxId])
+  @@index([createdAt, status])
   @@map("digiflazz_transactions")
 }
 
@@ -547,6 +573,7 @@ model DigiflazzTransaction {
 model ProductRating {
   id        String   @id @default(uuid())
   productId String
+  userId    String?
   rating    Int      // 1-5 stars
   comment   String?  // Optional review comment
   userName  String?  // Display name for the reviewer
@@ -556,9 +583,33 @@ model ProductRating {
   updatedAt DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([productId])
   @@index([productId, isActive])
   @@index([isActive])
+  @@index([userId])
   @@map("product_ratings")
+}
+
+// ============================================
+// AUDIT LOG MODEL
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  entityType String // "Order", "Product", "User", etc.
+  entityId  String
+  action    String // "CREATE", "UPDATE", "DELETE"
+  changes   Json? // Track what changed
+  userId    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
 }

@@ -86,6 +86,7 @@ export const queryKeys = {
   flashSales: {
     all: ["flash-sales"] as const,
     lists: () => [...queryKeys.flashSales.all, "list"] as const,
+    active: () => [...queryKeys.flashSales.all, "active"] as const,
     details: () => [...queryKeys.flashSales.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.flashSales.details(), id] as const,
   },
@@ -151,7 +152,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   const data = await response.json();
-  
+
   if (!data.success) {
     throw new Error(data.message || "Request failed");
   }
@@ -576,6 +577,17 @@ export function useAdminFlashSale(id: string, options?: Omit<UseQueryOptions<any
     queryKey: queryKeys.flashSales.detail(id),
     queryFn: () => fetchJSON<any>(`/api/admin/flash-sales/${id}`),
     enabled: !!id,
+    ...options,
+  });
+}
+
+// Public Active Flash Sales (for homepage)
+export function useActiveFlashSales(options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">) {
+  return useQuery({
+    queryKey: queryKeys.flashSales.active(),
+    queryFn: () => fetchJSON<any>("/api/flash-sales/active"),
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: 1000 * 60, // Refetch every 1 minute
     ...options,
   });
 }
