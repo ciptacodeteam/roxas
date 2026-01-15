@@ -25,6 +25,10 @@ export const auth = betterAuth({
   secret: env.AUTH_SECRET,
   baseURL: env.AUTH_URL || "http://localhost:3000",
   basePath: "/api/auth",
+  trustedOrigins: [
+    "http://localhost:3000",
+    ...(process.env.WEBHOOK_BASE_URL ? [process.env.WEBHOOK_BASE_URL] : []),
+  ],
   user: {
     // Include additional user fields in the session
     additionalFields: {
@@ -50,18 +54,18 @@ export async function getServerAuthSession() {
   try {
     const { headers } = await import("next/headers");
     const headersList = await headers();
-    
+
     const session = await auth.api.getSession({
       headers: headersList,
     });
 
-    if (!session || !session.user) {
+    if (!session?.user) {
       return null;
     }
 
     // Try to get role from session first (faster)
     let userRole = (session.user as any).role as UserRole | undefined;
-    
+
     // If role not in session, fetch from database (fallback for older sessions)
     if (!userRole) {
       const user = await db.user.findUnique({

@@ -41,6 +41,7 @@ export default tseslint.config(
       "@typescript-eslint/prefer-regexp-exec": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-inferrable-types": "off",
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {

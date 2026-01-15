@@ -1,0 +1,110 @@
+services:
+  # ============================================
+  # Next.js Application
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: roxas-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Development server
+      - "5555:5555" # Prisma Studio
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=${AUTH_URL:-http://localhost:3000}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
+      - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
+      - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
+      - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY}
+      - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
+      - MAILGUN_REGION=${MAILGUN_REGION:-eu}
+      - BLOB_READ_WRITE_TOKEN=${BLOB_READ_WRITE_TOKEN}
+      - WEBHOOK_BASE_URL=${WEBHOOK_BASE_URL:-}
+    volumes:
+      # Source code for hot-reload
+      - ./src:/app/src:delegated
+      - ./prisma:/app/prisma:delegated
+      - ./public:/app/public:delegated
+      # Configuration files
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./next.config.js:/app/next.config.js:ro
+      - ./tailwind.config.ts:/app/tailwind.config.ts:ro
+      # Exclude node_modules and build outputs from host
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - roxas-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - ngrok
+
+  # Ngrok Tunnel for Webhooks
+  # ============================================
+  ngrok:
+    image: ngrok/ngrok:alpine
+    container_name: roxas-ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "app:3000"
+      - "--log=stdout"
+    ports:
+      - "4040:4040" # Ngrok dashboard
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    networks:
+      - roxas-network
+    # Healthcheck disabled due to container permission issues
+    # Ngrok functionality can be verified via http://localhost:4040/api/tunnels
+
+  # ============================================
+  # Prisma Studio (separate service for easy access)
+  # ============================================
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: roxas-prisma-studio
+    restart: unless-stopped
+    command: ["bun", "run", "db:studio", "--port", "5555", "--browser", "none"]
+    ports:
+      - "5556:5555" # Map to different port to avoid conflict
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - ./prisma:/app/prisma:delegated
+    networks:
+      - roxas-network
+    profiles:
+      - tools # Only start when explicitly requested
+
+networks:
+  roxas-network:
+    driver: bridge
+    name: roxas-network
+
+volumes:
+  node_modules:
+    name: roxas-node-modules

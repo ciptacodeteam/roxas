@@ -1,0 +1,106 @@
+# ============================================
+# Docker Build Context Ignore File
+# ============================================
+# Minimize build context for faster builds
+
+# Dependencies (will be installed in container)
+node_modules/
+npm-debug.log
+yarn-error.log
+.bun/
+
+# Build outputs (will be generated in container)
+dist/
+.next/
+out/
+build/
+
+# Environment files (will be mounted or set via env_file)
+.env
+.env.*
+!.env.production  # Keep production template for reference
+
+# Git (not needed in container)
+.git/
+.github/
+.gitignore
+.gitattributes
+.gitmodules
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.editorconfig
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Documentation (not needed in production)
+*.md
+!README.md  # Keep README for reference
+docs/
+documentation/
+
+# Docker files (already in context when building)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Development scripts
+Makefile
+*.sh
+
+# Tests (not needed in production)
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__/
+**/__mocks__/
+coverage/
+.nyc_output/
+test/
+tests/
+
+# Logs & temporary files
+logs/
+*.log
+storage/logs/
+tmp/
+temp/
+*.tmp
+*.cache
+
+# Deployment files
+deploy.sh
+vercel.json
+.vercel/
+netlify.toml
+.netlify/
+
+# Development configuration
+.eslintrc*
+.prettierrc*
+.eslintignore
+.prettierignore
+vitest.config.*
+jest.config.*
+
+# CI/CD
+.circleci/
+.travis.yml
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Package manager locks (keep only one)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+# Keep bun.lockb for reproducible builds

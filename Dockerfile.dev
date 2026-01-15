@@ -1,0 +1,52 @@
+# ============================================
+FROM oven/bun:1.3-alpine
+
+WORKDIR /app
+
+# Install system dependencies including wget for health checks
+RUN apk add --no-cache \
+    postgresql-client \
+    git \
+    wget \
+    curl
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001 -G nodejs
+
+# Copy package files
+COPY --chown=nextjs:nodejs package.json bun.lockb* ./
+
+# Copy prisma schema BEFORE bun install (needed for postinstall script)
+COPY --chown=nextjs:nodejs prisma ./prisma
+
+# Install dependencies (postinstall will run prisma generate)
+RUN bun install --frozen-lockfile
+
+# Copy configuration files
+COPY --chown=nextjs:nodejs tsconfig.json next.config.js ./
+COPY --chown=nextjs:nodejs postcss.config.js prettier.config.js ./
+COPY --chown=nextjs:nodejs components.json eslint.config.js ./
+
+# Copy source code
+COPY --chown=nextjs:nodejs src ./src
+COPY --chown=nextjs:nodejs public ./public
+
+# Create .next directory with proper permissions
+RUN mkdir -p .next && chown -R nextjs:nodejs .next
+
+# Create next-env.d.ts with proper permissions (Next.js will update this)
+RUN touch next-env.d.ts && chown nextjs:nodejs next-env.d.ts
+
+# Switch to non-root user
+USER nextjs
+
+# Expose ports (Next.js dev server + Prisma Studio)
+EXPOSE 3000 5555
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+
+# Default command for development
+CMD ["bun", "run", "dev"]
