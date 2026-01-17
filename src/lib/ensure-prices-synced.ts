@@ -25,7 +25,9 @@ export async function ensurePricesSynced(maxAgeMinutes: number = 30) {
     if (needsSync) {
       // Trigger background sync (don't wait for it)
       // Use void to explicitly mark as fire-and-forget
-      void fetch("/api/admin/sync-prices?force=false", {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      void fetch(`${baseUrl}/api/admin/sync-prices?force=false`, {
         method: "GET",
         cache: "no-store",
       }).catch((error) => {
@@ -40,4 +42,3 @@ export async function ensurePricesSynced(maxAgeMinutes: number = 30) {
     return false; // On error, assume we need sync but don't block
   }
 }
-
