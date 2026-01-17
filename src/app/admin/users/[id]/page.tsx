@@ -15,6 +15,8 @@ import {
   DollarSign,
   CheckCircle2,
   XCircle,
+  MailCheck,
+  KeyRound,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAdminUser, useUpdateUser } from "@/lib/queries";
 import { formatDateTime } from "@/lib/date-utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface UserDetail {
   id: string;
@@ -92,11 +95,15 @@ export default function UserEditPage() {
     name: string;
     phone: string | null;
     role: string;
+    password: string | null;
+    emailVerified: boolean;
   }>({
     email: "",
     name: "",
     phone: null,
     role: "USER",
+    password: null,
+    emailVerified: false,
   });
 
   // Use React Query to fetch user data
@@ -114,6 +121,8 @@ export default function UserEditPage() {
         name: typedUserData.name || "",
         phone: typedUserData.phone || null,
         role: roleValue,
+        password: null,
+        emailVerified: typedUserData.emailVerified,
       });
     }
   }, [typedUserData]);
@@ -364,7 +373,7 @@ export default function UserEditPage() {
                             <Input
                               id="phone"
                               type="tel"
-                              value={formData.phone}
+                              value={formData.phone || ""}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
@@ -429,7 +438,7 @@ export default function UserEditPage() {
                             <Input
                               id="password"
                               type="password"
-                              value={formData.password}
+                              value={formData.password || ""}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
@@ -506,7 +515,7 @@ export default function UserEditPage() {
                           Password Reset
                         </CardTitle>
                         <CardDescription>
-                          Send password reset link to user's email
+                          Send password reset link to users&apos; email
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -568,7 +577,7 @@ export default function UserEditPage() {
                           Email Verification
                         </CardTitle>
                         <CardDescription>
-                          Send verification email to activate user's account
+                          Send verification email to activate user&apos;s account
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -989,7 +998,6 @@ export default function UserEditPage() {
               </div>
             </div>
           </div>
-        </div>
       </SidebarInset>
     </SidebarProvider>
   );

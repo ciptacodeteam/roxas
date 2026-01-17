@@ -91,14 +91,6 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.flashSales.details(), id] as const,
   },
 
-  // Payment Methods
-  paymentMethods: {
-    all: ["payment-methods"] as const,
-    lists: () => [...queryKeys.paymentMethods.all, "list"] as const,
-    details: () => [...queryKeys.paymentMethods.all, "detail"] as const,
-    detail: (id: string) => [...queryKeys.paymentMethods.details(), id] as const,
-  },
-
   // Price Sync
   priceSync: {
     all: ["price-sync"] as const,
@@ -206,7 +198,7 @@ export function useProduct(slug: string, options?: Omit<UseQueryOptions<any>, "q
     enabled: !!slug,
     staleTime: 0, // Always refetch
     refetchOnWindowFocus: true,
-    refetchOnMount: "stale",
+    refetchOnMount: true,
     ...options,
   });
 }
@@ -318,7 +310,7 @@ export function useAdminPaymentMethods(
     staleTime: 0, // Data is always stale, refetch on mount
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
     refetchOnWindowFocus: true, // Refetch when window regains focus
-    refetchOnMount: "stale", // Refetch if data is stale when component mounts
+    refetchOnMount: true, // Refetch if data is stale when component mounts
     ...options,
   });
 }
@@ -334,7 +326,7 @@ export function useAdminPaymentMethod(
     staleTime: 0, // Data is always stale
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
     refetchOnWindowFocus: true,
-    refetchOnMount: "stale",
+    refetchOnMount: true,
     ...options,
   });
 }
@@ -420,7 +412,7 @@ export function useUserProfile(options?: Omit<UseQueryOptions<any>, "queryKey" |
     },
     staleTime: 0,
     refetchOnWindowFocus: true,
-    refetchOnMount: "stale",
+    refetchOnMount: true,
     ...options,
   });
 }

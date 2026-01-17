@@ -44,7 +44,7 @@ class RateLimiter {
 
     // Check if we've exceeded max calls
     if (entry.calls.length >= config.maxCalls) {
-      const oldestCall = entry.calls[0];
+      const oldestCall = entry.calls[0] ?? 0;
       const waitMs = config.windowMs - (now - oldestCall);
       return {
         allowed: false,

@@ -25,6 +25,23 @@ export const productDetail = {
       { name: "serverId", label: "Server", required: true },
     ],
 
+    // items: Array<{
+    //   id: string;
+    //   name: string;
+    //   price: number;
+    //   basePrice: number;
+    //   skuCode: string;
+    // }>;
+    items: [
+      {
+        id: "1",
+        name: "Weekly Diamond Pass",
+        price: 24422,
+        basePrice: 24422,
+        skuCode: "1234567890",
+      },
+    ],
+
     denominations: [
       {
         id: 1,
