@@ -76,7 +76,7 @@ export default async function ProductDetailPage({
 
   // Fallback to hardcoded data if product not found in database
   // This allows gradual migration
-  let productData = null;
+  let productData: any = undefined;
   if (product) {
     productData = {
       id: product.id,
