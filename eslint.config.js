@@ -46,6 +46,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-argument": "off",
       "react-hooks/rules-of-hooks": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/prefer-optional-chain": "off",
+      "@typescript-eslint/no-unnecessary-type-@typescript-eslint/prefer-optional-chain":
+        "off",
     },
   },
   {

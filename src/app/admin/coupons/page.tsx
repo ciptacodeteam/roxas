@@ -2,7 +2,16 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,15 +34,9 @@ import {
 } from "@tanstack/react-table";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import {
-  useAdminCoupons,
-  useDeleteCoupon,
-} from "@/lib/queries";
+import { useAdminCoupons, useDeleteCoupon } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +80,9 @@ export default function CouponsPage() {
   const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
 
   // Use TanStack Query hooks
-  const { data: couponsData = [], isLoading: loading } = useAdminCoupons({ search });
+  const { data: couponsData = [], isLoading: loading } = useAdminCoupons({
+    search,
+  });
   const coupons: Coupon[] = couponsData;
 
   const deleteCouponMutation = useDeleteCoupon({
@@ -87,13 +92,18 @@ export default function CouponsPage() {
       setCouponToDelete(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to delete coupon");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete coupon",
+      );
     },
   });
 
-  const handleEdit = useCallback((coupon: Coupon) => {
-    router.push(`/admin/coupons/${coupon.id}`);
-  }, [router]);
+  const handleEdit = useCallback(
+    (coupon: Coupon) => {
+      router.push(`/admin/coupons/${coupon.id}`);
+    },
+    [router],
+  );
 
   const handleDeleteClick = useCallback((coupon: Coupon) => {
     setCouponToDelete(coupon);
@@ -114,7 +124,8 @@ export default function CouponsPage() {
     return coupons.filter(
       (coupon) =>
         coupon.code.toLowerCase().includes(searchLower) ||
-        (coupon.description && coupon.description.toLowerCase().includes(searchLower))
+        (coupon.description &&
+          coupon.description.toLowerCase().includes(searchLower)),
     );
   }, [coupons, search]);
 
@@ -126,7 +137,9 @@ export default function CouponsPage() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2"
             >
               Code
@@ -141,7 +154,7 @@ export default function CouponsPage() {
           );
         },
         cell: ({ row }) => (
-          <div className="font-medium font-mono">{row.getValue("code")}</div>
+          <div className="font-mono font-medium">{row.getValue("code")}</div>
         ),
       },
       {
@@ -173,7 +186,9 @@ export default function CouponsPage() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2"
             >
               Usage
@@ -204,7 +219,9 @@ export default function CouponsPage() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2"
             >
               Status
@@ -275,7 +292,7 @@ export default function CouponsPage() {
         },
       },
     ],
-    [handleEdit, handleDeleteClick]
+    [handleEdit, handleDeleteClick],
   );
 
   const table = useReactTable({
@@ -300,7 +317,7 @@ export default function CouponsPage() {
       const searchLower = filterValue.toLowerCase();
       return (
         coupon.code.toLowerCase().includes(searchLower) ||
-        (coupon.description && coupon.description.toLowerCase().includes(searchLower))
+        (coupon.description?.toLowerCase().includes(searchLower) ?? false)
       );
     },
   });
@@ -336,7 +353,7 @@ export default function CouponsPage() {
 
                 <div className="mb-4">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       type="text"
                       placeholder="Search by code or description..."
@@ -383,7 +400,7 @@ export default function CouponsPage() {
                                     ? null
                                     : flexRender(
                                         header.column.columnDef.header,
-                                        header.getContext()
+                                        header.getContext(),
                                       )}
                                 </TableHead>
                               ))}
@@ -400,7 +417,7 @@ export default function CouponsPage() {
                                 <TableCell key={cell.id}>
                                   {flexRender(
                                     cell.column.columnDef.cell,
-                                    cell.getContext()
+                                    cell.getContext(),
                                   )}
                                 </TableCell>
                               ))}
@@ -411,11 +428,15 @@ export default function CouponsPage() {
                     </div>
                     <div className="flex items-center justify-between px-2 py-4">
                       <div className="text-sm text-gray-400">
-                        Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+                        Showing{" "}
+                        {table.getState().pagination.pageIndex *
+                          table.getState().pagination.pageSize +
+                          1}{" "}
+                        to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
                             table.getState().pagination.pageSize,
-                          table.getFilteredRowModel().rows.length
+                          table.getFilteredRowModel().rows.length,
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} coupons
                       </div>
@@ -452,19 +473,21 @@ export default function CouponsPage() {
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent className="bg-gray-900 text-gray-100">
             <DialogHeader>
-              <DialogTitle className="text-gray-100">
-                Delete Coupon
-              </DialogTitle>
+              <DialogTitle className="text-gray-100">Delete Coupon</DialogTitle>
               <DialogDescription className="text-gray-400">
                 Are you sure you want to delete coupon{" "}
-                <span className="font-semibold text-gray-200 font-mono">
+                <span className="font-mono font-semibold text-gray-200">
                   {couponToDelete?.code}
                 </span>
-                ? {couponToDelete && couponToDelete._count && couponToDelete._count.usages > 0 && (
-                  <span className="block mt-2 text-yellow-400">
-                    This coupon has been used {couponToDelete._count.usages} time(s). It will be deactivated instead of deleted.
-                  </span>
-                )}
+                ?{" "}
+                {couponToDelete &&
+                  couponToDelete._count &&
+                  couponToDelete._count.usages > 0 && (
+                    <span className="mt-2 block text-yellow-400">
+                      This coupon has been used {couponToDelete._count.usages}{" "}
+                      time(s). It will be deactivated instead of deleted.
+                    </span>
+                  )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -474,7 +497,7 @@ export default function CouponsPage() {
                   setIsDeleteDialogOpen(false);
                   setCouponToDelete(null);
                 }}
-                className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
+                className="border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
               >
                 Cancel
               </Button>
@@ -499,4 +522,3 @@ export default function CouponsPage() {
     </SidebarProvider>
   );
 }
-

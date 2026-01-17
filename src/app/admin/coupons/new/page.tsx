@@ -11,12 +11,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { BackButton } from "@/components/admin/back-button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -36,7 +39,7 @@ export default function CouponAddPage() {
   const [formData, setFormData] = useState({
     code: "",
     description: "",
-    discountType: DiscountType.PERCENTAGE,
+    discountType: DiscountType.PERCENTAGE as DiscountType,
     discountValue: 0,
     minPurchase: 0,
     maxDiscount: null as number | null,
@@ -54,14 +57,16 @@ export default function CouponAddPage() {
       router.push("/admin/coupons");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create coupon");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create coupon",
+      );
       setSaving(false);
     },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.code || !formData.discountType || !formData.discountValue) {
       toast.error("Code, discount type, and discount value are required");
       return;
@@ -72,7 +77,10 @@ export default function CouponAddPage() {
       return;
     }
 
-    if (formData.discountType === DiscountType.PERCENTAGE && formData.discountValue > 100) {
+    if (
+      formData.discountType === DiscountType.PERCENTAGE &&
+      formData.discountValue > 100
+    ) {
       toast.error("Percentage discount cannot exceed 100%");
       return;
     }
@@ -125,7 +133,7 @@ export default function CouponAddPage() {
 
                 {/* Main Content */}
                 <div className="max-w-3xl">
-                  <Card className="bg-gray-900 border-gray-800">
+                  <Card className="border-gray-800 bg-gray-900">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Ticket className="h-5 w-5" />
@@ -139,7 +147,10 @@ export default function CouponAddPage() {
                       <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Code */}
                         <div className="space-y-2">
-                          <Label htmlFor="code" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="code"
+                            className="flex items-center gap-2"
+                          >
                             <Ticket className="h-4 w-4" />
                             Coupon Code <span className="text-red-400">*</span>
                           </Label>
@@ -147,10 +158,13 @@ export default function CouponAddPage() {
                             id="code"
                             value={formData.code}
                             onChange={(e) =>
-                              setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                              setFormData({
+                                ...formData,
+                                code: e.target.value.toUpperCase(),
+                              })
                             }
                             placeholder="WELCOME10"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500 font-mono"
+                            className="border-gray-700 bg-gray-800 font-mono text-gray-100 placeholder:text-gray-500"
                           />
                           <p className="text-xs text-gray-400">
                             Code will be automatically converted to uppercase
@@ -159,7 +173,10 @@ export default function CouponAddPage() {
 
                         {/* Description */}
                         <div className="space-y-2">
-                          <Label htmlFor="description" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="description"
+                            className="flex items-center gap-2"
+                          >
                             <Ticket className="h-4 w-4" />
                             Description
                           </Label>
@@ -167,10 +184,13 @@ export default function CouponAddPage() {
                             id="description"
                             value={formData.description}
                             onChange={(e) =>
-                              setFormData({ ...formData, description: e.target.value })
+                              setFormData({
+                                ...formData,
+                                description: e.target.value,
+                              })
                             }
                             placeholder="Optional description"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                           />
                         </div>
 
@@ -178,13 +198,16 @@ export default function CouponAddPage() {
 
                         {/* Discount Configuration */}
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <DollarSign className="h-5 w-5" />
                             Discount Configuration
                           </h3>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="discountType">Discount Type <span className="text-red-400">*</span></Label>
+                              <Label htmlFor="discountType">
+                                Discount Type{" "}
+                                <span className="text-red-400">*</span>
+                              </Label>
                               <Select
                                 value={formData.discountType}
                                 onValueChange={(value) =>
@@ -194,17 +217,30 @@ export default function CouponAddPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                                <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                  <SelectItem value={DiscountType.PERCENTAGE} className="hover:bg-gray-700">Percentage</SelectItem>
-                                  <SelectItem value={DiscountType.FIXED_AMOUNT} className="hover:bg-gray-700">Fixed Amount</SelectItem>
+                                <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
+                                  <SelectItem
+                                    value={DiscountType.PERCENTAGE}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Percentage
+                                  </SelectItem>
+                                  <SelectItem
+                                    value={DiscountType.FIXED_AMOUNT}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Fixed Amount
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="discountValue">Discount Value <span className="text-red-400">*</span></Label>
+                              <Label htmlFor="discountValue">
+                                Discount Value{" "}
+                                <span className="text-red-400">*</span>
+                              </Label>
                               <Input
                                 id="discountValue"
                                 type="number"
@@ -213,17 +249,26 @@ export default function CouponAddPage() {
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    discountValue: parseFloat(e.target.value) || 0,
+                                    discountValue:
+                                      parseFloat(e.target.value) || 0,
                                   })
                                 }
-                                placeholder={formData.discountType === DiscountType.PERCENTAGE ? "10 (for 10%)" : "50000"}
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                placeholder={
+                                  formData.discountType ===
+                                  DiscountType.PERCENTAGE
+                                    ? "10 (for 10%)"
+                                    : "50000"
+                                }
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                             </div>
                           </div>
-                          {formData.discountType === DiscountType.PERCENTAGE && (
+                          {formData.discountType ===
+                            DiscountType.PERCENTAGE && (
                             <div className="space-y-2">
-                              <Label htmlFor="maxDiscount">Max Discount (Optional)</Label>
+                              <Label htmlFor="maxDiscount">
+                                Max Discount (Optional)
+                              </Label>
                               <Input
                                 id="maxDiscount"
                                 type="number"
@@ -231,11 +276,13 @@ export default function CouponAddPage() {
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    maxDiscount: e.target.value ? parseFloat(e.target.value) : null,
+                                    maxDiscount: e.target.value
+                                      ? parseFloat(e.target.value)
+                                      : null,
                                   })
                                 }
                                 placeholder="50000"
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                               <p className="text-xs text-gray-400">
                                 Maximum discount amount in IDR (e.g., 50000)
@@ -248,13 +295,15 @@ export default function CouponAddPage() {
 
                         {/* Usage Limits */}
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <Ticket className="h-5 w-5" />
                             Usage Limits
                           </h3>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="minPurchase">Minimum Purchase</Label>
+                              <Label htmlFor="minPurchase">
+                                Minimum Purchase
+                              </Label>
                               <Input
                                 id="minPurchase"
                                 type="number"
@@ -262,11 +311,12 @@ export default function CouponAddPage() {
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    minPurchase: parseFloat(e.target.value) || 0,
+                                    minPurchase:
+                                      parseFloat(e.target.value) || 0,
                                   })
                                 }
                                 placeholder="0"
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                               <p className="text-xs text-gray-400">
                                 Minimum order amount to use this coupon
@@ -285,7 +335,7 @@ export default function CouponAddPage() {
                                   })
                                 }
                                 placeholder="1"
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                               <p className="text-xs text-gray-400">
                                 How many times a user can use this coupon
@@ -293,7 +343,9 @@ export default function CouponAddPage() {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="usageLimit">Total Usage Limit (Optional)</Label>
+                            <Label htmlFor="usageLimit">
+                              Total Usage Limit (Optional)
+                            </Label>
                             <Input
                               id="usageLimit"
                               type="number"
@@ -301,14 +353,17 @@ export default function CouponAddPage() {
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  usageLimit: e.target.value ? parseInt(e.target.value) : null,
+                                  usageLimit: e.target.value
+                                    ? parseInt(e.target.value)
+                                    : null,
                                 })
                               }
                               placeholder="Leave empty for unlimited"
-                              className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                              className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                             />
                             <p className="text-xs text-gray-400">
-                              Total number of times this coupon can be used (leave empty for unlimited)
+                              Total number of times this coupon can be used
+                              (leave empty for unlimited)
                             </p>
                           </div>
                         </div>
@@ -317,7 +372,7 @@ export default function CouponAddPage() {
 
                         {/* Date Range */}
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <Calendar className="h-5 w-5" />
                             Validity Period (Optional)
                           </h3>
@@ -327,7 +382,10 @@ export default function CouponAddPage() {
                               <DateTimePicker
                                 value={formData.startDate || undefined}
                                 onChange={(value) =>
-                                  setFormData({ ...formData, startDate: value || null })
+                                  setFormData({
+                                    ...formData,
+                                    startDate: value || null,
+                                  })
                                 }
                                 placeholder="Select start date and time"
                               />
@@ -337,7 +395,10 @@ export default function CouponAddPage() {
                               <DateTimePicker
                                 value={formData.endDate || undefined}
                                 onChange={(value) =>
-                                  setFormData({ ...formData, endDate: value || null })
+                                  setFormData({
+                                    ...formData,
+                                    endDate: value || null,
+                                  })
                                 }
                                 placeholder="Select end date and time"
                               />
@@ -351,7 +412,10 @@ export default function CouponAddPage() {
                             id="isActive"
                             checked={formData.isActive}
                             onCheckedChange={(checked) =>
-                              setFormData({ ...formData, isActive: checked === true })
+                              setFormData({
+                                ...formData,
+                                isActive: checked === true,
+                              })
                             }
                             className="border-gray-700"
                           />
@@ -398,4 +462,3 @@ export default function CouponAddPage() {
     </SidebarProvider>
   );
 }
-
