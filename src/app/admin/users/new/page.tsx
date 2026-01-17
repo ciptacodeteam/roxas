@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCreateUser, queryKeys } from "@/lib/queries";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function UserAddPage() {
   const router = useRouter();
