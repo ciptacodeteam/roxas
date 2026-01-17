@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
-import { DiscountType, Coupon } from "@prisma/client";
+import { DiscountType } from "@prisma/client";
+import type { Coupon } from "@prisma/client";
 
 export interface CouponValidationResult {
   valid: boolean;

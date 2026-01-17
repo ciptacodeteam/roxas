@@ -1,4 +1,5 @@
-import { PaymentMethod, FeeType } from "@prisma/client";
+import type { PaymentMethod } from "@prisma/client";
+import { FeeType } from "@prisma/client";
 
 /**
  * Calculate payment fee based on payment method configuration

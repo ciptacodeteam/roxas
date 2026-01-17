@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Sales data for the last 30 days (for chart)
-    const salesData = [];
+    const salesData: { date: string; revenue: number }[] = [];
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       });
 
       salesData.push({
-        date: startOfDay.toISOString().split("T")[0],
+        date: startOfDay.toISOString().split("T")[0] as string,
         revenue: dayRevenue._sum.totalAmount || 0,
       });
     }

@@ -50,7 +50,7 @@ export default function GameSection() {
 
   useEffect(() => {
     if (displayCategories.length > 0 && !displayCategories.includes(active)) {
-      setActive(displayCategories[0]);
+      setActive(displayCategories[0]!);
     }
   }, [displayCategories, active]);
 

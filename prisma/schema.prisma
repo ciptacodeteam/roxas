@@ -57,6 +57,7 @@ enum PaymentMethodType {
   E_WALLET
   MOBILE_BANKING
   CREDIT_CARD
+  BANK_TRANSFER
 }
 
 enum BankTransferBank {
@@ -92,6 +93,7 @@ model PaymentMethod {
   
   // Configuration
   isActive    Boolean           @default(true)
+  sortOrder   Int               @default(0)
   
   // Midtrans-specific configuration
   midtransCode String           // Code used in Midtrans API (e.g., "bca", "gopay", "credit_card")
