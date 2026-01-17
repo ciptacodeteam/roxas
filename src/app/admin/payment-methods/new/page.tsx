@@ -11,12 +11,15 @@ import Image from "next/image";
 import { BackButton } from "@/components/admin/back-button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -39,9 +42,9 @@ export default function PaymentMethodAddPage() {
     name: "",
     description: "",
     icon: "",
-    feeType: FeeType.PERCENTAGE,
+    feeType: FeeType.PERCENTAGE as FeeType,
     feeValue: 0,
-    vatType: FeeType.PERCENTAGE,
+    vatType: FeeType.PERCENTAGE as FeeType,
     vatValue: 0,
     isActive: true,
     midtransCode: "",
@@ -53,7 +56,11 @@ export default function PaymentMethodAddPage() {
       router.push("/admin/payment-methods");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create payment method");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create payment method",
+      );
       setSaving(false);
     },
   });
@@ -81,9 +88,7 @@ export default function PaymentMethodAddPage() {
 
       toast.success("Icon uploaded successfully");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload icon"
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to upload icon");
     } finally {
       setUploadingIcon(false);
     }
@@ -91,7 +96,7 @@ export default function PaymentMethodAddPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.type || !formData.name || !formData.midtransCode) {
       toast.error("Type, name, and Midtrans code are required");
       return;
@@ -105,7 +110,10 @@ export default function PaymentMethodAddPage() {
     setSaving(true);
     const submitData = {
       ...formData,
-        bank: formData.type === PaymentMethodType.MOBILE_BANKING ? formData.bank : null,
+      bank:
+        formData.type === PaymentMethodType.MOBILE_BANKING
+          ? formData.bank
+          : null,
       description: formData.description || null,
       icon: formData.icon || null,
     };
@@ -135,9 +143,14 @@ export default function PaymentMethodAddPage() {
               <div className="container mx-auto px-4 lg:px-6">
                 {/* Header */}
                 <div className="mb-6">
-                  <BackButton href="/admin/payment-methods" label="Back to Payment Methods" />
+                  <BackButton
+                    href="/admin/payment-methods"
+                    label="Back to Payment Methods"
+                  />
                   <div>
-                    <h1 className="text-3xl font-bold">Tambah Payment Method</h1>
+                    <h1 className="text-3xl font-bold">
+                      Tambah Payment Method
+                    </h1>
                     <p className="mt-2 text-gray-400">
                       Create a new payment method with fee and VAT configuration
                     </p>
@@ -146,7 +159,7 @@ export default function PaymentMethodAddPage() {
 
                 {/* Main Content */}
                 <div className="max-w-3xl">
-                  <Card className="bg-gray-900 border-gray-800">
+                  <Card className="border-gray-800 bg-gray-900">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />
@@ -160,7 +173,10 @@ export default function PaymentMethodAddPage() {
                       <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Payment Type */}
                         <div className="space-y-2">
-                          <Label htmlFor="type" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="type"
+                            className="flex items-center gap-2"
+                          >
                             <CreditCard className="h-4 w-4" />
                             Payment Type <span className="text-red-400">*</span>
                           </Label>
@@ -170,16 +186,23 @@ export default function PaymentMethodAddPage() {
                               setFormData({
                                 ...formData,
                                 type: value as PaymentMethodType,
-                                bank: value === PaymentMethodType.MOBILE_BANKING ? formData.bank : ("" as BankTransferBank | ""),
+                                bank:
+                                  value === PaymentMethodType.MOBILE_BANKING
+                                    ? formData.bank
+                                    : ("" as BankTransferBank | ""),
                               })
                             }
                           >
-                            <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                            <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
                               <SelectValue placeholder="Select payment type" />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                            <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
                               {Object.values(PaymentMethodType).map((type) => (
-                                <SelectItem key={type} value={type} className="hover:bg-gray-700">
+                                <SelectItem
+                                  key={type}
+                                  value={type}
+                                  className="hover:bg-gray-700"
+                                >
                                   {type.replace(/_/g, " ")}
                                 </SelectItem>
                               ))}
@@ -190,7 +213,10 @@ export default function PaymentMethodAddPage() {
                         {/* Bank (only for MOBILE_BANKING) */}
                         {formData.type === PaymentMethodType.MOBILE_BANKING && (
                           <div className="space-y-2">
-                            <Label htmlFor="bank" className="flex items-center gap-2">
+                            <Label
+                              htmlFor="bank"
+                              className="flex items-center gap-2"
+                            >
                               <CreditCard className="h-4 w-4" />
                               Bank <span className="text-red-400">*</span>
                             </Label>
@@ -203,12 +229,16 @@ export default function PaymentMethodAddPage() {
                                 })
                               }
                             >
-                              <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                              <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
                                 <SelectValue placeholder="Select bank" />
                               </SelectTrigger>
-                              <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                              <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
                                 {Object.values(BankTransferBank).map((bank) => (
-                                  <SelectItem key={bank} value={bank} className="hover:bg-gray-700">
+                                  <SelectItem
+                                    key={bank}
+                                    value={bank}
+                                    className="hover:bg-gray-700"
+                                  >
                                     {bank}
                                   </SelectItem>
                                 ))}
@@ -219,7 +249,10 @@ export default function PaymentMethodAddPage() {
 
                         {/* Name */}
                         <div className="space-y-2">
-                          <Label htmlFor="name" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="name"
+                            className="flex items-center gap-2"
+                          >
                             <CreditCard className="h-4 w-4" />
                             Name <span className="text-red-400">*</span>
                           </Label>
@@ -230,30 +263,40 @@ export default function PaymentMethodAddPage() {
                               setFormData({ ...formData, name: e.target.value })
                             }
                             placeholder="e.g. BCA Virtual Account"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                           />
                         </div>
 
                         {/* Midtrans Code */}
                         <div className="space-y-2">
-                          <Label htmlFor="midtransCode" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="midtransCode"
+                            className="flex items-center gap-2"
+                          >
                             <CreditCard className="h-4 w-4" />
-                            Midtrans Code <span className="text-red-400">*</span>
+                            Midtrans Code{" "}
+                            <span className="text-red-400">*</span>
                           </Label>
                           <Input
                             id="midtransCode"
                             value={formData.midtransCode}
                             onChange={(e) =>
-                              setFormData({ ...formData, midtransCode: e.target.value })
+                              setFormData({
+                                ...formData,
+                                midtransCode: e.target.value,
+                              })
                             }
                             placeholder="e.g. bca, gopay, credit_card"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                           />
                         </div>
 
                         {/* Description */}
                         <div className="space-y-2">
-                          <Label htmlFor="description" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="description"
+                            className="flex items-center gap-2"
+                          >
                             <CreditCard className="h-4 w-4" />
                             Description
                           </Label>
@@ -261,16 +304,22 @@ export default function PaymentMethodAddPage() {
                             id="description"
                             value={formData.description}
                             onChange={(e) =>
-                              setFormData({ ...formData, description: e.target.value })
+                              setFormData({
+                                ...formData,
+                                description: e.target.value,
+                              })
                             }
                             placeholder="Optional description"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                           />
                         </div>
 
                         {/* Icon Upload */}
                         <div className="space-y-2">
-                          <Label htmlFor="icon" className="flex items-center gap-2">
+                          <Label
+                            htmlFor="icon"
+                            className="flex items-center gap-2"
+                          >
                             <Upload className="h-4 w-4" />
                             Icon
                           </Label>
@@ -289,10 +338,13 @@ export default function PaymentMethodAddPage() {
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
+                                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
                                   onClick={() => {
                                     setIconPreview(null);
-                                    setFormData((prev) => ({ ...prev, icon: "" }));
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      icon: "",
+                                    }));
                                   }}
                                 >
                                   <X className="h-3 w-3 text-white" />
@@ -311,7 +363,7 @@ export default function PaymentMethodAddPage() {
                                     }
                                   }}
                                   disabled={uploadingIcon}
-                                  className="bg-gray-800 text-gray-100 border-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer"
+                                  className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                 />
                                 {uploadingIcon && (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -321,17 +373,23 @@ export default function PaymentMethodAddPage() {
                             {/* Fallback: Manual URL input */}
                             {!iconPreview && (
                               <div className="mt-2">
-                                <Label htmlFor="icon-url" className="text-xs text-gray-400">
+                                <Label
+                                  htmlFor="icon-url"
+                                  className="text-xs text-gray-400"
+                                >
                                   Or enter URL manually:
                                 </Label>
                                 <Input
                                   id="icon-url"
                                   value={formData.icon}
                                   onChange={(e) =>
-                                    setFormData({ ...formData, icon: e.target.value })
+                                    setFormData({
+                                      ...formData,
+                                      icon: e.target.value,
+                                    })
                                   }
                                   placeholder="https://example.com/icon.png"
-                                  className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500 mt-1"
+                                  className="mt-1 border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                                 />
                               </div>
                             )}
@@ -342,7 +400,7 @@ export default function PaymentMethodAddPage() {
 
                         {/* Fee Configuration */}
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <DollarSign className="h-5 w-5" />
                             Fee Configuration
                           </h3>
@@ -358,12 +416,22 @@ export default function PaymentMethodAddPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                                <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                  <SelectItem value={FeeType.PERCENTAGE} className="hover:bg-gray-700">Percentage</SelectItem>
-                                  <SelectItem value={FeeType.FIXED} className="hover:bg-gray-700">Fixed Amount</SelectItem>
+                                <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
+                                  <SelectItem
+                                    value={FeeType.PERCENTAGE}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Percentage
+                                  </SelectItem>
+                                  <SelectItem
+                                    value={FeeType.FIXED}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Fixed Amount
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -380,8 +448,12 @@ export default function PaymentMethodAddPage() {
                                     feeValue: parseFloat(e.target.value) || 0,
                                   })
                                 }
-                                placeholder={formData.feeType === FeeType.PERCENTAGE ? "2.5" : "5000"}
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                placeholder={
+                                  formData.feeType === FeeType.PERCENTAGE
+                                    ? "2.5"
+                                    : "5000"
+                                }
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                             </div>
                           </div>
@@ -389,7 +461,7 @@ export default function PaymentMethodAddPage() {
 
                         {/* VAT Configuration */}
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <DollarSign className="h-5 w-5" />
                             VAT Configuration
                           </h3>
@@ -405,12 +477,22 @@ export default function PaymentMethodAddPage() {
                                   })
                                 }
                               >
-                                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                                <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                  <SelectItem value={FeeType.PERCENTAGE} className="hover:bg-gray-700">Percentage</SelectItem>
-                                  <SelectItem value={FeeType.FIXED} className="hover:bg-gray-700">Fixed Amount</SelectItem>
+                                <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
+                                  <SelectItem
+                                    value={FeeType.PERCENTAGE}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Percentage
+                                  </SelectItem>
+                                  <SelectItem
+                                    value={FeeType.FIXED}
+                                    className="hover:bg-gray-700"
+                                  >
+                                    Fixed Amount
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -427,8 +509,12 @@ export default function PaymentMethodAddPage() {
                                     vatValue: parseFloat(e.target.value) || 0,
                                   })
                                 }
-                                placeholder={formData.vatType === FeeType.PERCENTAGE ? "11" : "500"}
-                                className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                placeholder={
+                                  formData.vatType === FeeType.PERCENTAGE
+                                    ? "11"
+                                    : "500"
+                                }
+                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
                               />
                             </div>
                           </div>
@@ -440,7 +526,10 @@ export default function PaymentMethodAddPage() {
                             id="isActive"
                             checked={formData.isActive}
                             onCheckedChange={(checked) =>
-                              setFormData({ ...formData, isActive: checked === true })
+                              setFormData({
+                                ...formData,
+                                isActive: checked === true,
+                              })
                             }
                             className="border-gray-700"
                           />
@@ -456,7 +545,9 @@ export default function PaymentMethodAddPage() {
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={() => router.push("/admin/payment-methods")}
+                            onClick={() =>
+                              router.push("/admin/payment-methods")
+                            }
                             disabled={saving}
                           >
                             Cancel
@@ -487,4 +578,3 @@ export default function PaymentMethodAddPage() {
     </SidebarProvider>
   );
 }
-
