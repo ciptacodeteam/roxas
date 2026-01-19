@@ -27,6 +27,7 @@ import { useEffect } from "react";
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, isPending } = useSession();
@@ -107,8 +108,6 @@ export default function RegisterPage() {
 
     return Object.keys(newErrors).length === 0;
   };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!validate()) {
@@ -218,20 +217,20 @@ export default function RegisterPage() {
         <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
           <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
 
-          <div className="relative z-10 flex min-h-screen items-center justify-center">
+          <div className="relative z-10 flex min-h-screen items-center justify-center mx-3 lg:mx-0">
             <div className="bg-card rounded-2xl p-6">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid lg:grid-cols-2 lg:gap-8">
                 <div>
                   <Image
                     src={img4}
                     alt=""
-                    className="w-[600] rounded-xl bg-cover bg-no-repeat"
+                    className="w-[600] rounded-xl bg-cover bg-no-repeat lg:block hidden"
                   />
                 </div>
 
                 <div className="flex w-full flex-col justify-center">
                   <div className="flex flex-col items-center justify-center">
-                    <h1 className="mt-4 text-2xl font-semibold text-white">
+                    <h1 className="lg:mt-4 text-2xl font-semibold text-white">
                       Selamat Datang di Roxas Store
                     </h1>
                     <p className="mt-1 font-light text-white">
@@ -241,7 +240,7 @@ export default function RegisterPage() {
 
                   <div>
                     {/* Nama depan & belakang */}
-                    <div className="flex gap-3">
+                    <div className="flex lg:flex-row flex-col lg:gap-3">
                       <div className="mt-8 grid w-full gap-1">
                         <Label
                           htmlFor="firstName"
@@ -315,7 +314,7 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex lg:flex-row flex-col lg:gap-3">
                       <div className="mt-6 grid w-full gap-1">
                         <Label
                           htmlFor="password"
@@ -399,11 +398,11 @@ export default function RegisterPage() {
                       />
                       <Label htmlFor="terms" className="text-sm text-white">
                         Saya setuju dengan{" "}
-                        <Link href={""} className="text-blue-400">
+                        <Link href={"/termsconditions"} className="text-blue-400">
                           Syarat & Ketentuan
                         </Link>{" "}
                         dan{" "}
-                        <Link href={""} className="text-blue-400">
+                        <Link href={"/privacypolicy"} className="text-blue-400">
                           Kebijakan Pribadi
                         </Link>
                         .

@@ -2,8 +2,8 @@ export default function PrivacyPolicy() {
   return (
     <>
       <section>
-        <div className="mx-auto max-w-7xl pt-46 pb-14">
-          <h1 className="mb-12 text-3xl font-semibold text-primary">
+        <div className="mx-auto lg:max-w-7xl w-11/12 lg:pt-46 pt-28 pb-14">
+          <h1 className="lg:mb-12 mb-8 lg:text-3xl text-2xl font-semibold text-primary">
             Kebijakan Privasi ROXAS STORE
           </h1>
 

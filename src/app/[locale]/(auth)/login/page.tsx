@@ -2,7 +2,7 @@
 "use client";
 
 import img4 from "public/img/img-4.webp";
-import logo from "public/img/logo.webp";
+import logo from "public/img/logo1.webp";
 
 import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -178,18 +178,18 @@ export default function LoginPage() {
     <>
       <section>
         <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
-          <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
+          <div className="absolute inset-0 bg-linear-to-b lg:from-black/20 lg:to-black/40 from-black/50 to-black/80"></div>
 
           <div className="relative z-10 flex min-h-screen items-center justify-center">
             <div className="bg-card rounded-2xl p-6">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid lg:grid-cols-2 lg:gap-8">
 
                 {/* Gambar kiri */}
                 <div>
                   <Image
                     src={img4}
                     alt=""
-                    className="w-[500px] rounded-xl bg-cover bg-no-repeat"
+                    className="w-[500px] rounded-xl bg-cover bg-no-repeat lg:block hidden"
                   />
                 </div>
 
@@ -198,12 +198,12 @@ export default function LoginPage() {
 
                   {/* Logo */}
                   <div className="flex justify-center items-center">
-                    <Image alt="" src={logo} className="w-52 mb-4" />
+                    <Image alt="" src={logo} className="w-56 mb-1 lg:block hidden" />
                   </div>
 
                   {/* Title */}
                   <div className="text-center">
-                    <h1 className="mt-4 text-2xl font-semibold text-white">
+                    <h1 className="lg:mt-4 text-2xl font-semibold text-white">
                       Selamat Datang Kembali
                     </h1>
                     <p className="mt-1 font-light text-white">
@@ -289,7 +289,7 @@ export default function LoginPage() {
                     </div>
 
                     {/* Submit and Google Sign In - Same Row */}
-                    <div className="mt-6 flex gap-3">
+                    <div className="mt-6 lg:flex lg:flex-row flex flex-col gap-3">
                       <Button
                         type="submit"
                         disabled={isSubmitting}
@@ -320,7 +320,7 @@ export default function LoginPage() {
                         }}
                         className="bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 flex-1"
                       >
-                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
                           <path
                             fill="currentColor"
                             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

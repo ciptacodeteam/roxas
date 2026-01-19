@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { productDetail } from "@/lib/data/productDetail";
@@ -567,9 +568,9 @@ export default function ProductDetailClient({
   const { paymentFee, vatAmount, totalAmount } = feeCalculation;
 
   return (
-    <section className="mt-12">
+    <section className="mt-18 lg:mt-12">
       {/* Banner */}
-      <div className="relative aspect-16/4 w-full overflow-hidden">
+      <div className="relative aspect-video w-full overflow-hidden lg:aspect-16/4">
         <Image
           src={product.canvas}
           alt="Banner"
@@ -582,46 +583,61 @@ export default function ProductDetailClient({
       <div className="relative z-10 bg-[url(/img/bgroxas.webp)] bg-cover bg-center bg-no-repeat">
         <div className="absolute inset-0 -z-30 bg-black/75"></div>
 
-        <div className="container mx-auto flex max-w-7xl items-start gap-6 px-4">
+        <div className="container mx-auto flex w-11/12 items-start gap-6 lg:max-w-7xl lg:px-4">
           {/* Card Game */}
-          <div className="-mt-54 w-52 shrink-0 pb-8">
-            <div className="aspect-2/3 overflow-hidden rounded-xl">
+          <div className="-mt-28 shrink-0 lg:-mt-54 lg:w-52 lg:pb-8">
+            <div className="aspect-2/3 overflow-hidden rounded-lg lg:rounded-xl">
               <Image
                 src={product.image}
                 alt={productData?.name || (product as any).title || "Product"}
                 width={300}
                 height={420}
-                className="object-cover"
+                className="w-28 overflow-hidden rounded-lg object-cover lg:w-64 lg:rounded-xl"
               />
             </div>
           </div>
 
           {/* Info */}
-          <div className="pt-6 text-white">
-            <h1 className="text-2xl font-bold uppercase">
+          <div className="pt-4 text-white lg:pt-6">
+            <h1 className="text-xl font-bold uppercase lg:text-2xl">
               {productData?.name || (product as any).title}
             </h1>
 
-            <div className="flex gap-6 text-sm text-gray-300">
-              <div className="flex items-center gap-1">
-                <Image alt="" src={lightning} className="w-6" /> Proses Cepat
+            <div className="hidden lg:block">
+              <div className="flex gap-6 text-sm text-gray-300">
+                <div className="flex items-center gap-1">
+                  <Image alt="" src={lightning} className="w-6" /> Proses Cepat
+                </div>
+                <div className="flex items-center gap-1">
+                  <Image alt="" src={cs} className="w-8" /> Layanan Chat 24/7
+                </div>
+                <div className="flex items-center gap-1">
+                  <Image alt="" src={secure} className="w-5" /> Pembayaran Aman
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Image alt="" src={cs} className="w-8" /> Layanan Chat 24/7
-              </div>
-              <div className="flex items-center gap-1">
-                <Image alt="" src={secure} className="w-5" /> Pembayaran Aman
-              </div>
+            </div>
+          </div>
+        </div>
+        <div className="lg:hidden w-11/12 mx-auto mt-3 pb-4">
+          <div className="flex gap-2 text-xs text-gray-300 justify-between">
+            <div className="flex items-center gap-1">
+              <Image alt="" src={lightning} className="w-6" /> Proses Cepat
+            </div>
+            <div className="flex items-center gap-1">
+              <Image alt="" src={cs} className="w-8" /> Layanan Chat 24/7
+            </div>
+            <div className="flex items-center gap-1">
+              <Image alt="" src={secure} className="w-5" /> Pembayaran Aman
             </div>
           </div>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div className="mx-auto my-12 max-w-7xl">
-        <div className="grid h-full grid-cols-3 gap-8">
+      <div className="mx-auto lg:my-12 my-8 lg:max-w-7xl w-11/12">
+        <div className="grid h-full lg:grid-cols-3 lg:gap-8">
           {/* KONTEN KIRI */}
-          <div className="col-span-2">
+          <div className="lg:col-span-2">
             {/* Form Input */}
             <div className="flex flex-col gap-8">
               <div className="overflow-hidden rounded-2xl bg-gray-800">
@@ -766,7 +782,7 @@ export default function ProductDetailClient({
                   <h2 className="font-medium text-white">Pilih Nominal</h2>
                 </div>
                 {/* Form */}
-                <div className="gap-6 p-4 md:grid-cols-2">
+                <div className="gap-6 p-4 lg:grid-cols-2">
                   {items.length > 0 && (
                     <>
                       {/* Render groups dynamically */}
@@ -782,7 +798,7 @@ export default function ProductDetailClient({
                                 </h1>
                               </div>
                               <div
-                                className={`grid grid-cols-3 gap-4 ${Object.keys(groupedItems).indexOf(groupName) < Object.keys(groupedItems).length - 1 ? "mb-6" : ""}`}
+                                className={`grid lg:grid-cols-3 grid-cols-2 lg:gap-4 gap-3 ${Object.keys(groupedItems).indexOf(groupName) < Object.keys(groupedItems).length - 1 ? "mb-6" : ""}`}
                               >
                                 {groupItems.map((item: any) => {
                                   // Check if this item is in flash sale
@@ -875,23 +891,23 @@ export default function ProductDetailClient({
                                           </span>
                                         </div>
                                       )}
-                                      <CardHeader className="-mb-5">
-                                        <CardTitle className="text-sm text-white">
+                                      <CardHeader className="-mb-5 px-3 lg:px-4">
+                                        <CardTitle className="lg:text-sm text-xs text-white">
                                           {item.name}
                                         </CardTitle>
                                       </CardHeader>
-                                      <CardContent className="-mb-2 flex items-center gap-4">
+                                      <CardContent className="-mb-2 flex items-center lg:gap-4 gap-3 px-3 lg:px-4">
                                         <Image
                                           src={item.iconImage || wdp}
                                           alt={item.name}
                                           width={48}
                                           height={48}
-                                          className="h-12 w-12 object-cover transition-transform duration-300 group-hover:rotate-10"
+                                          className="w-10 transition-transform duration-300 group-hover:rotate-10"
                                         />
                                         <div>
                                           <h1
                                             className={cn(
-                                              "text-base font-semibold",
+                                              "lg:text-base text-sm font-semibold",
                                               isInFlashSale
                                                 ? "text-red-400"
                                                 : "text-yellow-500",

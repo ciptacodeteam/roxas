@@ -2,8 +2,8 @@ export default function TermsConditions() {
   return (
     <>
       <section>
-        <div className="mx-auto max-w-7xl pt-46 pb-14">
-          <h1 className="text-primary mb-12 text-3xl font-semibold">
+        <div className="mx-auto lg:max-w-7xl w-11/12 lg:pt-46 pt-28 pb-14">
+          <h1 className="text-primary lg:mb-12 mb-8 lg:text-3xl text-2xl font-semibold">
             Syarat & Ketentuan ROXAS STORE
           </h1>
 
