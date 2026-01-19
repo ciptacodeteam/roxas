@@ -59,19 +59,19 @@ export default function FavoriteSection() {
 
   return (
     <section>
-      <div className="mx-auto mb-16 max-w-7xl">
+      <div className="mx-auto mb-16 lg:max-w-7xl w-11/12 lg:mt-12 mt-8">
         <div>
-          <div className="mb-2 flex gap-2 text-3xl">
+          <div className="mb-2 flex gap-2 lg:text-3xl items-center text-xl">
             <span>
-              <Image src={fire} alt="fire" className="w-8" />
+              <Image src={fire} alt="fire" className="lg:w-8 w-6" />
             </span>
             <p className="font-medium text-white">POPULER SEKARANG !</p>
           </div>
-          <p className="text-white">Silahkan Temukan Game Kamu.</p>
+          <p className="text-white lg:text-base text-sm">Silahkan Temukan Game Kamu.</p>
         </div>
 
         {games && games.length > 0 ? (
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-2 lg:gap-4 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {games.map((game: Product) => (
               <Link
                 key={game.id}
@@ -82,17 +82,17 @@ export default function FavoriteSection() {
                   {/* overlay */}
                   <div className="absolute inset-0 bg-rose-950/60"></div>
 
-                  <CardContent className="relative z-10 flex items-center gap-4 p-4">
+                  <CardContent className="relative z-10 lg:flex items-center gap-4 lg:p-4 p-3">
                     <Image
                       src={game.image}
                       alt={game.title}
                       width={80}
                       height={80}
-                      className="h-20 w-20 rounded-lg object-cover"
+                      className="h-30 w-full lg:h-20 lg:w-20 rounded-lg object-cover object-top"
                     />
 
                     <div className="flex flex-col justify-center">
-                      <p className="text-xl font-semibold text-white">
+                      <p className="lg:text-xl text-base font-semibold text-white lg:mt-0 mt-3">
                         {game.title}
                       </p>
                       <p className="text-sm text-white/70">{game.subtitle}</p>

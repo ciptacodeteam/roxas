@@ -108,17 +108,17 @@ export default function HeroSection() {
   }
 
   return (
-    <section className="bg-muted-foreground pt-38 pb-14">
-      <div className="mx-auto max-w-7xl">
+    <section className="bg-muted-foreground lg:pt-38 pt-24 lg:pb-14 pb-6">
+      <div className="mx-auto lg:max-w-7xl w-11/12">
         <div className="flex items-stretch gap-4">
           {/* LEFT SLIDER */}
-          <div className="relative w-3/4 overflow-hidden rounded-2xl">
+          <div className="relative lg:w-3/4 w-full overflow-hidden lg:rounded-2xl rounded-md">
             {/* Embla viewport */}
             <div className="embla" ref={emblaRef}>
               <div className="embla__container flex">
                 {banners.map((banner) => {
                   const slideContent = (
-                    <div className="relative aspect-16/6 w-full overflow-hidden rounded-2xl">
+                    <div className="relative aspect-16/6 w-full overflow-hidden lg:rounded-2xl rounded-md">
                       <Image
                         src={banner.image}
                         alt={banner.title || banner.description || "Banner"}
@@ -163,7 +163,7 @@ export default function HeroSection() {
           </div>
 
           {/* RIGHT CARD */}
-          <div className="w-1/4">
+          <div className="w-1/4 lg:block hidden">
             <div className="group relative h-full overflow-hidden rounded-2xl">
               <div className="absolute inset-0 overflow-hidden rounded-2xl">
                 <Image

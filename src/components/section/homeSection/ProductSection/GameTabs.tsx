@@ -8,25 +8,32 @@ import Link from "next/link";
 export default function GameTabs({ categories, active, setActive }: any) {
   return (
     <>
-      <div className="flex justify-between items-center">
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {categories.map((cat: string) => (
-            <button
-              key={cat}
-              onClick={() => setActive(cat)}
-              className={`cursor-pointer rounded-full px-5 py-2 transition ${
-                active === cat
-                  ? "bg-primary text-white"
-                  : "bg-card hover:bg-muted-foreground transition-300 text-white"
-              } `}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      <div>
+        <div className="flex items-center justify-between">
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {categories.map((cat: string) => (
+              <button
+                key={cat}
+                onClick={() => setActive(cat)}
+                className={`cursor-pointer rounded-full px-5 py-2 transition ${
+                  active === cat
+                    ? "bg-primary text-white"
+                    : "bg-card hover:bg-muted-foreground transition-300 text-white"
+                } `}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-        <div>
-          <Link href={""} className="text-white hover:text-gray-200">Selengkapnya</Link>
+          <div>
+            <Link
+              href={""}
+              className="hidden text-white hover:text-gray-200 lg:block"
+            >
+              Selengkapnya
+            </Link>
+          </div>
         </div>
       </div>
     </>

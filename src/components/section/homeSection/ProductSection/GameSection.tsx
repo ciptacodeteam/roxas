@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -90,7 +92,7 @@ export default function GameSection() {
   }
 
   return (
-    <section className="mx-auto max-w-7xl mb-16">
+    <section className="mx-auto lg:max-w-7xl w-11/12 lg:mb-16 mb-12">
       <GameTabs
         categories={displayCategories}
         active={active}

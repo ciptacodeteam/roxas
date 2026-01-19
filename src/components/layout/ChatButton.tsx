@@ -25,7 +25,7 @@ export default function ChatButton() {
   }, [open]);
 
   return (
-    <div className="fixed right-8 bottom-0 z-50">
+    <div className="fixed lg:right-8 right-4 bottom-0 z-50">
       <div ref={boxRef} className="relative">
         {/* Dropdown */}
         {open && (
@@ -53,9 +53,9 @@ export default function ChatButton() {
         {/* Floating Button */}
         <button
           onClick={() => setOpen(!open)}
-          className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-t-xl px-4 py-2 font-medium text-white transition cursor-pointer"
+          className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-t-xl lg:px-4 px-3 py-2 font-medium text-white transition cursor-pointer"
         >
-          <Headset size={20} /> CHAT CS
+          <Headset size={20} /> <p className="lg:block hidden">CHAT CS</p>
         </button>
       </div>
     </div>

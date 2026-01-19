@@ -1,8 +1,4 @@
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -25,9 +21,7 @@ import {
   UserRoundPlus,
   SquareChartGantt,
   LogOut,
-  User,
   UserCircle,
-  Settings,
 } from "lucide-react";
 
 import {
@@ -71,6 +65,17 @@ const Navigationbar = () => {
 
   const locale = pathname.split("/")[1] ?? "id";
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
+
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "auto";
+
+    // CLEANUP (penting kalau pindah page)
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [open]);
 
   // Check if user is admin
   useEffect(() => {
@@ -124,12 +129,12 @@ const Navigationbar = () => {
 
   return (
     <nav className="bg-foreground fixed top-0 left-0 z-50 w-full text-white">
-      <div className="mx-auto max-w-7xl px-4 py-4">
+      <div className="mx-auto w-11/12 py-4 lg:max-w-7xl lg:px-4">
         {/* TOP SECTION */}
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href={`/${locale}`} className="text-xl font-bold">
-            <Image alt="logo" src={logo} className="w-48" />
+            <Image alt="logo" src={logo} className="w-38 lg:w-48" />
           </Link>
 
           {/* Search */}
@@ -144,7 +149,7 @@ const Navigationbar = () => {
               }}
               onFocus={() => setShowResult(true)}
               placeholder="Cari game atau produk"
-              className="w-full rounded-full pl-10 text-white placeholder:text-gray-300 border-gray-600"
+              className="w-full rounded-full border-gray-600 pl-10 text-white placeholder:text-gray-300"
             />
 
             {/* RESULT */}
@@ -159,7 +164,7 @@ const Navigationbar = () => {
                         setQuery("");
                         setShowResult(false);
                       }}
-                      className="flex items-center gap-3 rounded-lg p-3 hover:bg-primary/30"
+                      className="hover:bg-primary/30 flex items-center gap-3 rounded-lg p-3"
                     >
                       <Image
                         src={item.image}
@@ -188,16 +193,16 @@ const Navigationbar = () => {
             )}
           </div>
 
-          <div className="hidden md:flex">
+          <div className="flex gap-3">
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="flex cursor-pointer items-center rounded-full px-2 hover:bg-rose-500/90">
+                <Button className="lg:bg-primary bg-foreground flex cursor-pointer items-center rounded-full border border-white/10 px-2 hover:bg-rose-500/90">
                   <Image
                     alt=""
                     src={locale === "en" ? uk : Indonesia}
-                    width={24}
+                    className="w-5 lg:w-6"
                   />
-                  <p className="ml-1">{t("language")}</p>
+                  <p className="ml-1 text-sm lg:text-base">{t("language")}</p>
                 </Button>
               </DialogTrigger>
 
@@ -208,7 +213,7 @@ const Navigationbar = () => {
                   </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex w-full gap-3">
+                <div className="lg:flex flex flex-col lg:flex-row w-full gap-3">
                   {/* Indonesia */}
                   <Button
                     variant="outline"
@@ -231,16 +236,89 @@ const Navigationbar = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button onClick={toggleMenu} className="md:hidden">
-            {open ? <X size={26} /> : <Menu size={26} />}
-          </button>
+            {/* Mobile Menu Button */}
+            <div className="flex gap-2 lg:hidden">
+              <div className="flex items-center gap-3">
+                {/* SEARCH TOGGLE */}
+                <button
+                  onClick={() => setMobileSearchOpen((prev) => !prev)}
+                  className="rounded-sm border border-white/10 p-1.5 text-white"
+                >
+                  {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
+                </button>
+              </div>
+              <button
+                onClick={toggleMenu}
+                className="rounded-sm border border-white/10 p-1.5 text-white"
+              >
+                <Menu size={20} />
+              </button>
+            </div>
+          </div>
         </div>
 
-          {/* DESKTOP NAV */}
-        <div className="mt-6 flex items-center justify-between">
+        {/* MOBILE SEARCH BAR */}
+        {mobileSearchOpen && (
+          <div className="mt-4 lg:hidden">
+            <div className="relative">
+              <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                autoFocus
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowResult(true);
+                }}
+                placeholder="Cari Game atau Voucher"
+                className="w-full rounded-full border-gray-50/20 pl-11 text-white placeholder:text-sm placeholder:text-gray-400"
+              />
+            </div>
+
+            {/* SEARCH RESULT (MOBILE) */}
+            {showResult && query && (
+              <div className="mt-2 rounded-xl bg-[#141414] p-2 shadow-xl">
+                {results.length > 0 ? (
+                  results.slice(0, 6).map((item, i) => (
+                    <Link
+                      key={i}
+                      href={`/${locale}/product/${item.slug}`}
+                      onClick={() => {
+                        setQuery("");
+                        setShowResult(false);
+                        setMobileSearchOpen(false);
+                      }}
+                      className="flex items-center gap-3 rounded-lg p-3 hover:bg-rose-500/10"
+                    >
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        width={40}
+                        height={40}
+                        className="rounded-md"
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {item.title}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {item.subtitle} • {item.category}
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="p-3 text-sm text-gray-400">
+                    Produk tidak ditemukan
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DESKTOP NAV */}
+        <div className="flex items-center justify-between lg:mt-6">
           <div className="hidden items-center gap-6 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -319,7 +397,7 @@ const Navigationbar = () => {
           </div>
 
           {/* AUTH BUTTONS */}
-          <div className="flex items-center gap-6">
+          <div className="hidden items-center gap-6 md:flex">
             {isPending || isAdmin === null ? (
               <div className="text-sm text-gray-300">Loading...</div>
             ) : session?.user && !isAdmin ? (
@@ -327,7 +405,7 @@ const Navigationbar = () => {
                 {/* TRIGGER BUTTON */}
                 <button
                   type="button"
-                  className="relative flex cursor-pointer items-center gap-2 text-sm text-gray-300 hover:text-white transition"
+                  className="relative flex cursor-pointer items-center gap-2 text-sm text-gray-300 transition hover:text-white"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
@@ -351,13 +429,13 @@ const Navigationbar = () => {
                 </button>
 
                 {/* DROPDOWN */}
-                <div className="invisible absolute top-full right-0 z-50 mt-4 w-64 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100 max-h-[600px] overflow-y-auto">
+                <div className="invisible absolute top-full right-0 z-50 mt-4 max-h-[600px] w-64 overflow-y-auto rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
                   {/* ARROW */}
                   <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 bg-[#141414]" />
 
                   <div className="space-y-3">
                     {/* USER INFO */}
-                    <div className="flex flex-col space-y-1 pb-2 border-b border-gray-800">
+                    <div className="flex flex-col space-y-1 border-b border-gray-800 pb-2">
                       <p className="text-sm font-semibold text-white">
                         {session.user.name || "User"}
                       </p>
@@ -375,7 +453,9 @@ const Navigationbar = () => {
                         <UserCircle className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">Profile</p>
+                        <p className="text-sm font-semibold text-white">
+                          Profile
+                        </p>
                       </div>
                     </Link>
 
@@ -388,7 +468,9 @@ const Navigationbar = () => {
                         <ReceiptText className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-white">Transaction</p>
+                        <p className="text-sm font-semibold text-white">
+                          Transaction
+                        </p>
                         <p className="text-xs text-gray-400">Order history</p>
                       </div>
                     </Link>
@@ -399,13 +481,15 @@ const Navigationbar = () => {
                     {/* LOGOUT BUTTON */}
                     <button
                       onClick={handleLogout}
-                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-red-500/10 w-full text-left cursor-pointer"
+                      className="group/item flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition hover:bg-red-500/10"
                     >
-                      <div className="text-red-400 flex h-8 w-8 items-center justify-center">
+                      <div className="flex h-8 w-8 items-center justify-center text-red-400">
                         <LogOut className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-red-400">Logout</p>
+                        <p className="text-sm font-semibold text-red-400">
+                          Logout
+                        </p>
                       </div>
                     </button>
                   </div>
@@ -434,173 +518,95 @@ const Navigationbar = () => {
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN */}
-      {open && (
-        <div className="border-t bg-white text-black shadow-sm md:hidden">
-          <div className="flex flex-col gap-3 px-4 py-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-black" />
-              <Input
-                type="text"
-                placeholder={t("searchPlaceholder")}
-                className="w-full rounded-full bg-gray-200 pl-10 text-black placeholder:text-gray-600"
-              />
-            </div>
+      {/* MOBILE SIDEBAR */}
+      <div
+        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${
+          open
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        }`}
+      >
+        {/* OVERLAY */}
+        <div
+          className="absolute inset-0 bg-black/60"
+          onClick={() => setOpen(false)}
+        />
 
-            {/* Nav Items */}
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = cleanPath === item.href;
-
-              // Hide transaction link for admin users
-              if (item.key === "transaction" && isAdmin) {
-                return null;
-              }
-
-              return (
-                <Link
-                  key={item.href}
-                  href={`/${locale}${item.href}`}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-md py-2 text-sm ${
-                    active ? "font-semibold text-blue-600" : "text-gray-700"
-                  }`}
-                >
-                  {Icon && <Icon className="h-5 w-5" />}
-                  {t(item.key)}
-                </Link>
-              );
-            })}
-
-            {/* Auth Buttons - Mobile */}
-            <div className="mt-4 flex flex-col gap-3 border-t pt-4">
-              {isPending || isAdmin === null ? (
-                <div className="text-sm text-gray-700">Loading...</div>
-              ) : session?.user && !isAdmin ? (
-                <>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={session.user.image || undefined}
-                        alt={session.user.name || "User"}
-                      />
-                      <AvatarFallback className="bg-gray-700 text-white">
-                        {session.user.name
-                          ? session.user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2)
-                          : session.user.email?.[0]?.toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">
-                        {session.user.name || session.user.email}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {session.user.email}
-                      </p>
-                    </div>
-                  </div>
-                  <Link
-                    href={`/${locale}/profile`}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
-                  >
-                    <UserCircle className="h-5 w-5" />
-                    <p>Profile</p>
-                  </Link>
-                  <Link
-                    href={`/${locale}/my-transactions`}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
-                  >
-                    <ReceiptText className="h-5 w-5" />
-                    <p>Transaction</p>
-                  </Link>
-
-                  {/* SEPARATOR */}
-                  <div className="border-t border-gray-300 pt-2 mt-2"></div>
-
-                  <Button
-                    onClick={() => {
-                      handleLogout();
-                      setOpen(false);
-                    }}
-                    variant="outline"
-                    className="flex items-center justify-center gap-2 text-red-600 border-red-600 hover:bg-red-50 cursor-pointer"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    <p>Logout</p>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href={`/${locale}/login`}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
-                  >
-                    <LogIn className="h-5 w-5" />
-                    <p>{t("login")}</p>
-                  </Link>
-                  <Link
-                    href={`/${locale}/register`}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-md py-2 text-sm text-gray-700"
-                  >
-                    <UserRoundPlus className="h-5 w-5" />
-                    <p>{t("register")}</p>
-                  </Link>
-                </>
-              )}
-            </div>
-
-            {/* Language Switch */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="mt-2 w-full rounded-full bg-gray-100 text-black hover:bg-gray-200">
-                  <Image alt="" src={Indonesia} width={24} />
-                  <p className="ml-2">{t("language")}</p>
-                </Button>
-              </DialogTrigger>
-
-              <DialogContent className="max-w-xs">
-                <DialogHeader>
-                  <DialogTitle>{t("chooseLanguage")}</DialogTitle>
-                </DialogHeader>
-
-                <div className="flex flex-col gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      router.push(`/id${cleanPath}`);
-                      setOpen(false);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    🇮🇩 Indonesia (IDR)
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      router.push(`/en${cleanPath}`);
-                      setOpen(false);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    🇺🇸 English (USD)
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+        {/* SIDEBAR */}
+        <aside
+          className={`absolute top-0 left-0 h-screen w-[81%] max-w-sm transform bg-[#0f131a] transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          {/* HEADER */}
+          <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4">
+            <Image src={logo} alt="logo" className="w-36" />
+            <button onClick={() => setOpen(false)}>
+              <X className="h-6 w-6 text-white" />
+            </button>
           </div>
-        </div>
-      )}
+
+          {/* MENU */}
+          <div className="space-y-4 px-4 py-6">
+            {/* NAV ITEMS */}
+            <MobileNavItem
+              href={`/${locale}`}
+              icon={Gamepad2}
+              label="Topup"
+              onClick={() => setOpen(false)}
+            />
+
+            {!isAdmin && (
+              <MobileNavItem
+                href={`/${locale}/transaction`}
+                icon={ReceiptText}
+                label="Cek Transaksi"
+                onClick={() => setOpen(false)}
+              />
+            )}
+
+            <MobileNavItem
+              href={`/${locale}/leaderboard`}
+              icon={ChartNoAxesColumn}
+              label="Leaderboard"
+              onClick={() => setOpen(false)}
+            />
+
+            <MobileNavItem
+              href={`/${locale}/calculator`}
+              icon={Calculator}
+              label="Kalkulator"
+              onClick={() => setOpen(false)}
+            />
+
+            <div className="my-4 border-t border-gray-800" />
+
+            {/* AUTH */}
+            {session?.user ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 text-red-400"
+              >
+                <LogOut className="h-5 w-5" />
+                Logout
+              </button>
+            ) : (
+              <>
+                <MobileNavItem
+                  href={`/${locale}/login`}
+                  icon={LogIn}
+                  label="Masuk"
+                  onClick={() => setOpen(false)}
+                />
+                <MobileNavItem
+                  href={`/${locale}/register`}
+                  icon={UserRoundPlus}
+                  label="Daftar"
+                  onClick={() => setOpen(false)}
+                />
+              </>
+            )}
+          </div>
+        </aside>
+      </div>
     </nav>
   );
 };
@@ -629,6 +635,29 @@ const CalculatorDropdownItem = ({
         <p className="text-sm font-semibold text-white">{title}</p>
         <p className="text-xs leading-relaxed text-gray-400">{desc}</p>
       </div>
+    </Link>
+  );
+};
+
+const MobileNavItem = ({
+  href,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  onClick?: () => void;
+}) => {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-3 text-base text-white transition hover:text-rose-500"
+    >
+      <Icon className="h-5 w-5" />
+      {label}
     </Link>
   );
 };
