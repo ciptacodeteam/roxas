@@ -9,7 +9,7 @@ export default function InformationSection() {
         <div className="bg-card relative overflow-visible rounded-2xl lg:px-10 lg:py-16 px-5 py-6">
           {/* TEXT SECTION */}
           <div className="relative z-10 max-w-3xl">
-            <h2 className="text-3xl font-semibold text-white">
+            <h2 className="lg:text-3xl text-2xl font-semibold text-white">
               Top Up Game Teraman
             </h2>
             <p className="mt-4 lg:text-base text-sm leading-normal text-white/70">

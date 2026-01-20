@@ -599,7 +599,7 @@ export default function ProductDetailClient({
 
           {/* Info */}
           <div className="pt-4 text-white lg:pt-6">
-            <h1 className="text-xl font-bold uppercase lg:text-2xl">
+            <h1 className=" font-bold uppercase lg:text-2xl">
               {productData?.name || (product as any).title}
             </h1>
 
@@ -635,7 +635,7 @@ export default function ProductDetailClient({
 
       {/* CONTENT */}
       <div className="mx-auto lg:my-12 my-8 lg:max-w-7xl w-11/12">
-        <div className="grid h-full lg:grid-cols-3 lg:gap-8">
+        <div className="lg:grid h-full lg:grid-cols-3 lg:gap-8">
           {/* KONTEN KIRI */}
           <div className="lg:col-span-2">
             {/* Form Input */}
