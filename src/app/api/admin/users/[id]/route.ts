@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
-import { hashPassword } from "@/lib/password";
 import { UserRole } from "@prisma/client";
 
 /**
@@ -119,12 +118,11 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { email, name, password, phone, role, emailVerified } = body;
+    const { email, name, phone, role, emailVerified } = body;
 
     const updateData: {
       email?: string;
       name?: string | null;
-      password?: string;
       phone?: string | null;
       role?: UserRole;
       emailVerified?: boolean;
@@ -154,11 +152,6 @@ export async function PUT(
       updateData.role = role === "ADMIN" ? UserRole.ADMIN : UserRole.USER;
     }
     if (emailVerified !== undefined) updateData.emailVerified = emailVerified;
-
-    // Only update password if provided
-    if (password && password.trim() !== "") {
-      updateData.password = await hashPassword(password);
-    }
 
     const user = await db.user.update({
       where: { id },

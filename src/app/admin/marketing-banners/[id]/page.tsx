@@ -90,7 +90,9 @@ export default function MarketingBannerEditPage() {
   const updateBannerMutation = useUpdateMarketingBanner({
     onSuccess: () => {
       toast.success("Marketing banner updated successfully");
-      router.push("/admin/marketing-banners");
+      setTimeout(() => {
+        router.push("/admin/marketing-banners");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update marketing banner");

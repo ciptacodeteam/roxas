@@ -76,7 +76,9 @@ export default function CategoryEditPage() {
   const updateCategoryMutation = useUpdateCategory({
     onSuccess: () => {
       toast.success("Category updated successfully");
-      router.push("/admin/categories");
+      setTimeout(() => {
+        router.push("/admin/categories");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update category");

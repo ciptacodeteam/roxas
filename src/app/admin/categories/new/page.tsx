@@ -37,7 +37,9 @@ export default function CategoryAddPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
       await queryClient.refetchQueries({ queryKey: ["admin", "categories"] });
       toast.success("Category created successfully");
-      router.push("/admin/categories");
+      setTimeout(() => {
+        router.push("/admin/categories");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to create category");

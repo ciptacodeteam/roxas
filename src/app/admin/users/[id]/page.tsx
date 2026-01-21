@@ -95,14 +95,12 @@ export default function UserEditPage() {
     name: string;
     phone: string | null;
     role: string;
-    password: string | null;
     emailVerified: boolean;
   }>({
     email: "",
     name: "",
     phone: null,
     role: "USER",
-    password: null,
     emailVerified: false,
   });
 
@@ -121,7 +119,6 @@ export default function UserEditPage() {
         name: typedUserData.name || "",
         phone: typedUserData.phone || null,
         role: roleValue,
-        password: null,
         emailVerified: typedUserData.emailVerified,
       });
     }
@@ -130,6 +127,10 @@ export default function UserEditPage() {
   const updateUserMutation = useUpdateUser({
     onSuccess: () => {
       toast.success("User updated successfully");
+      // Redirect to users list after short delay to show toast
+      setTimeout(() => {
+        router.push("/admin/users");
+      }, 500);
     },
     onError: (error) => {
       toast.error(
@@ -270,25 +271,6 @@ export default function UserEditPage() {
                   </p>
                 </div>
               </div>
-                {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push("/admin/users")}
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to Users
-                    </Button>
-                    <div>
-                      <h1 className="text-3xl font-bold">Edit User</h1>
-                      <p className="mt-2 text-gray-400">
-                        Manage user account information and view related data
-                      </p>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Main Content - Two Column Layout */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -361,28 +343,6 @@ export default function UserEditPage() {
                           }
                           className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
                         />
-                          {/* Phone */}
-                          <div className="space-y-2">
-                            <Label
-                              htmlFor="phone"
-                              className="flex items-center gap-2"
-                            >
-                              <Phone className="h-4 w-4" />
-                              Phone Number
-                            </Label>
-                            <Input
-                              id="phone"
-                              type="tel"
-                              value={formData.phone || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  phone: e.target.value,
-                                })
-                              }
-                              className="border-gray-700 bg-gray-800 text-gray-100"
-                            />
-                          </div>
 
                         {/* Role */}
                         <div className="space-y-2">
@@ -407,51 +367,8 @@ export default function UserEditPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                          {/* Role */}
-                          <div className="space-y-2">
-                            <Label
-                              htmlFor="role"
-                              className="flex items-center gap-2"
-                            >
-                              <Shield className="h-4 w-4" />
-                              Role
-                            </Label>
-                            <Select
-                              value={formData.role}
-                              onValueChange={(value) =>
-                                setFormData({ ...formData, role: value })
-                              }
-                            >
-                              <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
-                                <SelectItem value="USER">User</SelectItem>
-                                <SelectItem value="ADMIN">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
 
-                          {/* Password */}
-                          <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                              id="password"
-                              type="password"
-                              value={formData.password || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  password: e.target.value,
-                                })
-                              }
-                              placeholder="Leave empty to keep current password"
-                              className="border-gray-700 bg-gray-800 text-gray-100"
-                            />
-                            <p className="text-xs text-gray-400">
-                              Leave empty to keep the current password
-                            </p>
-                          </div>
+
 
                           {/* Email Verified */}
                           <div className="flex items-center space-x-2">
@@ -705,74 +622,6 @@ export default function UserEditPage() {
                       </div>
                     </CardContent>
                   </Card>
-                  {/* Right Column - Related Information */}
-                  <div className="space-y-6">
-                    {/* Account Stats */}
-                    <Card className="border-gray-800 bg-gray-900">
-                      <CardHeader>
-                        <CardTitle>Account Statistics</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <ShoppingCart className="h-4 w-4" />
-                            <span>Total Orders</span>
-                          </div>
-                          <span className="font-semibold">
-                            {typedUserData._count.orders}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <DollarSign className="h-4 w-4" />
-                            <span>Total Spent</span>
-                          </div>
-                          <span className="font-semibold">
-                            Rp{" "}
-                            {typedUserData.stats.totalSpent.toLocaleString(
-                              "id-ID",
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span>Completed Orders</span>
-                          </div>
-                          <span className="font-semibold">
-                            {typedUserData.stats.completedOrders}
-                          </span>
-                        </div>
-                        <Separator className="bg-gray-700" />
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <User className="h-4 w-4" />
-                            <span>OAuth Accounts</span>
-                          </div>
-                          <span className="font-semibold">
-                            {typedUserData._count.accounts}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <User className="h-4 w-4" />
-                            <span>Active Sessions</span>
-                          </div>
-                          <span className="font-semibold">
-                            {typedUserData._count.sessions}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <User className="h-4 w-4" />
-                            <span>Coupons Used</span>
-                          </div>
-                          <span className="font-semibold">
-                            {typedUserData._count.couponUsages}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
 
                   {/* Account Details */}
                   <Card className="bg-gray-900 border-gray-800">
@@ -820,72 +669,6 @@ export default function UserEditPage() {
                       </div>
                     </CardContent>
                   </Card>
-                    {/* Account Details */}
-                    <Card className="border-gray-800 bg-gray-900">
-                      <CardHeader>
-                        <CardTitle>Account Details</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <div className="mb-1 flex items-center gap-2 text-gray-400">
-                            <Calendar className="h-4 w-4" />
-                            <span className="text-sm">Created At</span>
-                          </div>
-                          <p className="text-sm">
-                            {new Date(
-                              typedUserData.createdAt,
-                            ).toLocaleDateString("id-ID", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <div>
-                          <div className="mb-1 flex items-center gap-2 text-gray-400">
-                            <Calendar className="h-4 w-4" />
-                            <span className="text-sm">Last Updated</span>
-                          </div>
-                          <p className="text-sm">
-                            {new Date(
-                              typedUserData.updatedAt,
-                            ).toLocaleDateString("id-ID", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <Separator className="bg-gray-700" />
-                        <div>
-                          <div className="mb-1 flex items-center gap-2 text-gray-400">
-                            <Mail className="h-4 w-4" />
-                            <span className="text-sm">Email Status</span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-2">
-                            {typedUserData.emailVerified ? (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 text-green-400" />
-                                <span className="text-sm text-green-400">
-                                  Verified
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="h-4 w-4 text-yellow-400" />
-                                <span className="text-sm text-yellow-400">
-                                  Not Verified
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
 
                   {/* Recent Orders */}
                   {typedUserData.orders.length > 0 && (
@@ -938,66 +721,10 @@ export default function UserEditPage() {
                   )}
                 </div>
               </div>
-                    {/* Recent Orders */}
-                    {typedUserData.orders.length > 0 && (
-                      <Card className="border-gray-800 bg-gray-900">
-                        <CardHeader>
-                          <CardTitle>Recent Orders</CardTitle>
-                          <CardDescription>Last 5 orders</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {typedUserData.orders.map((order) => (
-                              <div
-                                key={order.id}
-                                className="rounded-lg border border-gray-700 bg-gray-800 p-3"
-                              >
-                                <div className="mb-2 flex items-start justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      {order.orderNumber}
-                                    </p>
-                                    <p className="text-xs text-gray-400">
-                                      {order.productItem.product.name} -{" "}
-                                      {order.productItem.name}
-                                    </p>
-                                  </div>
-                                  {getStatusBadge(order.status)}
-                                </div>
-                                <div className="mt-2 flex items-center justify-between">
-                                  <span className="text-xs text-gray-400">
-                                    {new Date(
-                                      order.createdAt,
-                                    ).toLocaleDateString("id-ID")}
-                                  </span>
-                                  <span className="text-sm font-semibold">
-                                    Rp{" "}
-                                    {order.totalAmount.toLocaleString("id-ID")}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {typedUserData._count.orders > 5 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-4 w-full"
-                              onClick={() =>
-                                router.push(`/admin/orders?userId=${userId}`)
-                              }
-                            >
-                              View All Orders ({typedUserData._count.orders})
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
+        </div>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

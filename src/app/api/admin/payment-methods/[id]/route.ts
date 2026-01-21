@@ -71,7 +71,6 @@ export async function PUT(
       vatType,
       vatValue,
       isActive,
-      sortOrder,
       midtransCode,
     } = body;
 
@@ -155,7 +154,6 @@ export async function PUT(
     if (vatType !== undefined) updateData.vatType = vatType;
     if (vatValue !== undefined) updateData.vatValue = vatValue;
     if (isActive !== undefined) updateData.isActive = isActive;
-    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
     if (midtransCode !== undefined) updateData.midtransCode = midtransCode;
     if (type !== undefined) updateData.type = type;
     if (bank !== undefined) {

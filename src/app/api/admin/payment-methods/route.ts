@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       vatType,
       vatValue,
       isActive,
-      sortOrder,
       midtransCode,
     } = body;
 
@@ -141,7 +140,6 @@ export async function POST(request: NextRequest) {
         vatType: (vatType || FeeType.PERCENTAGE) as FeeType,
         vatValue: vatValue || 0,
         isActive: isActive !== undefined ? isActive : true,
-        sortOrder: sortOrder || 0,
         midtransCode,
       },
     });

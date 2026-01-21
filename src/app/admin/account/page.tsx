@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Mail } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, Save, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -20,16 +24,56 @@ interface AccountData {
   id: string;
   email: string;
   name: string | null;
+  phone: string | null;
   image: string | null;
 }
+
+// Validation schemas
+const UpdateAccountSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
+  phone: z.string().optional(),
+});
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+type UpdateAccountFormData = z.infer<typeof UpdateAccountSchema>;
+type ChangePasswordFormData = z.infer<typeof ChangePasswordSchema>;
 
 export default function AdminAccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [accountData, setAccountData] = useState<AccountData | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const {
+    register: registerAccount,
+    handleSubmit: handleAccountSubmit,
+    formState: { errors: accountErrors, isSubmitting: isSavingAccount },
+    watch: watchAccount,
+    setValue: setAccountValue,
+    control: accountControl,
+  } = useForm<UpdateAccountFormData>({
+    resolver: zodResolver(UpdateAccountSchema),
+  });
+
+  const {
+    register: registerPassword,
+    handleSubmit: handlePasswordSubmit,
+    formState: { errors: passwordErrors, isSubmitting: isChangingPassword },
+    reset: resetPasswordForm,
+  } = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(ChangePasswordSchema),
   });
 
   // Load account data
@@ -45,9 +89,8 @@ export default function AdminAccountPage() {
 
         if (res.ok && data?.success && data.user) {
           setAccountData(data.user);
-          setFormData({
-            name: data.user.name || "",
-          });
+          setAccountValue("name", data.user.name || "");
+          setAccountValue("phone", data.user.phone || "");
         } else if (res.status === 401) {
           router.replace("/admin/login");
         } else {
@@ -68,16 +111,7 @@ export default function AdminAccountPage() {
     loadAccount();
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-
-    setSaving(true);
-
+  const handleAccountUpdate = async (data: UpdateAccountFormData) => {
     try {
       const res = await fetch("/api/admin/account", {
         method: "PATCH",
@@ -85,12 +119,12 @@ export default function AdminAccountPage() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(data),
       });
 
-      const data = await res.json();
+      const responseData = await res.json();
 
-      if (res.ok && data.success) {
+      if (res.ok && responseData.success) {
         toast.success("Account updated successfully", {
           description: "Your profile has been updated.",
         });
@@ -100,7 +134,7 @@ export default function AdminAccountPage() {
         }, 500);
       } else {
         toast.error("Update failed", {
-          description: data.message || "Please check your input.",
+          description: responseData.message || "Please check your input.",
         });
       }
     } catch (error) {
@@ -108,8 +142,37 @@ export default function AdminAccountPage() {
       toast.error("Update failed", {
         description: "An error occurred. Please try again.",
       });
-    } finally {
-      setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (data: ChangePasswordFormData) => {
+    try {
+      const res = await fetch("/api/admin/account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await res.json();
+
+      if (res.ok && responseData.success) {
+        toast.success("Password changed successfully", {
+          description: "Your password has been updated.",
+        });
+        resetPasswordForm();
+      } else {
+        toast.error("Password change failed", {
+          description: responseData.message || "Please check your input.",
+        });
+      }
+    } catch (error) {
+      console.error("Change password error", error);
+      toast.error("Password change failed", {
+        description: "An error occurred. Please try again.",
+      });
     }
   };
 
@@ -170,8 +233,9 @@ export default function AdminAccountPage() {
 
                 {/* Main Content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column - Edit Form */}
-                  <div className="lg:col-span-2">
+                  {/* Left Column - Edit Forms */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Account Information Card */}
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -183,7 +247,7 @@ export default function AdminAccountPage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleAccountSubmit(handleAccountUpdate)} className="space-y-6">
                           {/* Email (Read-only) */}
                           <div className="space-y-2">
                             <Label htmlFor="email" className="flex items-center gap-2">
@@ -213,16 +277,50 @@ export default function AdminAccountPage() {
                             <Input
                               id="name"
                               type="text"
-                              value={formData.name}
-                              onChange={(e) =>
-                                setFormData({ ...formData, name: e.target.value })
-                              }
                               placeholder="Enter your display name"
-                              required
-                              className="bg-gray-800 text-gray-100 border-gray-700"
+                              {...registerAccount("name")}
+                              className={`bg-gray-800 text-gray-100 border-gray-700 ${
+                                accountErrors.name ? "border-red-500" : ""
+                              }`}
                             />
+                            {accountErrors.name && (
+                              <p className="text-xs text-red-500">{accountErrors.name.message}</p>
+                            )}
                             <p className="text-xs text-gray-500">
                               This name will be displayed in the admin panel
+                            </p>
+                          </div>
+
+                          <Separator className="bg-gray-700" />
+
+                          {/* Phone */}
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              Phone Number
+                            </Label>
+                            <Controller
+                              name="phone"
+                              control={accountControl}
+                              render={({ field }) => (
+                                <PhoneInput
+                                  id="phone"
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  showLabel={false}
+                                  error={accountErrors.phone?.message}
+                                  className={`bg-gray-800 text-gray-100 border-gray-700 ${
+                                    accountErrors.phone ? "border-red-500" : ""
+                                  }`}
+                                />
+                              )}
+                            />
+                            {accountErrors.phone && (
+                              <p className="text-xs text-red-500">{accountErrors.phone.message}</p>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              Your contact phone number (Indonesia format)
                             </p>
                           </div>
 
@@ -238,10 +336,10 @@ export default function AdminAccountPage() {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={saving}
+                              disabled={isSavingAccount}
                               className="bg-primary hover:bg-primary/90"
                             >
-                              {saving ? (
+                              {isSavingAccount ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   Saving...
@@ -250,6 +348,172 @@ export default function AdminAccountPage() {
                                 <>
                                   <Save className="mr-2 h-4 w-4" />
                                   Save Changes
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+
+                    {/* Change Password Card */}
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Lock className="h-5 w-5" />
+                          Change Password
+                        </CardTitle>
+                        <CardDescription>
+                          Update your account password
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handlePasswordSubmit(handlePasswordChange)} className="space-y-6">
+                          {/* Current Password */}
+                          <div className="space-y-2">
+                            <Label htmlFor="currentPassword" className="flex items-center gap-2">
+                              <Lock className="h-4 w-4" />
+                              Current Password <span className="text-red-400">*</span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="currentPassword"
+                                type={showPasswords.current ? "text" : "password"}
+                                placeholder="Enter your current password"
+                                {...registerPassword("currentPassword")}
+                                className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
+                                  passwordErrors.currentPassword ? "border-red-500" : ""
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowPasswords({
+                                    ...showPasswords,
+                                    current: !showPasswords.current,
+                                  })
+                                }
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                              >
+                                {showPasswords.current ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                            {passwordErrors.currentPassword && (
+                              <p className="text-xs text-red-500">{passwordErrors.currentPassword.message}</p>
+                            )}
+                          </div>
+
+                          <Separator className="bg-gray-700" />
+
+                          {/* New Password */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newPassword" className="flex items-center gap-2">
+                              <Lock className="h-4 w-4" />
+                              New Password <span className="text-red-400">*</span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="newPassword"
+                                type={showPasswords.new ? "text" : "password"}
+                                placeholder="Enter your new password"
+                                {...registerPassword("newPassword")}
+                                className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
+                                  passwordErrors.newPassword ? "border-red-500" : ""
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowPasswords({
+                                    ...showPasswords,
+                                    new: !showPasswords.new,
+                                  })
+                                }
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                              >
+                                {showPasswords.new ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                            {passwordErrors.newPassword && (
+                              <p className="text-xs text-red-500">{passwordErrors.newPassword.message}</p>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              Must be at least 8 characters long
+                            </p>
+                          </div>
+
+                          <Separator className="bg-gray-700" />
+
+                          {/* Confirm Password */}
+                          <div className="space-y-2">
+                            <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+                              <Lock className="h-4 w-4" />
+                              Confirm Password <span className="text-red-400">*</span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="confirmPassword"
+                                type={showPasswords.confirm ? "text" : "password"}
+                                placeholder="Confirm your new password"
+                                {...registerPassword("confirmPassword")}
+                                className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
+                                  passwordErrors.confirmPassword ? "border-red-500" : ""
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowPasswords({
+                                    ...showPasswords,
+                                    confirm: !showPasswords.confirm,
+                                  })
+                                }
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                              >
+                                {showPasswords.confirm ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                            {passwordErrors.confirmPassword && (
+                              <p className="text-xs text-red-500">{passwordErrors.confirmPassword.message}</p>
+                            )}
+                          </div>
+
+                          {/* Form Actions */}
+                          <div className="flex justify-end gap-3 pt-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => resetPasswordForm()}
+                              className="bg-gray-800 text-gray-100 border-gray-700 hover:bg-gray-700"
+                            >
+                              Clear
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={isChangingPassword}
+                              className="bg-primary hover:bg-primary/90"
+                            >
+                              {isChangingPassword ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Changing...
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="mr-2 h-4 w-4" />
+                                  Change Password
                                 </>
                               )}
                             </Button>

@@ -44,14 +44,19 @@ export function PhoneInput({
   // Initialize internal value from prop
   React.useEffect(() => {
     if (value) {
-      // Remove +62 if present, store only the number part
-      let numberPart = value.startsWith("+62")
-        ? value.slice(3).replace(/\D/g, "")
-        : value.replace(/\D/g, "");
+      // Store the phone number - keep it as is if it's just digits with leading 0
+      // or convert from +62 format
+      let numberPart: string;
       
-      // Remove leading zero if present (Indonesian numbers shouldn't start with 0)
-      if (numberPart.startsWith("0")) {
-        numberPart = numberPart.slice(1);
+      if (value.startsWith("+62")) {
+        // Convert from +62 format to local format (0...)
+        numberPart = "0" + value.slice(3).replace(/\D/g, "");
+      } else if (value.startsWith("62")) {
+        // Convert from 62... format to local format
+        numberPart = "0" + value.slice(2).replace(/\D/g, "");
+      } else {
+        // Already in local format
+        numberPart = value.replace(/\D/g, "");
       }
       
       setInternalValue(numberPart);
@@ -65,20 +70,19 @@ export function PhoneInput({
     // Remove all non-digit characters
     let digitsOnly = input.replace(/\D/g, "");
     
-    // Remove leading zero (Indonesian phone numbers shouldn't start with 0 when using +62)
-    if (digitsOnly.startsWith("0")) {
-      digitsOnly = digitsOnly.slice(1);
+    // Add leading 0 if not present (for local format storage)
+    if (digitsOnly && !digitsOnly.startsWith("0")) {
+      digitsOnly = "0" + digitsOnly;
     }
     
-    // Limit to 13 digits (max Indonesian phone number length)
+    // Limit to 13 digits (max Indonesian phone number with leading 0)
     const limitedDigits = digitsOnly.slice(0, 13);
     
     setInternalValue(limitedDigits);
     
-    // Call onChange with full format (+62 + number)
+    // Call onChange with the digits
     if (onChange) {
-      const fullNumber = limitedDigits ? `+62${limitedDigits}` : "";
-      onChange(fullNumber);
+      onChange(limitedDigits || "");
     }
   };
 
@@ -108,7 +112,7 @@ export function PhoneInput({
           {...props}
           id={inputId}
           type="tel"
-          value={internalValue}
+          value={internalValue.startsWith("0") ? internalValue.slice(1) : internalValue}
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder={placeholder}
@@ -148,30 +152,36 @@ export function validateIndonesianPhone(phone: string): {
   isValid: boolean;
   error?: string;
 } {
-  if (!phone) {
+  if (!phone || phone.trim() === "") {
     return { isValid: true }; // Empty is valid (optional field)
   }
 
-  // Remove +62 prefix if present
-  let numberPart = phone.startsWith("+62")
-    ? phone.slice(3).replace(/\D/g, "")
-    : phone.replace(/\D/g, "");
+  // Remove all non-digit characters except leading +
+  let cleanNumber = phone.replace(/[^\d+]/g, "");
 
-  // Remove leading zero if present
-  if (numberPart.startsWith("0")) {
-    numberPart = numberPart.slice(1);
+  // Remove +62 prefix if present and replace with 0
+  if (cleanNumber.startsWith("+62")) {
+    cleanNumber = "0" + cleanNumber.slice(3);
+  } else if (cleanNumber.startsWith("62")) {
+    cleanNumber = "0" + cleanNumber.slice(2);
   }
+
+  // Remove leading zero if present to get the actual digits
+  let numberPart = cleanNumber.startsWith("0")
+    ? cleanNumber.slice(1)
+    : cleanNumber;
 
   if (numberPart.length === 0) {
     return { isValid: false, error: "Phone number is required" };
   }
 
+  // Indonesian numbers should be 9-12 digits after removing prefix/leading zero
   if (numberPart.length < 9) {
     return { isValid: false, error: "Phone number must be at least 9 digits" };
   }
 
-  if (numberPart.length > 13) {
-    return { isValid: false, error: "Phone number must be at most 13 digits" };
+  if (numberPart.length > 12) {
+    return { isValid: false, error: "Phone number must be at most 12 digits" };
   }
 
   // Check if starts with valid Indonesian mobile prefix (8 or 1)

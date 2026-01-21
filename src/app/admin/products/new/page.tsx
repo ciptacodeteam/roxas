@@ -63,7 +63,9 @@ export default function ProductAddPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
       await queryClient.refetchQueries({ queryKey: ["admin", "products"] });
       toast.success("Product created successfully");
-      router.push("/admin/products");
+      setTimeout(() => {
+        router.push("/admin/products");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to create product");

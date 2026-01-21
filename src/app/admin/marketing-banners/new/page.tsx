@@ -46,7 +46,9 @@ export default function MarketingBannerAddPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.banners.lists() });
       await queryClient.refetchQueries({ queryKey: queryKeys.banners.lists() });
       toast.success("Marketing banner created successfully");
-      router.push("/admin/marketing-banners");
+      setTimeout(() => {
+        router.push("/admin/marketing-banners");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to create marketing banner");

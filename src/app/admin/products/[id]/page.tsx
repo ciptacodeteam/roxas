@@ -115,7 +115,9 @@ export default function ProductEditPage() {
   const updateProductMutation = useUpdateProduct({
     onSuccess: () => {
       toast.success("Product updated successfully");
-      router.push("/admin/products");
+      setTimeout(() => {
+        router.push("/admin/products");
+      }, 500);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update product");
