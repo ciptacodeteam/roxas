@@ -128,7 +128,7 @@ export default function FooterSection() {
         </div>
 
         {/* DIVIDER */}
-        <div className="lg:my-8 my-6 h-px w-full rounded-full bg-gray-500" />
+        <div className="lg:mb-8 my-6 h-px w-full rounded-full bg-gray-500 mt-28 lg:mt-20" />
 
         {/* COPYRIGHT */}
         <div className="text-center text-sm font-light text-white lg:text-left">

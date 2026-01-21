@@ -146,14 +146,14 @@ export default function HeroSection() {
 
             {/* DOT INDICATOR */}
             {banners.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+              <div className="absolute lg:bottom-4 bottom-2 left-1/2 z-20 flex -translate-x-1/2 lg:gap-2 gap-1">
                 {banners.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => emblaApi?.scrollTo(index)}
                     aria-label={`Go to banner ${index + 1}`}
-                    className={`h-3 w-3 rounded-full transition-all duration-300 ${selectedIndex === index
-                        ? "bg-primary w-6 scale-110 opacity-100"
+                    className={`lg:h-3 lg:w-3 h-2 w-2 rounded-full transition-all duration-300 ${selectedIndex === index
+                        ? "bg-primary lg:w-6 w-4 scale-110 opacity-100"
                         : "scale-90 bg-white/40 opacity-60"
                       } `}
                   />

@@ -37,7 +37,9 @@ import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   CircleAlert,
+  Handbag,
   Headset,
   Loader2,
   Minus,
@@ -117,6 +119,7 @@ export default function ProductDetailClient({
   const [isAgree, setIsAgree] = useState(true);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   const MIN_QTY = 1;
   const MAX_QTY = 99;
@@ -599,7 +602,7 @@ export default function ProductDetailClient({
 
           {/* Info */}
           <div className="pt-4 text-white lg:pt-6">
-            <h1 className=" font-bold uppercase lg:text-2xl">
+            <h1 className="font-bold uppercase lg:text-2xl">
               {productData?.name || (product as any).title}
             </h1>
 
@@ -618,8 +621,8 @@ export default function ProductDetailClient({
             </div>
           </div>
         </div>
-        <div className="lg:hidden w-11/12 mx-auto mt-3 pb-4">
-          <div className="flex gap-2 text-xs text-gray-300 justify-between">
+        <div className="mx-auto mt-3 w-11/12 pb-4 lg:hidden">
+          <div className="flex justify-between gap-2 text-xs text-gray-300">
             <div className="flex items-center gap-1">
               <Image alt="" src={lightning} className="w-6" /> Proses Cepat
             </div>
@@ -634,12 +637,12 @@ export default function ProductDetailClient({
       </div>
 
       {/* CONTENT */}
-      <div className="mx-auto lg:my-12 my-8 lg:max-w-7xl w-11/12">
-        <div className="lg:grid h-full lg:grid-cols-3 lg:gap-8">
+      <div className="mx-auto my-8 w-11/12 lg:my-12 lg:max-w-7xl">
+        <div className="h-full lg:grid lg:grid-cols-3 lg:gap-8">
           {/* KONTEN KIRI */}
           <div className="lg:col-span-2">
             {/* Form Input */}
-            <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-6 lg:gap-8">
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
@@ -798,7 +801,7 @@ export default function ProductDetailClient({
                                 </h1>
                               </div>
                               <div
-                                className={`grid lg:grid-cols-3 grid-cols-2 lg:gap-4 gap-3 ${Object.keys(groupedItems).indexOf(groupName) < Object.keys(groupedItems).length - 1 ? "mb-6" : ""}`}
+                                className={`grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 ${Object.keys(groupedItems).indexOf(groupName) < Object.keys(groupedItems).length - 1 ? "mb-6" : ""}`}
                               >
                                 {groupItems.map((item: any) => {
                                   // Check if this item is in flash sale
@@ -892,11 +895,11 @@ export default function ProductDetailClient({
                                         </div>
                                       )}
                                       <CardHeader className="-mb-5 px-3 lg:px-4">
-                                        <CardTitle className="lg:text-sm text-xs text-white">
+                                        <CardTitle className="text-xs text-white lg:text-sm">
                                           {item.name}
                                         </CardTitle>
                                       </CardHeader>
-                                      <CardContent className="-mb-2 flex items-center lg:gap-4 gap-3 px-3 lg:px-4">
+                                      <CardContent className="-mb-2 flex items-center gap-3 px-3 lg:gap-4 lg:px-4">
                                         <Image
                                           src={item.iconImage || wdp}
                                           alt={item.name}
@@ -907,7 +910,7 @@ export default function ProductDetailClient({
                                         <div>
                                           <h1
                                             className={cn(
-                                              "lg:text-base text-sm font-semibold",
+                                              "text-sm font-semibold lg:text-base",
                                               isInFlashSale
                                                 ? "text-red-400"
                                                 : "text-yellow-500",
@@ -1848,7 +1851,7 @@ export default function ProductDetailClient({
                     5
                   </div>
                   <h2 className="font-medium text-white">
-                    Masukkan nomor WhatsApp yang dapat dihubungi
+                    Masukkan nomor WhatsApp
                   </h2>
                 </div>
                 {/* Form */}
@@ -1864,7 +1867,7 @@ export default function ProductDetailClient({
                     </p>
 
                     <div className="bg-card rounded-md p-4">
-                      <p className="flex items-center text-sm text-gray-300">
+                      <p className="flex items-center text-xs text-gray-300 lg:text-sm">
                         <span>
                           <CircleAlert className="me-2" size={20} />
                         </span>
@@ -1887,7 +1890,7 @@ export default function ProductDetailClient({
                 {/* Form */}
                 <div className="p-4">
                   <div className="flex flex-col">
-                    <div className="mb-3 flex items-center gap-4">
+                    <div className="mb-2 flex items-center gap-3">
                       <div className="flex-1">
                         <Input
                           placeholder="Ketik kode promo Kamu"
@@ -1913,35 +1916,6 @@ export default function ProductDetailClient({
                             }
                           }}
                         />
-                        {couponError && (
-                          <p className="mt-1 text-xs text-red-400">
-                            {couponError}
-                          </p>
-                        )}
-                        {appliedCoupon && (
-                          <div className="mt-2 flex items-center gap-2 rounded-md bg-green-500/20 p-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-400" />
-                            <p className="text-xs text-green-400">
-                              Kode promo berhasil! Diskon: Rp{" "}
-                              {appliedCoupon.discountAmount.toLocaleString(
-                                "id-ID",
-                              )}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="ml-auto h-6 w-6 p-0 text-red-400 hover:text-red-500"
-                              onClick={() => {
-                                setAppliedCoupon(null);
-                                setCouponCode("");
-                                setCouponError(null);
-                              }}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
                       </div>
                       <Button
                         className="cursor-pointer"
@@ -1963,9 +1937,34 @@ export default function ProductDetailClient({
                       </Button>
                     </div>
 
+                    {couponError && (
+                      <p className="text-xs text-red-400">{couponError}</p>
+                    )}
+                    {appliedCoupon && (
+                      <div className="flex items-center gap-2 rounded-md bg-green-500/20 p-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-400" />
+                        <p className="text-xs text-green-400">
+                          Kode promo berhasil! Diskon: Rp{" "}
+                          {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-6 w-6 p-0 text-red-400 hover:text-red-500"
+                          onClick={() => {
+                            setAppliedCoupon(null);
+                            setCouponCode("");
+                            setCouponError(null);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                     {/* Button to open coupon modal */}
                     <Button
-                      className="mt-4 w-fit cursor-pointer"
+                      className="mt-4 cursor-pointer lg:mt-4 lg:w-fit"
                       onClick={() => setShowCouponModal(true)}
                     >
                       <p className="flex items-center gap-2">
@@ -1985,7 +1984,7 @@ export default function ProductDetailClient({
                   open={showCouponModal}
                   onOpenChange={setShowCouponModal}
                 >
-                  <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto bg-gray-900 text-white">
+                  <DialogContent className="max-h-[90vh] lg:max-w-4xl overflow-y-auto bg-card text-white border-none lg:p-6 px-4">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-semibold text-white">
                         Promo yang Tersedia
@@ -2133,8 +2132,8 @@ export default function ProductDetailClient({
 
           {/* KONTEN KANAN */}
           <div>
-            <div className="sticky top-36 h-fit w-full">
-              <div className="flex flex-col gap-4">
+            <div className="mt-6 h-fit w-full lg:sticky lg:top-36 lg:mt-0">
+              <div className="flex flex-col gap-3 lg:gap-4">
                 <Card className="overflow-hidden border-0 bg-gray-800 py-0">
                   <CardContent className="p-0">
                     <CardTitle className="p-0">
@@ -2160,12 +2159,12 @@ export default function ProductDetailClient({
 
                         return (
                           <>
-                            <h1 className="text-5xl font-semibold text-white">
+                            <h1 className="text-4xl font-semibold text-white lg:text-5xl">
                               {avgRating.toFixed(2)}
                               <span className="text-xl">/5</span>
                             </h1>
                             <div>
-                              <div className="flex gap-1">
+                              <div className="flex w-full gap-1">
                                 {[...Array(5)].map((_, i) => (
                                   <StarIcon key={i} />
                                 ))}
@@ -2199,7 +2198,7 @@ export default function ProductDetailClient({
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden border-0 bg-black/80 py-0">
+                <Card className="hidden overflow-hidden border-0 bg-black/80 py-0 lg:block">
                   <CardContent className="space-y-4 p-4">
                     {!selectedItemData ? (
                       <div className="flex h-40 items-center justify-center text-center text-sm text-white">
@@ -2292,18 +2291,131 @@ export default function ProductDetailClient({
                   </CardContent>
                 </Card>
 
+                {/* MOBILE CHECKOUT BAR */}
+                <div className="fixed right-0 bottom-0 left-0 z-50 md:hidden">
+                  <div className="bg-card rounded-t-2xl px-4 pt-4 pb-5 backdrop-blur-xl">
+                    {/* EMPTY STATE */}
+                    {!selectedItemData ? (
+                      <>
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-6 text-center">
+                          <p className="text-sm text-gray-300">
+                            Belum ada item produk yang dipilih.
+                          </p>
+                        </div>
+
+                        <Button
+                          disabled
+                          className="bg-primary mt-4 w-full cursor-not-allowed rounded-full py-6 text-base font-medium text-white"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Handbag />
+                            Pesan Sekarang
+                          </span>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* HEADER */}
+                        <button
+                          type="button"
+                          onClick={() => setIsSummaryOpen((prev) => !prev)}
+                          className="flex w-full items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Image
+                              src={product.image}
+                              alt=""
+                              width={40}
+                              height={40}
+                              className="rounded-md"
+                            />
+
+                            <div className="text-left">
+                              <p className="text-sm font-semibold text-white">
+                                {(product as any).name ||
+                                  (product as any).title}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {selectedItemData.name}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className="text-white">
+                            {isSummaryOpen ? <ChevronUp /> : <ChevronDown />}
+                          </span>
+                        </button>
+
+                        {/* DETAIL */}
+                        {isSummaryOpen && (
+                          <div className="mt-4 space-y-2 text-sm">
+                            <div className="flex justify-between text-gray-300">
+                              <span>Harga</span>
+                              <span>
+                                Rp {productPrice.toLocaleString("id-ID")}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-gray-300">
+                              <span>Jumlah</span>
+                              <span>{quantity}</span>
+                            </div>
+
+                            {paymentFee > 0 && (
+                              <div className="flex justify-between text-gray-300">
+                                <span>Biaya Layanan</span>
+                                <span>
+                                  Rp {paymentFee.toLocaleString("id-ID")}
+                                </span>
+                              </div>
+                            )}
+
+                            {couponDiscount > 0 && (
+                              <div className="flex justify-between text-green-400">
+                                <span>Diskon Promo</span>
+                                <span>
+                                  - Rp {couponDiscount.toLocaleString("id-ID")}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
+                              <span>Total</span>
+                              <span>
+                                Rp {totalAmount.toLocaleString("id-ID")}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CTA */}
+                        <Button
+                          onClick={() => setOpenConfirm(true)}
+                          disabled={!selectedPaymentMethod}
+                          className="bg-primary mt-4 w-full rounded-full py-6 text-base font-medium text-white"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Handbag />
+                            Pesan Sekarang
+                          </span>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 {isMounted ? (
                   <Dialog open={openConfirm} onOpenChange={setOpenConfirm}>
                     <DialogTrigger asChild>
                       <Button
-                        className="bg-primary w-full cursor-pointer py-6 text-lg font-medium"
+                        className="bg-primary hidden w-full cursor-pointer py-6 text-lg font-medium lg:flex"
                         disabled={!selectedItemData || !selectedPaymentMethod}
                       >
                         Bayar Sekarang
                       </Button>
                     </DialogTrigger>
 
-                    <DialogContent className="bg-foreground max-w-md rounded-2xl border-0 text-white">
+                    <DialogContent className="bg-foreground rounded-2xl border-0 text-white lg:max-w-md">
                       <DialogHeader className="text-center">
                         <div className="mx-auto -mt-10 -mb-16 flex h-72 w-72 items-center justify-center">
                           <Lottie
@@ -2560,43 +2672,5 @@ export default function ProductDetailClient({
         </div>
       </div>
     </section>
-  );
-}
-
-function StoreCard({ logo, price }: { logo: string; price: string }) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl bg-[#2C3544]",
-        "transition-all duration-200",
-        "hover:ring-primary cursor-pointer hover:ring-2",
-      )}
-    >
-      <div className="flex flex-col gap-3 py-4">
-        {/* Logo */}
-        <div className="flex items-center justify-start px-4">
-          <Image
-            src={logo}
-            alt="store"
-            width={100}
-            height={56}
-            className="rounded-md bg-white p-2"
-          />
-        </div>
-
-        {/* Price */}
-        <div className="px-4 text-base font-semibold text-white">
-          Rp {price}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-dashed border-white/20" />
-
-        {/* Fee */}
-        <div className="px-4 text-xs text-white/70 italic">
-          Biaya Layanan +2000
-        </div>
-      </div>
-    </div>
   );
 }
