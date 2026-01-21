@@ -2297,7 +2297,7 @@ export default function ProductDetailClient({
                     {/* EMPTY STATE */}
                     {!selectedItemData ? (
                       <>
-                        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-6 text-center">
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-4 text-center">
                           <p className="text-sm text-gray-300">
                             Belum ada item produk yang dipilih.
                           </p>
@@ -2417,7 +2417,7 @@ export default function ProductDetailClient({
 
                     <DialogContent className="bg-foreground rounded-2xl border-0 text-white lg:max-w-md">
                       <DialogHeader className="text-center">
-                        <div className="mx-auto -mt-10 -mb-16 flex h-72 w-72 items-center justify-center">
+                        <div className="mx-auto lg:-mt-10 -mt-16 -mb-16 flex h-72 w-72 items-center justify-center">
                           <Lottie
                             animationData={animationData}
                             loop={false}
@@ -2436,7 +2436,7 @@ export default function ProductDetailClient({
                       </DialogHeader>
 
                       {/* DETAIL PESANAN */}
-                      <div className="bg-card mt-4 space-y-3 rounded-xl p-4 text-sm">
+                      <div className="bg-card lg:mt-4 space-y-3 rounded-xl p-4 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-400">Username</span>
                           <span>{/* ambil dari input */}-</span>
@@ -2479,7 +2479,7 @@ export default function ProductDetailClient({
                         </div>
                       </div>
 
-                      <div className="mt-4 flex items-start gap-3 text-sm">
+                      <div className="lg:mt-4 flex items-start gap-3 text-sm">
                         <input
                           type="checkbox"
                           id="agree"
@@ -2502,7 +2502,7 @@ export default function ProductDetailClient({
                       </div>
 
                       {/* FOOTER */}
-                      <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="lg:mt-4 grid grid-cols-2 gap-3">
                         <Button
                           variant="secondary"
                           className="cursor-pointer"
