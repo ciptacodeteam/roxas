@@ -193,6 +193,9 @@ export async function syncPricesFromDigiflazz(
     itemsSkipped: 0,
   };
 
+  // Get sync config at the start of the function
+  const config = getSyncConfig();
+
   try {
     // Fetch price lists from Digiflazz or use provided JSON data
     const priceLists: PriceListItem[] = [];
@@ -211,23 +214,55 @@ export async function syncPricesFromDigiflazz(
       }
     } else {
       // Fetch from Digiflazz API
+      // Digiflazz API returns { "data": [...] } where data is the array of price items
+
       if (cmd === PriceSyncType.PREPAID || cmd === PriceSyncType.FULL) {
         const prepaidData = await getDigiflazzPriceList("prepaid");
-        if (prepaidData?.data?.data && Array.isArray(prepaidData.data.data)) {
-          priceLists.push(...prepaidData.data.data);
+
+        if (config.logDebugInfo) {
+          console.log(`[Sync] Prepaid response type: ${typeof prepaidData}`);
+          console.log(`[Sync] Prepaid response keys: ${JSON.stringify(Object.keys(prepaidData || {}))}`);
+        }
+
+        // Handle both direct array (prepaidData.data) and wrapped response (prepaidData.data.data)
+        const prepaidItems = prepaidData?.data?.data ?? prepaidData?.data;
+
+        if (config.logDebugInfo) {
+          console.log(`[Sync] Prepaid items is array: ${Array.isArray(prepaidItems)}, count: ${prepaidItems?.length ?? 0}`);
+        }
+
+        if (prepaidItems && Array.isArray(prepaidItems)) {
+          priceLists.push(...prepaidItems);
         }
       }
 
       if (cmd === PriceSyncType.PASCA || cmd === PriceSyncType.FULL) {
         const pascaData = await getDigiflazzPriceList("pasca");
-        if (pascaData?.data?.data && Array.isArray(pascaData.data.data)) {
-          priceLists.push(...pascaData.data.data);
+
+        if (config.logDebugInfo) {
+          console.log(`[Sync] Pasca response type: ${typeof pascaData}`);
+          console.log(`[Sync] Pasca response keys: ${JSON.stringify(Object.keys(pascaData || {}))}`);
+        }
+
+        // Handle both direct array (pascaData.data) and wrapped response (pascaData.data.data)
+        const pascaItems = pascaData?.data?.data ?? pascaData?.data;
+
+        if (config.logDebugInfo) {
+          console.log(`[Sync] Pasca items is array: ${Array.isArray(pascaItems)}, count: ${pascaItems?.length ?? 0}`);
+        }
+
+        if (pascaItems && Array.isArray(pascaItems)) {
+          priceLists.push(...pascaItems);
         }
       }
     }
 
     if (priceLists.length === 0) {
-      throw new Error("No price data received");
+      throw new Error("No price data received from Digiflazz API. Please check your API credentials and ensure the API is accessible.");
+    }
+
+    if (config.logDebugInfo) {
+      console.log(`[Sync] Total items to process: ${priceLists.length}`);
     }
 
     result.itemsSynced = priceLists.length;
@@ -249,7 +284,6 @@ export async function syncPricesFromDigiflazz(
       existingItems.map((item) => [item.skuCode, item])
     );
 
-    const config = getSyncConfig();
     const now = new Date();
     let updated = 0;
     let created = 0;
@@ -280,7 +314,7 @@ export async function syncPricesFromDigiflazz(
         // Calculate new normal price if base price changed
         const newNormalPrice = Math.round(digiflazzItem.price * 1.05);
         const normalPriceChanged = existingItem.normalPrice !== newNormalPrice;
-        
+
         if (priceChanged || statusChanged || normalPriceChanged) {
           itemsToUpdate.push({
             id: existingItem.id,
@@ -289,8 +323,8 @@ export async function syncPricesFromDigiflazz(
               normalPrice: newNormalPrice,
               // Only update sellPrice if it was previously set to the old normalPrice
               // (preserve manually set sellPrice or discountedPrice)
-              sellPrice: existingItem.sellPrice === existingItem.normalPrice 
-                ? newNormalPrice 
+              sellPrice: existingItem.sellPrice === existingItem.normalPrice
+                ? newNormalPrice
                 : existingItem.sellPrice,
               digiflazzStatus: status,
               lastSyncedAt: now,
@@ -324,7 +358,7 @@ export async function syncPricesFromDigiflazz(
     // Update items with changes in batches
     for (let i = 0; i < itemsToUpdate.length; i += config.batchSize) {
       const batch = itemsToUpdate.slice(i, i + config.batchSize);
-      
+
       await db.$transaction(
         batch.map((item) =>
           db.productItem.update({
@@ -333,7 +367,7 @@ export async function syncPricesFromDigiflazz(
           })
         )
       );
-      
+
       if (config.logDebugInfo && batch.length > 0) {
         console.log(`[Sync] Updated batch ${Math.floor(i / config.batchSize) + 1}/${Math.ceil(itemsToUpdate.length / config.batchSize)}`);
       }
@@ -342,7 +376,7 @@ export async function syncPricesFromDigiflazz(
     // Update timestamps only in batches (more efficient)
     for (let i = 0; i < itemsToUpdateTimestamp.length; i += config.batchSize) {
       const batch = itemsToUpdateTimestamp.slice(i, i + config.batchSize);
-      
+
       await db.$transaction(
         batch.map((id) =>
           db.productItem.update({
@@ -356,21 +390,21 @@ export async function syncPricesFromDigiflazz(
     // Create new items in batches
     for (let i = 0; i < itemsToCreate.length; i += config.batchSize) {
       const batch = itemsToCreate.slice(i, i + config.batchSize);
-      
+
       for (const item of batch) {
         try {
           // Double-check that the item doesn't already exist (race condition protection)
           const existingCheck = await db.productItem.findUnique({
             where: { skuCode: item.buyer_sku_code },
           });
-          
+
           if (existingCheck) {
             console.warn(`ProductItem with SKU ${item.buyer_sku_code} already exists, skipping creation`);
             created--;
             skipped++;
             continue;
           }
-          
+
           await autoCreateProduct(item);
         } catch (error) {
           console.error(
@@ -386,7 +420,7 @@ export async function syncPricesFromDigiflazz(
           skipped++;
         }
       }
-      
+
       if (config.logDebugInfo && batch.length > 0) {
         console.log(`[Sync] Created batch ${Math.floor(i / config.batchSize) + 1}/${Math.ceil(itemsToCreate.length / config.batchSize)}`);
       }
@@ -485,9 +519,9 @@ export async function getLastSyncStatus() {
       completedAt: lastSync.completedAt,
       ageMinutes: lastSync.completedAt
         ? Math.floor(
-            (new Date().getTime() - lastSync.completedAt.getTime()) /
-              (1000 * 60)
-          )
+          (new Date().getTime() - lastSync.completedAt.getTime()) /
+          (1000 * 60)
+        )
         : null,
     };
   } catch (error) {

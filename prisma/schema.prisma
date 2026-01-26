@@ -594,6 +594,56 @@ model ProductRating {
 }
 
 // ============================================
+// API LOG MODEL - Track external API calls
+// ============================================
+
+enum ApiProvider {
+  DIGIFLAZZ
+  MIDTRANS
+  MAILGUN
+}
+
+enum ApiLogStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  ERROR
+}
+
+model ApiLog {
+  id          String       @id @default(uuid())
+  provider    ApiProvider  // DIGIFLAZZ or MIDTRANS
+  endpoint    String       // API endpoint called
+  method      String       @default("POST") // HTTP method
+  
+  // Request details
+  requestData Json?        // Request payload (sanitized, no sensitive data)
+  
+  // Response details
+  status      ApiLogStatus // SUCCESS, FAILED, TIMEOUT, ERROR
+  statusCode  Int?         // HTTP status code
+  responseData Json?       // Response payload
+  errorMessage String?     // Error message if failed
+  
+  // Performance tracking
+  responseTime Int?        // Response time in milliseconds
+  
+  // Context
+  orderId     String?      // Related order if applicable
+  refId       String?      // Reference ID (order number, transaction ref)
+  
+  createdAt   DateTime     @default(now())
+
+  @@index([provider, status])
+  @@index([provider, createdAt])
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([refId])
+  @@index([createdAt])
+  @@map("api_logs")
+}
+
+// ============================================
 // AUDIT LOG MODEL
 // ============================================
 

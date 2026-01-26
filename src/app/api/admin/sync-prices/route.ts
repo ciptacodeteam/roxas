@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const force = searchParams.get("force") === "true";
     const clearCache = searchParams.get("clearCache") === "true";
     const clearRateLimit = searchParams.get("clearRateLimit") === "true";
+    const statusOnly = searchParams.get("statusOnly") === "true";
     const cmdParam = searchParams.get("cmd") || "full";
     const cmd = Object.values(PriceSyncType).includes(cmdParam.toUpperCase() as PriceSyncType)
       ? (cmdParam.toUpperCase() as PriceSyncType)
@@ -50,15 +51,16 @@ export async function GET(request: NextRequest) {
     const rateLimitStatus = rateLimiter.status(getDigiflazzRateLimitKey("price-list"));
     const cacheStats = apiCache.stats();
 
-    // Check if sync is needed
-    const syncNeeded = force || (await isPriceSyncNeeded());
+    // Check if sync is needed (only if not statusOnly)
+    const syncNeeded = !statusOnly && (force || (await isPriceSyncNeeded()));
 
-    if (!syncNeeded && !force) {
+    // If status only, return without triggering sync
+    if (statusOnly || (!syncNeeded && !force)) {
       return NextResponse.json({
         success: true,
-        message: "Prices are up to date",
+        message: statusOnly ? "Status check only" : "Prices are up to date",
         lastSync,
-        syncNeeded: false,
+        syncNeeded: statusOnly ? await isPriceSyncNeeded() : false,
         config: {
           environment: config.logDebugInfo ? "development" : "production",
           cacheTtlMinutes: Math.round(config.cacheTtlMs / 60000),
@@ -87,7 +89,7 @@ export async function GET(request: NextRequest) {
           ...inProgressSync,
           ageMinutes: Math.floor(
             (new Date().getTime() - inProgressSync.startedAt.getTime()) /
-              (1000 * 60)
+            (1000 * 60)
           ),
         },
         rateLimit: rateLimitStatus,
@@ -205,7 +207,7 @@ export async function POST(request: NextRequest) {
     } : undefined;
 
     // Determine autoCreate: use body.autoCreate if provided, otherwise check if first sync
-    const autoCreate = body.autoCreate !== undefined 
+    const autoCreate = body.autoCreate !== undefined
       ? Boolean(body.autoCreate)
       : await isFirstSync();
 

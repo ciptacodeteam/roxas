@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { verifyWebhookSignature, mapMidtransStatus } from "@/lib/midtrans";
-import { PaymentStatus, OrderStatus } from "@prisma/client";
+import { createDigiflazzTopup } from "@/lib/digiflazz";
+import { PaymentStatus, OrderStatus, DigiflazzStatus, Prisma } from "@prisma/client";
+import crypto from "crypto";
 
 /**
  * POST /api/payments/webhook
@@ -46,7 +48,12 @@ export async function POST(request: NextRequest) {
     const payment = await db.payment.findUnique({
       where: { externalId: order_id },
       include: {
-        order: true,
+        order: {
+          include: {
+            productItem: true,
+            digiflazzTx: true,
+          },
+        },
       },
     });
 
@@ -108,8 +115,114 @@ export async function POST(request: NextRequest) {
         paidAt: updatedOrder.paidAt,
       });
 
-      // TODO: Trigger Digiflazz transaction here
-      // This is where you would call your Digiflazz API to process the topup
+      // Trigger Digiflazz transaction for digital product topup
+      try {
+        // Only proceed if we have product item and no existing transaction
+        if (payment.order.productItem && !payment.order.digiflazzTx) {
+          // Generate unique ref_id for Digiflazz
+          const refId = `DGF-${payment.order.orderNumber}-${crypto.randomBytes(4).toString("hex")}`;
+
+          // Extract customer number from order's customerData
+          // customerData format: { "userId": "123456", "serverId": "1234" }
+          const customerData = payment.order.customerData as { userId?: string; serverId?: string; customerNo?: string };
+          const customerNo = customerData.customerNo ||
+            (customerData.userId && customerData.serverId
+              ? `${customerData.userId}${customerData.serverId}`
+              : customerData.userId || "");
+
+          if (!customerNo) {
+            console.error("[Digiflazz] Missing customer number for order:", payment.order.orderNumber);
+          } else {
+            console.log("[Digiflazz] Initiating topup:", {
+              orderNumber: payment.order.orderNumber,
+              skuCode: payment.order.productItem.skuCode,
+              customerNo,
+              refId,
+            });
+
+            // Call Digiflazz topup API
+            const topupResult = await createDigiflazzTopup({
+              skuCode: payment.order.productItem.skuCode,
+              customerNo,
+              refId,
+            });
+
+            console.log("[Digiflazz] Topup result:", topupResult);
+
+            // Map Digiflazz status to our DigiflazzStatus enum
+            let digiflazzStatus: DigiflazzStatus;
+            switch (topupResult.status) {
+              case "Sukses":
+                digiflazzStatus = DigiflazzStatus.SUKSES;
+                break;
+              case "Pending":
+                digiflazzStatus = DigiflazzStatus.PENDING;
+                break;
+              case "Gagal":
+                digiflazzStatus = DigiflazzStatus.GAGAL;
+                break;
+              default:
+                digiflazzStatus = DigiflazzStatus.PENDING;
+            }
+
+            // Create DigiflazzTransaction record
+            await db.digiflazzTransaction.create({
+              data: {
+                orderId: payment.order.id,
+                refId: refId,
+                skuCode: payment.order.productItem.skuCode,
+                customerNo: customerNo,
+                status: digiflazzStatus,
+                serialNumber: topupResult.sn,
+                message: topupResult.message,
+                responseData: topupResult as unknown as Prisma.JsonObject,
+              },
+            });
+
+            // Update order status based on Digiflazz result
+            if (topupResult.status === "Sukses") {
+              await db.order.update({
+                where: { id: payment.order.id },
+                data: {
+                  status: OrderStatus.COMPLETED,
+                  completedAt: new Date(),
+                },
+              });
+              console.log("[Digiflazz] Order completed successfully:", payment.order.orderNumber);
+            } else if (topupResult.status === "Gagal") {
+              await db.order.update({
+                where: { id: payment.order.id },
+                data: {
+                  status: OrderStatus.FAILED,
+                },
+              });
+              console.log("[Digiflazz] Order failed:", payment.order.orderNumber, topupResult.message);
+            } else {
+              // Status is Pending - keep order as PROCESSING
+              await db.order.update({
+                where: { id: payment.order.id },
+                data: {
+                  status: OrderStatus.PROCESSING,
+                },
+              });
+              console.log("[Digiflazz] Order pending:", payment.order.orderNumber);
+            }
+          }
+        } else if (payment.order.digiflazzTx) {
+          console.log("[Digiflazz] Transaction already exists for order:", payment.order.orderNumber);
+        } else {
+          console.log("[Digiflazz] No product item found for order:", payment.order.orderNumber);
+        }
+      } catch (digiflazzError) {
+        console.error("[Digiflazz] Topup failed:", digiflazzError);
+        // Mark order as failed if Digiflazz call fails
+        await db.order.update({
+          where: { id: payment.order.id },
+          data: {
+            status: OrderStatus.FAILED,
+          },
+        });
+      }
     } else {
       console.log("=== ORDER NOT UPDATED ===", {
         isPaid,

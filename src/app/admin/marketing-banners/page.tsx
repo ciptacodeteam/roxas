@@ -67,10 +67,15 @@ export default function MarketingBannersPage() {
   const [bannerToDelete, setBannerToDelete] = useState<MarketingBanner | null>(null);
 
   // Use TanStack Query hooks
-  const { data: banners = [], isLoading: loading } = useAdminMarketingBanners();
+  const { data: banners = [], isLoading: loading, refetch } = useAdminMarketingBanners({
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
 
   const deleteBannerMutation = useDeleteMarketingBanner({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refetch();
       toast.success("Banner deleted successfully");
       setIsDeleteDialogOpen(false);
       setBannerToDelete(null);

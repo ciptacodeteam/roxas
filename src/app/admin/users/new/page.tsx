@@ -194,28 +194,21 @@ export default function UserAddPage() {
                         </div>
 
                         {/* Phone */}
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="phone"
-                            className="flex items-center gap-2"
-                          >
-                            <Phone className="h-4 w-4" />
-                            Phone Number
-                          </Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                phone: e.target.value,
-                              })
-                            }
-                            placeholder="+62..."
-                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
-                          />
-                        </div>
+                        <PhoneInput
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(value) =>
+                            setFormData({
+                              ...formData,
+                              phone: value,
+                            })
+                          }
+                          placeholder="81234567890"
+                          label="Phone Number"
+                          showLabel={true}
+                          className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
+                          wrapperClassName="space-y-2"
+                        />
 
                         {/* Password */}
                         <div className="space-y-2">

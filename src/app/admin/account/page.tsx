@@ -26,6 +26,7 @@ interface AccountData {
   name: string | null;
   phone: string | null;
   image: string | null;
+  hasPassword?: boolean;
 }
 
 // Validation schemas
@@ -35,7 +36,6 @@ const UpdateAccountSchema = z.object({
 });
 
 const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
@@ -159,12 +159,14 @@ export default function AdminAccountPage() {
       const responseData = await res.json();
 
       if (res.ok && responseData.success) {
-        toast.success("Password changed successfully", {
-          description: "Your password has been updated.",
+        toast.success(accountData?.hasPassword ? "Password changed successfully" : "Password set successfully", {
+          description: accountData?.hasPassword ? "Your password has been updated." : "You can now log in with your email and password.",
         });
         resetPasswordForm();
+        // Reload account data to update hasPassword status
+        window.location.reload();
       } else {
-        toast.error("Password change failed", {
+        toast.error(accountData?.hasPassword ? "Password change failed" : "Password set failed", {
           description: responseData.message || "Please check your input.",
         });
       }
@@ -361,54 +363,16 @@ export default function AdminAccountPage() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Lock className="h-5 w-5" />
-                          Change Password
+                          {accountData?.hasPassword ? 'Change Password' : 'Set Password'}
                         </CardTitle>
                         <CardDescription>
-                          Update your account password
+                          {accountData?.hasPassword 
+                            ? 'Update your account password (no current password required)'
+                            : 'Set a password for your account (signed up with Google)'}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <form onSubmit={handlePasswordSubmit(handlePasswordChange)} className="space-y-6">
-                          {/* Current Password */}
-                          <div className="space-y-2">
-                            <Label htmlFor="currentPassword" className="flex items-center gap-2">
-                              <Lock className="h-4 w-4" />
-                              Current Password <span className="text-red-400">*</span>
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id="currentPassword"
-                                type={showPasswords.current ? "text" : "password"}
-                                placeholder="Enter your current password"
-                                {...registerPassword("currentPassword")}
-                                className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
-                                  passwordErrors.currentPassword ? "border-red-500" : ""
-                                }`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setShowPasswords({
-                                    ...showPasswords,
-                                    current: !showPasswords.current,
-                                  })
-                                }
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                              >
-                                {showPasswords.current ? (
-                                  <EyeOff className="h-4 w-4" />
-                                ) : (
-                                  <Eye className="h-4 w-4" />
-                                )}
-                              </button>
-                            </div>
-                            {passwordErrors.currentPassword && (
-                              <p className="text-xs text-red-500">{passwordErrors.currentPassword.message}</p>
-                            )}
-                          </div>
-
-                          <Separator className="bg-gray-700" />
-
                           {/* New Password */}
                           <div className="space-y-2">
                             <Label htmlFor="newPassword" className="flex items-center gap-2">
@@ -508,12 +472,12 @@ export default function AdminAccountPage() {
                               {isChangingPassword ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Changing...
+                                  {accountData?.hasPassword ? 'Changing...' : 'Setting...'}
                                 </>
                               ) : (
                                 <>
                                   <Lock className="mr-2 h-4 w-4" />
-                                  Change Password
+                                  {accountData?.hasPassword ? 'Change Password' : 'Set Password'}
                                 </>
                               )}
                             </Button>

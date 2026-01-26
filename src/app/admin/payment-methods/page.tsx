@@ -73,14 +73,23 @@ export default function PaymentMethodsPage() {
   const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<PaymentMethod | null>(null);
 
   // Use TanStack Query hooks
-  const { data: paymentMethodsData = [], isLoading: loading } = useAdminPaymentMethods();
+  const { data: paymentMethodsData = [], isLoading: loading, refetch } = useAdminPaymentMethods(
+    undefined,
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
   const paymentMethods: PaymentMethod[] = paymentMethodsData;
 
   const deletePaymentMethodMutation = useDeletePaymentMethod({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Payment method deleted successfully");
       setIsDeleteDialogOpen(false);
       setPaymentMethodToDelete(null);
+      // Explicitly refetch to ensure fresh data
+      await refetch();
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to delete payment method");
@@ -231,11 +240,10 @@ export default function PaymentMethodsPage() {
           const isActive = row.getValue("isActive") as boolean;
           return (
             <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                isActive
+              className={`rounded px-2 py-1 text-xs font-semibold ${isActive
                   ? "bg-green-600/20 text-green-400"
                   : "bg-gray-600/20 text-gray-400"
-              }`}
+                }`}
             >
               {isActive ? "Active" : "Inactive"}
             </span>
@@ -356,13 +364,13 @@ export default function PaymentMethodsPage() {
                     action={
                       search
                         ? {
-                            label: "Clear search",
-                            onClick: () => setSearch(""),
-                          }
+                          label: "Clear search",
+                          onClick: () => setSearch(""),
+                        }
                         : {
-                            label: "Add payment method",
-                            onClick: () => router.push("/admin/payment-methods/new"),
-                          }
+                          label: "Add payment method",
+                          onClick: () => router.push("/admin/payment-methods/new"),
+                        }
                     }
                   />
                 ) : (
@@ -377,9 +385,9 @@ export default function PaymentMethodsPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -409,7 +417,7 @@ export default function PaymentMethodsPage() {
                         Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
+                          table.getState().pagination.pageSize,
                           table.getFilteredRowModel().rows.length
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} payment methods

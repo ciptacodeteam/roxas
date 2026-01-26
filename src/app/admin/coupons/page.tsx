@@ -80,16 +80,23 @@ export default function CouponsPage() {
   const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
 
   // Use TanStack Query hooks
-  const { data: couponsData = [], isLoading: loading } = useAdminCoupons({
-    search,
-  });
+  const { data: couponsData = [], isLoading: loading, refetch } = useAdminCoupons(
+    { search },
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
   const coupons: Coupon[] = couponsData;
 
   const deleteCouponMutation = useDeleteCoupon({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Coupon deleted successfully");
       setIsDeleteDialogOpen(false);
       setCouponToDelete(null);
+      // Explicitly refetch to ensure fresh data
+      await refetch();
     },
     onError: (error) => {
       toast.error(
@@ -239,11 +246,10 @@ export default function CouponsPage() {
           const isActive = row.getValue("isActive") as boolean;
           return (
             <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                isActive
-                  ? "bg-green-600/20 text-green-400"
-                  : "bg-gray-600/20 text-gray-400"
-              }`}
+              className={`rounded px-2 py-1 text-xs font-semibold ${isActive
+                ? "bg-green-600/20 text-green-400"
+                : "bg-gray-600/20 text-gray-400"
+                }`}
             >
               {isActive ? "Active" : "Inactive"}
             </span>
@@ -378,13 +384,13 @@ export default function CouponsPage() {
                     action={
                       search
                         ? {
-                            label: "Clear search",
-                            onClick: () => setSearch(""),
-                          }
+                          label: "Clear search",
+                          onClick: () => setSearch(""),
+                        }
                         : {
-                            label: "Create coupon",
-                            onClick: () => router.push("/admin/coupons/new"),
-                          }
+                          label: "Create coupon",
+                          onClick: () => router.push("/admin/coupons/new"),
+                        }
                     }
                   />
                 ) : (
@@ -399,9 +405,9 @@ export default function CouponsPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext(),
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -435,7 +441,7 @@ export default function CouponsPage() {
                         to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
+                          table.getState().pagination.pageSize,
                           table.getFilteredRowModel().rows.length,
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} coupons

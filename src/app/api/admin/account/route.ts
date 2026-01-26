@@ -2,9 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 
 import { db } from '@/server/db';
-import { getServerAuthSession } from '@/auth';
+import { getServerAuthSession, auth } from '@/auth';
 import { UserRole } from '@prisma/client';
-import { hashPassword, verifyPassword } from '@/lib/password';
 
 const UpdateAccountSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
@@ -12,7 +11,6 @@ const UpdateAccountSchema = z.object({
 });
 
 const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
@@ -26,6 +24,11 @@ async function getCurrentAdmin() {
   
   const user = await db.user.findUnique({
     where: { id: session.user.id },
+    include: {
+      accounts: {
+        where: { providerId: 'credential' },
+      },
+    },
   });
   
   return user;
@@ -51,6 +54,7 @@ export async function GET(request: NextRequest) {
           name: user.name,
           phone: user.phone,
           image: user.image,
+          hasPassword: user.accounts.length > 0 && !!user.accounts[0]?.password,
         },
       },
       { status: 200 }
@@ -131,32 +135,82 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = ChangePasswordSchema.parse(body);
 
-    // Verify current password
-    if (!user.password) {
-      return NextResponse.json(
-        { success: false, message: 'This account does not have a password set' },
-        { status: 400 }
-      );
+    // Get proper password hash using Better Auth's hashing
+    // Create a temp user to get the properly hashed password
+    const tempEmail = 'temp_pw_' + Date.now() + '@temp.local';
+    const headers = new Headers();
+    
+    let properHash: string;
+    let tempUserId: string | undefined;
+
+    try {
+      const tempResult = await auth.api.signUpEmail({
+        body: {
+          email: tempEmail,
+          password: data.newPassword,
+          name: 'Temp',
+        },
+        headers,
+      });
+
+      if (!tempResult.user) {
+        throw new Error('Failed to create temp user for password hashing');
+      }
+
+      tempUserId = tempResult.user.id;
+
+      // Get the temp user's account password hash
+      const tempUser = await db.user.findUnique({
+        where: { id: tempResult.user.id },
+        include: { accounts: { where: { providerId: 'credential' } } },
+      });
+
+      const tempAccount = tempUser?.accounts[0];
+      if (!tempAccount?.password) {
+        throw new Error('Failed to get password hash from temp user');
+      }
+
+      properHash = tempAccount.password;
+
+      // Delete temp user immediately
+      await db.user.delete({ where: { id: tempResult.user.id } });
+      tempUserId = undefined;
+
+    } catch (error) {
+      // Clean up temp user if it exists
+      if (tempUserId) {
+        try {
+          await db.user.delete({ where: { id: tempUserId } });
+        } catch (e) {
+          console.error('Failed to delete temp user:', e);
+        }
+      }
+      throw error;
     }
 
-    const passwordMatch = await verifyPassword(data.currentPassword, user.password);
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { success: false, message: 'Current password is incorrect' },
-        { status: 400 }
-      );
-    }
-
-    // Hash new password
-    const hashedPassword = await hashPassword(data.newPassword);
-
-    // Update password
+    // Update admin's password with the proper hash
     await db.user.update({
       where: { id: user.id },
-      data: {
-        password: hashedPassword,
-      },
+      data: { password: properHash },
     });
+
+    // Update or create credential account
+    const credentialAccount = user.accounts.find(acc => acc.providerId === 'credential');
+    if (credentialAccount) {
+      await db.account.update({
+        where: { id: credentialAccount.id },
+        data: { password: properHash },
+      });
+    } else {
+      await db.account.create({
+        data: {
+          accountId: user.id,
+          providerId: 'credential',
+          userId: user.id,
+          password: properHash,
+        },
+      });
+    }
 
     return NextResponse.json(
       {

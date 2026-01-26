@@ -83,20 +83,24 @@ export default function PaymentMethodEditPage() {
   });
 
   // Use React Query to fetch payment method data
-  const { data: paymentMethodData, isLoading: loading, error } = useAdminPaymentMethod(paymentMethodId);
+  const { data: paymentMethodData, isLoading: loading, error } = useAdminPaymentMethod(paymentMethodId, {
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
   const typedPaymentMethodData = paymentMethodData as PaymentMethodDetail | null | undefined;
 
   // Update form data when payment method data changes
   useEffect(() => {
-    if (typedPaymentMethodData && !isFormInitialized) {
+    if (typedPaymentMethodData) {
       // Ensure type is a valid PaymentMethodType enum value
       // Convert to string to ensure it matches SelectItem values exactly
       const typeValue = typedPaymentMethodData.type ? String(typedPaymentMethodData.type) as PaymentMethodType : "";
-      
+
       // Keep feeType and vatType as strings for consistent state management
       const feeTypeValue = typedPaymentMethodData.feeType ? String(typedPaymentMethodData.feeType) : "PERCENTAGE";
       const vatTypeValue = typedPaymentMethodData.vatType ? String(typedPaymentMethodData.vatType) : "PERCENTAGE";
-      
+
       setFormData({
         type: typeValue,
         bank: typedPaymentMethodData.bank || "",
@@ -111,13 +115,17 @@ export default function PaymentMethodEditPage() {
         midtransCode: typedPaymentMethodData.midtransCode,
       });
       setIconPreview(typedPaymentMethodData.icon || null);
-      setIsFormInitialized(true);
+      if (!isFormInitialized) {
+        setIsFormInitialized(true);
+      }
     }
   }, [typedPaymentMethodData, isFormInitialized]);
 
   const updatePaymentMethodMutation = useUpdatePaymentMethod({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Payment method updated successfully");
+      // Wait a bit for query invalidation to complete before navigating
+      await new Promise(resolve => setTimeout(resolve, 100));
       router.push("/admin/payment-methods");
     },
     onError: (error) => {
@@ -168,7 +176,7 @@ export default function PaymentMethodEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.type || !formData.name || !formData.midtransCode) {
       toast.error("Type, name, and Midtrans code are required");
       return;
@@ -329,8 +337,8 @@ export default function PaymentMethodEditPage() {
                             </Select>
                           </div>
 
-                        {/* Bank (only for MOBILE_BANKING) */}
-                        {String(formData.type) === "MOBILE_BANKING" && (
+                          {/* Bank (only for MOBILE_BANKING) */}
+                          {String(formData.type) === "MOBILE_BANKING" && (
                             <div className="space-y-2">
                               <Label htmlFor="bank" className="flex items-center gap-2">
                                 <CreditCard className="h-4 w-4" />

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     // Check if format=priceList is requested (for price list page)
     const format = searchParams.get("format");
-    
+
     if (format === "priceList") {
       // Transform ProductItem data to PriceListItem format expected by price list page
       const priceListItems = filteredItems.map((item) => {
@@ -86,10 +86,15 @@ export async function GET(request: NextRequest) {
           id: item.id, // Include product item ID for editing
           buyer_sku_code: item.skuCode || "",
           product_name: item.name || "",
+          product: item.product.name || "", // Product/Brand name
           seller_name: "Digiflazz", // Default seller name, can be updated if stored in DB
           category: item.product.category.name || "N/A",
           type: "", // Type field not stored in ProductItem, can be derived from category if needed
           price: item.sellPrice || item.normalPrice || item.basePrice || 0, // Use sellPrice, fallback to normalPrice or basePrice
+          basePrice: item.basePrice || 0, // Base price from Digiflazz
+          normalPrice: item.normalPrice || 0,
+          sellPrice: item.sellPrice || 0,
+          discountedPrice: item.discountedPrice || 0,
           buyer_product_status: buyer_product_status,
           seller_product_status: seller_product_status,
           unlimited_stock: false, // Not stored in ProductItem

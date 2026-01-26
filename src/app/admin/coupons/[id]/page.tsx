@@ -101,7 +101,11 @@ export default function CouponEditPage() {
   });
 
   // Use React Query to fetch coupon data
-  const { data: couponData, isLoading: loading, error } = useAdminCoupon(couponId);
+  const { data: couponData, isLoading: loading, error } = useAdminCoupon(couponId, {
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
   const typedCouponData = couponData as CouponDetail | null | undefined;
 
   // Update form data when coupon data changes
@@ -109,7 +113,7 @@ export default function CouponEditPage() {
     if (typedCouponData) {
       // Ensure discountType is a string to match SelectItem values exactly
       const discountTypeValue = typedCouponData.discountType ? String(typedCouponData.discountType) : DiscountType.PERCENTAGE;
-      
+
       setFormData({
         code: typedCouponData.code,
         description: typedCouponData.description || "",
@@ -127,8 +131,10 @@ export default function CouponEditPage() {
   }, [typedCouponData]);
 
   const updateCouponMutation = useUpdateCoupon({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Coupon updated successfully");
+      // Wait a bit for query invalidation to complete before navigating
+      await new Promise(resolve => setTimeout(resolve, 100));
       router.push("/admin/coupons");
     },
     onError: (error) => {
@@ -139,7 +145,7 @@ export default function CouponEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.code || !formData.discountType || !formData.discountValue) {
       toast.error("Code, discount type, and discount value are required");
       return;

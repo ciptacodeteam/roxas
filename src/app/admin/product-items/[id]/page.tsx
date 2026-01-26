@@ -85,7 +85,7 @@ export default function ProductItemEditPage() {
   const updateItemMutation = useUpdateProductItem({
     onSuccess: () => {
       toast.success("Product item updated successfully");
-      router.push("/admin/product-items");
+      router.push("/admin/price-list");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update product item");
@@ -133,12 +133,12 @@ export default function ProductItemEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setSaving(true);
     updateItemMutation.mutate(
-      { 
-        id: itemId, 
-        data: { 
+      {
+        id: itemId,
+        data: {
           isActive,
           iconImage: iconImage || null,
           group: group || null,
@@ -147,7 +147,7 @@ export default function ProductItemEditPage() {
           sellPrice: sellPrice || 0,
           basePrice: basePrice || 0,
           sortOrder: sortOrder || 0,
-        } 
+        }
       },
       {
         onSettled: () => {
@@ -353,7 +353,7 @@ export default function ProductItemEditPage() {
                               <DollarSign className="h-4 w-4" />
                               Pricing (IDR)
                             </Label>
-                            
+
                             {/* Base Price */}
                             <div className="space-y-2">
                               <Label htmlFor="basePrice">Base Price (Cost from Digiflazz)</Label>

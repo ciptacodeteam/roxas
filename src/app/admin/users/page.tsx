@@ -64,10 +64,18 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   // Use TanStack Query hooks
-  const { data: users = [], isLoading: loading } = useAdminUsers({ search: search || undefined });
+  const { data: users = [], isLoading: loading, refetch } = useAdminUsers(
+    { search: search || undefined },
+    {
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
 
   const deleteUserMutation = useDeleteUser({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refetch();
       toast.success("User deleted successfully");
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
@@ -76,7 +84,7 @@ export default function UsersPage() {
       toast.error(error instanceof Error ? error.message : "Failed to delete user");
     },
   });
-  
+
   const handleEdit = useCallback((user: User) => {
     router.push(`/admin/users/${user.id}`);
   }, [router]);
@@ -172,11 +180,10 @@ export default function UsersPage() {
           const role = row.getValue("role") as string;
           return (
             <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                role === "ADMIN"
+              className={`rounded px-2 py-1 text-xs font-semibold ${role === "ADMIN"
                   ? "bg-purple-600/20 text-purple-400"
                   : "bg-blue-600/20 text-blue-400"
-              }`}
+                }`}
             >
               {role}
             </span>
@@ -190,11 +197,10 @@ export default function UsersPage() {
           const verified = row.getValue("emailVerified") as boolean;
           return (
             <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                verified
+              className={`rounded px-2 py-1 text-xs font-semibold ${verified
                   ? "bg-green-600/20 text-green-400"
                   : "bg-gray-600/20 text-gray-400"
-              }`}
+                }`}
             >
               {verified ? "Yes" : "No"}
             </span>
@@ -378,9 +384,9 @@ export default function UsersPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -421,7 +427,7 @@ export default function UsersPage() {
                         Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
+                          table.getState().pagination.pageSize,
                           table.getFilteredRowModel().rows.length
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} users

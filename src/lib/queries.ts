@@ -641,8 +641,10 @@ export function useAdminDashboard(
   return useQuery({
     queryKey: queryKeys.dashboard.stats(),
     queryFn: () => fetchJSON<any>("/api/admin/dashboard"),
-    refetchOnMount: true,
-    refetchOnWindowFocus: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    gcTime: 30000, // Cache for 30 seconds
     ...options,
   });
 }
@@ -652,7 +654,7 @@ export function useSyncStatus(options?: Omit<UseQueryOptions<any>, "queryKey" | 
   return useQuery({
     queryKey: queryKeys.priceSync.status(),
     queryFn: async () => {
-      const response = await fetch("/api/admin/sync-prices");
+      const response = await fetch("/api/admin/sync-prices?statusOnly=true");
       const data = await response.json();
       return data.lastSync || null;
     },
@@ -1107,8 +1109,10 @@ export function useUpdateCoupon(
         body: JSON.stringify(data),
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidate both the list and the specific coupon detail
       queryClient.invalidateQueries({ queryKey: queryKeys.coupons.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.coupons.detail(variables.id) });
     },
     ...options,
   });

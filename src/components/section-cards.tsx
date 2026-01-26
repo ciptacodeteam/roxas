@@ -74,7 +74,7 @@ export function SectionCards() {
             {stats.orders.total.toLocaleString("id-ID")}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            <Badge variant="outline" className="bg-green-600/20 text-green-400">
               {stats.orders.completed} completed
             </Badge>
           </CardAction>
@@ -82,9 +82,22 @@ export function SectionCards() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
             {stats.orders.today} orders today
+            {(stats.orders.processing || 0) > 0 && (
+              <Badge variant="outline" className="ml-1 bg-purple-600/20 text-purple-400 text-xs">
+                {stats.orders.processing} processing
+              </Badge>
+            )}
           </div>
-          <div className="text-muted-foreground">
-            {stats.orders.pending} pending orders need attention
+          <div className="text-muted-foreground flex items-center gap-2">
+            {stats.orders.pending > 0 && (
+              <span className="text-yellow-400">{stats.orders.pending} pending</span>
+            )}
+            {(stats.orders.failed || 0) > 0 && (
+              <span className="text-red-400">{stats.orders.failed} failed</span>
+            )}
+            {stats.orders.pending === 0 && (stats.orders.failed || 0) === 0 && (
+              <span>All orders processed</span>
+            )}
           </div>
         </CardFooter>
       </Card>

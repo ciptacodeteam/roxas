@@ -1,6 +1,8 @@
 import { env } from "@/env";
 import formData from "form-data";
 import Mailgun from "mailgun.js";
+import { executeAndLogApiCall } from "./api-logger";
+import { ApiProvider } from "@prisma/client";
 
 // Initialize Mailgun client with proper configuration
 const mailgun = new Mailgun(formData);
@@ -27,6 +29,8 @@ export interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  const startTime = Date.now();
+
   try {
     console.log("Attempting to send email via Mailgun...", {
       to,
@@ -43,13 +47,26 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions) {
       text: text || html.replace(/<[^>]*>/g, "").substring(0, 500), // Strip HTML for text version
     };
 
-    const response = await mg.messages.create(env.MAILGUN_DOMAIN, data);
-    
+    const response = await executeAndLogApiCall({
+      provider: ApiProvider.MAILGUN,
+      endpoint: `/messages`,
+      method: "POST",
+      requestData: {
+        to,
+        subject,
+        from: env.MAILGUN_FROM_EMAIL,
+        // Don't log full email content
+      },
+      execute: async () => {
+        return await mg.messages.create(env.MAILGUN_DOMAIN, data);
+      },
+    });
+
     console.log("Email sent successfully:", {
       messageId: response.id,
       message: response.message,
     });
-    
+
     return { success: true, messageId: response.id };
   } catch (error: any) {
     console.error("Mailgun error details:", {

@@ -67,7 +67,11 @@ export default function MarketingBannerEditPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Use React Query to fetch banner data
-  const { data: bannerData, isLoading: loading, error } = useAdminMarketingBanner(bannerId);
+  const { data: bannerData, isLoading: loading, error } = useAdminMarketingBanner(bannerId, {
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
   const typedBannerData = bannerData as MarketingBannerDetail | null | undefined;
 
   // Update form data when banner data changes
@@ -85,14 +89,14 @@ export default function MarketingBannerEditPage() {
       });
       setImagePreview(typedBannerData.image);
     }
-  }, [typedBannerData]);
+  }, [typedBannerData, bannerId]);
 
   const updateBannerMutation = useUpdateMarketingBanner({
     onSuccess: () => {
       toast.success("Marketing banner updated successfully");
       setTimeout(() => {
         router.push("/admin/marketing-banners");
-      }, 500);
+      }, 100);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update marketing banner");

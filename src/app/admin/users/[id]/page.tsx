@@ -105,7 +105,11 @@ export default function UserEditPage() {
   });
 
   // Use React Query to fetch user data
-  const { data: userData, isLoading: loading, error } = useAdminUser(userId);
+  const { data: userData, isLoading: loading, error } = useAdminUser(userId, {
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
   const typedUserData = userData as UserDetail | null | undefined;
 
   // Update form data when user data changes
@@ -113,7 +117,7 @@ export default function UserEditPage() {
     if (typedUserData) {
       // Ensure role is a valid string value, default to "USER" if empty
       const roleValue = typedUserData.role?.trim() || "USER";
-      
+
       setFormData({
         email: typedUserData.email,
         name: typedUserData.name || "",
@@ -122,15 +126,15 @@ export default function UserEditPage() {
         emailVerified: typedUserData.emailVerified,
       });
     }
-  }, [typedUserData]);
+  }, [typedUserData, userId]);
 
   const updateUserMutation = useUpdateUser({
     onSuccess: () => {
       toast.success("User updated successfully");
-      // Redirect to users list after short delay to show toast
+      // Redirect to users list after delay to allow query invalidation
       setTimeout(() => {
         router.push("/admin/users");
-      }, 500);
+      }, 100);
     },
     onError: (error) => {
       toast.error(
@@ -261,16 +265,16 @@ export default function UserEditPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
-              {/* Header */}
-              <div className="mb-6">
-                <BackButton href="/admin/users" label="Back to Users" />
-                <div>
-                  <h1 className="text-3xl font-bold">Edit User</h1>
-                  <p className="mt-2 text-gray-400">
-                    Manage user account information and view related data
-                  </p>
+                {/* Header */}
+                <div className="mb-6">
+                  <BackButton href="/admin/users" label="Back to Users" />
+                  <div>
+                    <h1 className="text-3xl font-bold">Edit User</h1>
+                    <p className="mt-2 text-gray-400">
+                      Manage user account information and view related data
+                    </p>
+                  </div>
                 </div>
-              </div>
 
                 {/* Main Content - Two Column Layout */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -335,38 +339,38 @@ export default function UserEditPage() {
                             />
                           </div>
 
-                        {/* Phone */}
-                        <PhoneInput
-                          value={formData.phone || ""}
-                          onChange={(value) =>
-                            setFormData({ ...formData, phone: value ? value : null })
-                          }
-                          className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                        />
+                          {/* Phone */}
+                          <PhoneInput
+                            value={formData.phone || ""}
+                            onChange={(value) =>
+                              setFormData({ ...formData, phone: value ? value : null })
+                            }
+                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                          />
 
-                        {/* Role */}
-                        <div className="space-y-2">
-                          <Label htmlFor="role" className="flex items-center gap-2">
-                            <Shield className="h-4 w-4" />
-                            Role
-                          </Label>
-                          <Select
-                            value={formData.role || "USER"}
-                            onValueChange={(value) => {
-                              // Prevent empty values from being set
-                              if (!value?.trim()) return;
-                              setFormData(prev => ({ ...prev, role: value }));
-                            }}
-                          >
-                            <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                              <SelectItem value="USER">User</SelectItem>
-                              <SelectItem value="ADMIN">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                          {/* Role */}
+                          <div className="space-y-2">
+                            <Label htmlFor="role" className="flex items-center gap-2">
+                              <Shield className="h-4 w-4" />
+                              Role
+                            </Label>
+                            <Select
+                              value={formData.role || "USER"}
+                              onValueChange={(value) => {
+                                // Prevent empty values from being set
+                                if (!value?.trim()) return;
+                                setFormData(prev => ({ ...prev, role: value }));
+                              }}
+                            >
+                              <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                                <SelectValue placeholder="Select role" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                                <SelectItem value="USER">User</SelectItem>
+                                <SelectItem value="ADMIN">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
 
 
 
@@ -421,309 +425,309 @@ export default function UserEditPage() {
                     </Card>
                   </div>
 
-                {/* Right Column - Related Information */}
-                <div className="space-y-6">
-                  {/* Password Reset Card */}
-                  {typedUserData && (
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <KeyRound className="h-5 w-5" />
-                          Password Reset
-                        </CardTitle>
-                        <CardDescription>
-                          Send password reset link to users&apos; email
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Button
-                          onClick={async () => {
-                            setSendingPasswordReset(true);
-                            try {
-                              const response = await fetch(`/api/admin/users/${userId}/send-password-reset`, {
-                                method: "POST",
-                              });
-                              const data = await response.json();
-                              
-                              if (response.ok && data.success) {
-                                toast.success("Password reset email sent", {
-                                  description: "The user will receive a password reset link in their email.",
-                                });
-                              } else {
-                                toast.error("Failed to send password reset email", {
-                                  description: data.message || "Please try again.",
-                                });
-                              }
-                            } catch (error) {
-                              toast.error("Failed to send password reset email", {
-                                description: "An error occurred. Please try again.",
-                              });
-                            } finally {
-                              setSendingPasswordReset(false);
-                            }
-                          }}
-                          disabled={sendingPasswordReset}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {sendingPasswordReset ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending...
-                            </>
-                          ) : (
-                            <>
-                              <KeyRound className="mr-2 h-4 w-4" />
-                              Send Password Reset Link
-                            </>
-                          )}
-                        </Button>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Link expires in 1 hour
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Email Verification Card */}
-                  {typedUserData && !typedUserData.emailVerified && (
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MailCheck className="h-5 w-5" />
-                          Email Verification
-                        </CardTitle>
-                        <CardDescription>
-                          Send verification email to activate user&apos;s account
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2 mb-4">
-                          <XCircle className="h-4 w-4 text-yellow-400" />
-                          <span className="text-sm text-yellow-400">Email not verified</span>
-                        </div>
-                        <Button
-                          onClick={async () => {
-                            setSendingVerification(true);
-                            try {
-                              const response = await fetch(`/api/admin/users/${userId}/send-verification`, {
-                                method: "POST",
-                              });
-                              const data = await response.json();
-                              
-                              if (response.ok && data.success) {
-                                toast.success("Verification email sent", {
-                                  description: "The user will receive a verification link in their email.",
-                                });
-                              } else {
-                                toast.error("Failed to send verification email", {
-                                  description: data.message || "Please try again.",
-                                });
-                              }
-                            } catch (error) {
-                              toast.error("Failed to send verification email", {
-                                description: "An error occurred. Please try again.",
-                              });
-                            } finally {
-                              setSendingVerification(false);
-                            }
-                          }}
-                          disabled={sendingVerification}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          {sendingVerification ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending...
-                            </>
-                          ) : (
-                            <>
-                              <MailCheck className="mr-2 h-4 w-4" />
-                              Send Verification Email
-                            </>
-                          )}
-                        </Button>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Link expires in 24 hours
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Email Verified Status */}
-                  {typedUserData && typedUserData.emailVerified && (
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MailCheck className="h-5 w-5" />
-                          Email Status
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-green-400" />
-                          <span className="text-sm text-green-400">Email verified</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Account Stats */}
-                  <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                      <CardTitle>Account Statistics</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <ShoppingCart className="h-4 w-4" />
-                          <span>Total Orders</span>
-                        </div>
-                        <span className="font-semibold">{typedUserData._count.orders}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <DollarSign className="h-4 w-4" />
-                          <span>Total Spent</span>
-                        </div>
-                        <span className="font-semibold">
-                          Rp {typedUserData.stats.totalSpent.toLocaleString("id-ID")}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span>Completed Orders</span>
-                        </div>
-                        <span className="font-semibold">{typedUserData.stats.completedOrders}</span>
-                      </div>
-                      <Separator className="bg-gray-700" />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <User className="h-4 w-4" />
-                          <span>OAuth Accounts</span>
-                        </div>
-                        <span className="font-semibold">{typedUserData._count.accounts}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <User className="h-4 w-4" />
-                          <span>Active Sessions</span>
-                        </div>
-                        <span className="font-semibold">{typedUserData._count.sessions}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <User className="h-4 w-4" />
-                          <span>Coupons Used</span>
-                        </div>
-                        <span className="font-semibold">{typedUserData._count.couponUsages}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Account Details */}
-                  <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                      <CardTitle>Account Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <div className="flex items-center gap-2 text-gray-400 mb-1">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-sm">Created At</span>
-                        </div>
-                        <p className="text-sm">
-                          {formatDateTime(typedUserData.createdAt)}
-                        </p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 text-gray-400 mb-1">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-sm">Last Updated</span>
-                        </div>
-                        <p className="text-sm">
-                          {formatDateTime(typedUserData.updatedAt)}
-                        </p>
-                      </div>
-                      <Separator className="bg-gray-700" />
-                      <div>
-                        <div className="flex items-center gap-2 text-gray-400 mb-1">
-                          <Mail className="h-4 w-4" />
-                          <span className="text-sm">Email Status</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {typedUserData.emailVerified ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-400" />
-                              <span className="text-sm text-green-400">Verified</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 text-yellow-400" />
-                              <span className="text-sm text-yellow-400">Not Verified</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Recent Orders */}
-                  {typedUserData.orders.length > 0 && (
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardHeader>
-                        <CardTitle>Recent Orders</CardTitle>
-                        <CardDescription>
-                          Last 5 orders
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {typedUserData.orders.map((order) => (
-                            <div
-                              key={order.id}
-                              className="p-3 rounded-lg bg-gray-800 border border-gray-700"
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <div>
-                                  <p className="font-medium text-sm">{order.orderNumber}</p>
-                                  <p className="text-xs text-gray-400">
-                                    {order.productItem.product.name} - {order.productItem.name}
-                                  </p>
-                                </div>
-                                {getStatusBadge(order.status)}
-                              </div>
-                              <div className="flex items-center justify-between mt-2">
-                                <span className="text-xs text-gray-400">
-                                  {formatDateTime(order.createdAt)}
-                                </span>
-                                <span className="text-sm font-semibold">
-                                  Rp {order.totalAmount.toLocaleString("id-ID")}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {typedUserData._count.orders > 5 && (
+                  {/* Right Column - Related Information */}
+                  <div className="space-y-6">
+                    {/* Password Reset Card */}
+                    {typedUserData && (
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <KeyRound className="h-5 w-5" />
+                            Password Reset
+                          </CardTitle>
+                          <CardDescription>
+                            Send password reset link to users&apos; email
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
                           <Button
+                            onClick={async () => {
+                              setSendingPasswordReset(true);
+                              try {
+                                const response = await fetch(`/api/admin/users/${userId}/send-password-reset`, {
+                                  method: "POST",
+                                });
+                                const data = await response.json();
+
+                                if (response.ok && data.success) {
+                                  toast.success("Password reset email sent", {
+                                    description: "The user will receive a password reset link in their email.",
+                                  });
+                                } else {
+                                  toast.error("Failed to send password reset email", {
+                                    description: data.message || "Please try again.",
+                                  });
+                                }
+                              } catch (error) {
+                                toast.error("Failed to send password reset email", {
+                                  description: "An error occurred. Please try again.",
+                                });
+                              } finally {
+                                setSendingPasswordReset(false);
+                              }
+                            }}
+                            disabled={sendingPasswordReset}
+                            className="w-full"
                             variant="outline"
-                            size="sm"
-                            className="w-full mt-4"
-                            onClick={() => router.push(`/admin/orders?userId=${userId}`)}
                           >
-                            View All Orders ({typedUserData._count.orders})
+                            {sendingPasswordReset ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <KeyRound className="mr-2 h-4 w-4" />
+                                Send Password Reset Link
+                              </>
+                            )}
                           </Button>
-                        )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            Link expires in 1 hour
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Email Verification Card */}
+                    {typedUserData && !typedUserData.emailVerified && (
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <MailCheck className="h-5 w-5" />
+                            Email Verification
+                          </CardTitle>
+                          <CardDescription>
+                            Send verification email to activate user&apos;s account
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-2 mb-4">
+                            <XCircle className="h-4 w-4 text-yellow-400" />
+                            <span className="text-sm text-yellow-400">Email not verified</span>
+                          </div>
+                          <Button
+                            onClick={async () => {
+                              setSendingVerification(true);
+                              try {
+                                const response = await fetch(`/api/admin/users/${userId}/send-verification`, {
+                                  method: "POST",
+                                });
+                                const data = await response.json();
+
+                                if (response.ok && data.success) {
+                                  toast.success("Verification email sent", {
+                                    description: "The user will receive a verification link in their email.",
+                                  });
+                                } else {
+                                  toast.error("Failed to send verification email", {
+                                    description: data.message || "Please try again.",
+                                  });
+                                }
+                              } catch (error) {
+                                toast.error("Failed to send verification email", {
+                                  description: "An error occurred. Please try again.",
+                                });
+                              } finally {
+                                setSendingVerification(false);
+                              }
+                            }}
+                            disabled={sendingVerification}
+                            className="w-full"
+                            variant="outline"
+                          >
+                            {sendingVerification ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <MailCheck className="mr-2 h-4 w-4" />
+                                Send Verification Email
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Link expires in 24 hours
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Email Verified Status */}
+                    {typedUserData && typedUserData.emailVerified && (
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <MailCheck className="h-5 w-5" />
+                            Email Status
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-400" />
+                            <span className="text-sm text-green-400">Email verified</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Account Stats */}
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle>Account Statistics</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <ShoppingCart className="h-4 w-4" />
+                            <span>Total Orders</span>
+                          </div>
+                          <span className="font-semibold">{typedUserData._count.orders}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Total Spent</span>
+                          </div>
+                          <span className="font-semibold">
+                            Rp {typedUserData.stats.totalSpent.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>Completed Orders</span>
+                          </div>
+                          <span className="font-semibold">{typedUserData.stats.completedOrders}</span>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <User className="h-4 w-4" />
+                            <span>OAuth Accounts</span>
+                          </div>
+                          <span className="font-semibold">{typedUserData._count.accounts}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <User className="h-4 w-4" />
+                            <span>Active Sessions</span>
+                          </div>
+                          <span className="font-semibold">{typedUserData._count.sessions}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <User className="h-4 w-4" />
+                            <span>Coupons Used</span>
+                          </div>
+                          <span className="font-semibold">{typedUserData._count.couponUsages}</span>
+                        </div>
                       </CardContent>
                     </Card>
-                  )}
+
+                    {/* Account Details */}
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle>Account Details</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 text-gray-400 mb-1">
+                            <Calendar className="h-4 w-4" />
+                            <span className="text-sm">Created At</span>
+                          </div>
+                          <p className="text-sm">
+                            {formatDateTime(typedUserData.createdAt)}
+                          </p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 text-gray-400 mb-1">
+                            <Calendar className="h-4 w-4" />
+                            <span className="text-sm">Last Updated</span>
+                          </div>
+                          <p className="text-sm">
+                            {formatDateTime(typedUserData.updatedAt)}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <div className="flex items-center gap-2 text-gray-400 mb-1">
+                            <Mail className="h-4 w-4" />
+                            <span className="text-sm">Email Status</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {typedUserData.emailVerified ? (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 text-green-400" />
+                                <span className="text-sm text-green-400">Verified</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-4 w-4 text-yellow-400" />
+                                <span className="text-sm text-yellow-400">Not Verified</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Recent Orders */}
+                    {typedUserData.orders.length > 0 && (
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardHeader>
+                          <CardTitle>Recent Orders</CardTitle>
+                          <CardDescription>
+                            Last 5 orders
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {typedUserData.orders.map((order) => (
+                              <div
+                                key={order.id}
+                                className="p-3 rounded-lg bg-gray-800 border border-gray-700"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div>
+                                    <p className="font-medium text-sm">{order.orderNumber}</p>
+                                    <p className="text-xs text-gray-400">
+                                      {order.productItem.product.name} - {order.productItem.name}
+                                    </p>
+                                  </div>
+                                  {getStatusBadge(order.status)}
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs text-gray-400">
+                                    {formatDateTime(order.createdAt)}
+                                  </span>
+                                  <span className="text-sm font-semibold">
+                                    Rp {order.totalAmount.toLocaleString("id-ID")}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {typedUserData._count.orders > 5 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full mt-4"
+                              onClick={() => router.push(`/admin/orders?userId=${userId}`)}
+                            >
+                              View All Orders ({typedUserData._count.orders})
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       </SidebarInset>
     </SidebarProvider>

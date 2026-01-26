@@ -1,5 +1,7 @@
 import { env } from "@/env";
 import crypto from "crypto";
+import { logApiCall } from "./api-logger";
+import { ApiProvider, ApiLogStatus } from "@prisma/client";
 
 /**
  * Midtrans payment integration utilities
@@ -44,6 +46,7 @@ export async function createSnapTransaction(params: {
   customField2?: string; // User ID
 }): Promise<{ token: string; redirectUrl: string }> {
   const url = `${MIDTRANS_SNAP_URL}/snap/v1/transactions`;
+  const startTime = Date.now();
 
   const payload = {
     transaction_details: {
@@ -70,6 +73,7 @@ export async function createSnapTransaction(params: {
     },
     body: JSON.stringify(payload),
   });
+  const responseTime = Date.now() - startTime;
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Failed to create transaction" }));
@@ -79,10 +83,37 @@ export async function createSnapTransaction(params: {
       error,
       url,
     });
+
+    // Log failed API call
+    await logApiCall({
+      provider: ApiProvider.MIDTRANS,
+      endpoint: "/snap/v1/transactions",
+      method: "POST",
+      requestData: { orderId: params.orderId, grossAmount: params.grossAmount },
+      status: ApiLogStatus.FAILED,
+      statusCode: response.status,
+      errorMessage: error.message || `Midtrans API error: ${response.status}`,
+      responseTime,
+      refId: params.orderId,
+    });
+
     throw new Error(error.message || `Midtrans API error: ${response.status}`);
   }
 
   const data = await response.json();
+
+  // Log successful API call
+  await logApiCall({
+    provider: ApiProvider.MIDTRANS,
+    endpoint: "/snap/v1/transactions",
+    method: "POST",
+    requestData: { orderId: params.orderId, grossAmount: params.grossAmount },
+    status: ApiLogStatus.SUCCESS,
+    statusCode: 200,
+    responseData: { hasToken: !!data.token },
+    responseTime,
+    refId: params.orderId,
+  });
 
   return {
     token: data.token,
@@ -116,6 +147,7 @@ export async function createCoreTransaction(params: {
   customField2?: string;
 }): Promise<any> {
   const url = `${MIDTRANS_BASE_URL}/v2/charge`;
+  const startTime = Date.now();
 
   console.log("=== MIDTRANS REQUEST ===", {
     url,
@@ -165,13 +197,43 @@ export async function createCoreTransaction(params: {
     statusText: response.statusText,
     ok: response.ok,
   });
+  const responseTime = Date.now() - startTime;
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Failed to create transaction" }));
+
+    // Log failed API call
+    await logApiCall({
+      provider: ApiProvider.MIDTRANS,
+      endpoint: "/v2/charge",
+      method: "POST",
+      requestData: { orderId: params.orderId, grossAmount: params.grossAmount, paymentType: params.paymentType },
+      status: ApiLogStatus.FAILED,
+      statusCode: response.status,
+      errorMessage: error.message || `Midtrans API error: ${response.status}`,
+      responseTime,
+      refId: params.orderId,
+    });
+
     throw new Error(error.message || `Midtrans API error: ${response.status}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+
+  // Log successful API call
+  await logApiCall({
+    provider: ApiProvider.MIDTRANS,
+    endpoint: "/v2/charge",
+    method: "POST",
+    requestData: { orderId: params.orderId, grossAmount: params.grossAmount, paymentType: params.paymentType },
+    status: ApiLogStatus.SUCCESS,
+    statusCode: 200,
+    responseData: { transactionId: data.transaction_id, transactionStatus: data.transaction_status },
+    responseTime,
+    refId: params.orderId,
+  });
+
+  return data;
 }
 
 /**
@@ -179,6 +241,7 @@ export async function createCoreTransaction(params: {
  */
 export async function getTransactionStatus(orderId: string): Promise<any> {
   const url = `${MIDTRANS_BASE_URL}/v2/${orderId}/status`;
+  const startTime = Date.now();
 
   const response = await fetch(url, {
     method: "GET",
@@ -187,13 +250,43 @@ export async function getTransactionStatus(orderId: string): Promise<any> {
       Authorization: `Basic ${Buffer.from(env.MIDTRANS_SERVER_KEY + ":").toString("base64")}`,
     },
   });
+  const responseTime = Date.now() - startTime;
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Failed to get transaction status" }));
+
+    // Log failed API call
+    await logApiCall({
+      provider: ApiProvider.MIDTRANS,
+      endpoint: `/v2/${orderId}/status`,
+      method: "GET",
+      requestData: { orderId },
+      status: ApiLogStatus.FAILED,
+      statusCode: response.status,
+      errorMessage: error.message || `Midtrans API error: ${response.status}`,
+      responseTime,
+      refId: orderId,
+    });
+
     throw new Error(error.message || `Midtrans API error: ${response.status}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+
+  // Log successful API call
+  await logApiCall({
+    provider: ApiProvider.MIDTRANS,
+    endpoint: `/v2/${orderId}/status`,
+    method: "GET",
+    requestData: { orderId },
+    status: ApiLogStatus.SUCCESS,
+    statusCode: 200,
+    responseData: { transactionStatus: data.transaction_status },
+    responseTime,
+    refId: orderId,
+  });
+
+  return data;
 }
 
 /**

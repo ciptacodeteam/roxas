@@ -48,7 +48,7 @@ export default function MarketingBannerAddPage() {
       toast.success("Marketing banner created successfully");
       setTimeout(() => {
         router.push("/admin/marketing-banners");
-      }, 500);
+      }, 100);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to create marketing banner");

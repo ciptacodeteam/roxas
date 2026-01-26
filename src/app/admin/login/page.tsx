@@ -98,20 +98,25 @@ export default function AdminLoginPage() {
     });
 
     try {
+      console.log('🔐 Attempting login for:', data.email);
       const result = await signIn.email({
         email: data.email,
         password: data.password,
       });
 
+      console.log('📊 Login result:', result);
+
       // Dismiss loading toast
       toast.dismiss(loadingToast);
 
       if (result.error) {
+        console.error('❌ Login error:', result.error);
         setError("Invalid email or password");
         toast.error("Login Failed", {
           description: result.error.message || "Invalid email or password. Please try again.",
         });
       } else {
+        console.log('✅ Login successful');
         // Success! Show toast and redirect immediately
         toast.success("Login Successful", {
           description: "Redirecting to admin dashboard...",

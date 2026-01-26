@@ -5,10 +5,8 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { useAdminDashboard } from "@/lib/queries"
 import { Loader2 } from "lucide-react"
 
-import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -20,19 +18,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
 
-export const description = "An interactive area chart"
+export const description = "Monthly sales revenue chart"
 
 const chartConfig = {
   revenue: {
@@ -42,26 +29,20 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function ChartAreaInteractive() {
-  const isMobile = useIsMobile()
-  const [timeRange, setTimeRange] = React.useState("30d")
   const { data: dashboardData, isLoading } = useAdminDashboard()
   const salesData = dashboardData?.data?.salesData || []
 
-  React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange("7d")
-    }
-  }, [isMobile])
+  // Get current month name for display
+  const currentMonthName = new Date().toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  const filteredData = React.useMemo(() => {
+  const chartData = React.useMemo(() => {
     if (!salesData.length) return []
-    
-    const daysToShow = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90
-    return salesData.slice(-daysToShow).map((item: any) => ({
+
+    return salesData.map((item: any) => ({
       date: item.date,
       revenue: item.revenue,
     }))
-  }, [salesData, timeRange])
+  }, [salesData])
 
   if (isLoading) {
     return (
@@ -76,54 +57,21 @@ export function ChartAreaInteractive() {
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Sales Revenue</CardTitle>
+        <CardTitle>Monthly Sales Revenue</CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
-            Revenue from completed orders
+            Revenue from completed orders in {currentMonthName}
           </span>
-          <span className="@[540px]/card:hidden">Revenue overview</span>
+          <span className="@[540px]/card:hidden">{currentMonthName}</span>
         </CardDescription>
-        <CardAction>
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
-            variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
-          >
-            <ToggleGroupItem value="90d">Last 3 months</ToggleGroupItem>
-            <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
-            <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
-          </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
-              size="sm"
-              aria-label="Select a value"
-            >
-              <SelectValue placeholder="Last 30 days" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                Last 3 months
-              </SelectItem>
-              <SelectItem value="30d" className="rounded-lg">
-                Last 30 days
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                Last 7 days
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </CardAction>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        {filteredData.length > 0 ? (
+        {chartData.length > 0 ? (
           <ChartContainer
             config={chartConfig}
             className="aspect-auto h-[250px] w-full"
           >
-            <AreaChart data={filteredData}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop
