@@ -7,3 +7,7 @@ tunnels:
     proto: http
     addr: app:3000
     inspect: true
+    schemes:
+      - https
+      - http
+    host_header: rewrite

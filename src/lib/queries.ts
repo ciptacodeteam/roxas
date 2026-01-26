@@ -429,10 +429,23 @@ export function useUpdateProfile(
         body: JSON.stringify(data),
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.profile.current() });
-    },
     ...options,
+    onSuccess: async (data, variables, context) => {
+      // Invalidate and refetch the profile data
+      await queryClient.invalidateQueries({ queryKey: queryKeys.profile.current() });
+      await queryClient.refetchQueries({ queryKey: queryKeys.profile.current(), exact: true });
+      
+      // Call the original onSuccess if provided
+      if (options?.onSuccess) {
+        await Promise.resolve(options.onSuccess(data, variables, context, undefined as any));
+      }
+    },
+    onError: (error, variables, context) => {
+      // Call the original onError if provided
+      if (options?.onError) {
+        options.onError(error, variables, context, undefined as any);
+      }
+    },
   });
 }
 

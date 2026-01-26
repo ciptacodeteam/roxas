@@ -25,6 +25,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProfileSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").max(100, "Nama terlalu panjang"),
@@ -88,12 +89,11 @@ export default function ProfileContent() {
   }, [profileData, session]);
 
   const updateProfileMutation = useUpdateProfile({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      setIsEditing(false);
       toast.success("Profil Diperbarui", {
         description: "Perubahan profil Anda berhasil disimpan!",
       });
-      setIsEditing(false);
-      // Profile will be automatically refetched via query invalidation
     },
     onError: (error) => {
       toast.error("Gagal Memperbarui", {
@@ -179,14 +179,19 @@ export default function ProfileContent() {
 
   // Set form values when profile data changes
   useEffect(() => {
-    if (userData) {
+    if (userData && !isEditing) {
       setValue("name", userData.name || "");
       setValue("phone", userData.phone || "");
     }
-  }, [userData, setValue]);
+  }, [userData, setValue, isEditing]);
 
-  const onSubmit = (data: ProfileFormData) => {
-    updateProfileMutation.mutate(data);
+  const onSubmit = async (data: ProfileFormData) => {
+    try {
+      await updateProfileMutation.mutateAsync(data);
+    } catch (error) {
+      // Error is already handled by the mutation's onError callback
+      console.error('Profile update error:', error);
+    }
   };
 
   const onPasswordSubmit = async (data: ChangePasswordFormData) => {
@@ -231,15 +236,46 @@ export default function ProfileContent() {
   // Show loading only after mount to avoid hydration mismatch
   if (!isMounted || isPending) {
     return (
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl pb-12 pt-42">
         <div className="bg-card rounded-lg p-8">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
+            {/* Avatar Skeleton */}
             <div className="flex flex-col items-center">
-              <div className="h-32 w-32 rounded-full bg-gray-700 animate-pulse" />
+              <Skeleton className="h-32 w-32 rounded-full" />
+              <div className="mt-4 text-center">
+                <Skeleton className="h-6 w-32 rounded mb-2" />
+                <Skeleton className="h-4 w-40 rounded" />
+              </div>
             </div>
-            <div className="flex-1 space-y-4">
-              <div className="h-8 bg-gray-700 rounded animate-pulse w-1/2" />
-              <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
+
+            {/* Profile Info Skeleton */}
+            <div className="flex-1 space-y-6">
+              <Card className="bg-gray-800/50 border-gray-700 p-6">
+                <Skeleton className="h-7 w-48 rounded mb-4" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-20 rounded mb-2" />
+                      <Skeleton className="h-5 w-40 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-20 rounded mb-2" />
+                      <Skeleton className="h-5 w-48 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-20 rounded mb-2" />
+                      <Skeleton className="h-5 w-32 rounded" />
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
           </div>
         </div>
@@ -258,9 +294,11 @@ export default function ProfileContent() {
   }
 
   const user = session.user;
-  const displayName = userData?.name || user.name || "User";
-  const displayPhone = userData?.phone || "Tidak diisi";
-  const displayImage = userData?.image || user.image || undefined;
+  
+  // Memoize display values to prevent unnecessary re-renders
+  const displayName = useMemo(() => userData?.name || user.name || "User", [userData?.name, user.name]);
+  const displayPhone = useMemo(() => userData?.phone || "Tidak diisi", [userData?.phone]);
+  const displayImage = useMemo(() => userData?.image || user.image || undefined, [userData?.image, user.image]);
 
   return (
     <div className="mx-auto max-w-7xl pb-12 pt-42">
@@ -341,123 +379,180 @@ export default function ProfileContent() {
 
           {/* Profile Information */}
           <div className="flex-1 space-y-4">
-            <Card className="bg-gray-800/50 border-gray-700 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-white">
-                  Informasi Profil
-                </h4>
-                {!isEditing && (
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="text-white hover:text-white hover:bg-gray-700"
-                  >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                )}
-              </div>
+            {profileLoading ? (
+              <>
+                <Card className="bg-gray-800/50 border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton className="h-7 w-48 rounded" />
+                    <Skeleton className="h-9 w-20 rounded" />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-12 rounded mb-2" />
+                        <Skeleton className="h-5 w-40 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-12 rounded mb-2" />
+                        <Skeleton className="h-5 w-48 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-20 rounded mb-2" />
+                        <Skeleton className="h-5 w-32 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
 
-              {isEditing ? (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  {/* Name Field */}
-                  <div>
-                    <Label htmlFor="name" className="text-sm text-gray-400 mb-2 block">
-                      Nama Lengkap
-                    </Label>
-                    <Input
-                      id="name"
-                      {...register("name")}
-                      className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
-                      placeholder="Masukkan nama lengkap"
-                    />
-                    {errors.name && (
-                      <p className="text-xs text-red-400 mt-1">
-                        {errors.name.message}
-                      </p>
+                <Card className="bg-gray-800/50 border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <Skeleton className="h-7 w-32 rounded" />
+                    <Skeleton className="h-9 w-32 rounded" />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <Skeleton className="h-5 w-40 rounded mb-2" />
+                        <Skeleton className="h-4 w-48 rounded" />
+                      </div>
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <Skeleton className="h-5 w-32 rounded mb-2" />
+                        <Skeleton className="h-4 w-56 rounded" />
+                      </div>
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                    </div>
+                  </div>
+                </Card>
+              </>
+            ) : (
+              <>
+                <Card className="bg-gray-800/50 border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-white">
+                      Informasi Profil
+                    </h4>
+                    {!isEditing && (
+                      <Button
+                        onClick={() => setIsEditing(true)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:text-white hover:bg-gray-700"
+                      >
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
                     )}
                   </div>
 
-                  {/* Phone Field */}
-                  <div>
-                    <Label className="text-sm text-gray-400 mb-2 block">
-                      Nomor Telepon
-                    </Label>
-                    <CountryPhoneInput
-                      value={phoneValue || ""}
-                      onChange={(val) => setValue("phone", val)}
-                    />
-                    {errors.phone && (
-                      <p className="text-xs text-red-400 mt-1">
-                        {errors.phone.message}
-                      </p>
-                    )}
-                  </div>
+                  {isEditing ? (
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                      {/* Name Field */}
+                      <div>
+                        <Label htmlFor="name" className="text-sm text-gray-400 mb-2 block">
+                          Nama Lengkap
+                        </Label>
+                        <Input
+                          id="name"
+                          {...register("name")}
+                          className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                          placeholder="Masukkan nama lengkap"
+                        />
+                        {errors.name && (
+                          <p className="text-xs text-red-400 mt-1">
+                            {errors.name.message}
+                          </p>
+                        )}
+                      </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {isLoading ? "Menyimpan..." : "Simpan"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditing(false);
-                        // Reset form to original values
-                        setValue("name", userData?.name || "");
-                        setValue("phone", userData?.phone || "");
-                      }}
-                      className="border-gray-600 text-white hover:bg-gray-700"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Batal
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gray-700/50 p-2 rounded-lg">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Nama</p>
-                      <p className="text-white font-medium">{displayName}</p>
-                    </div>
-                  </div>
+                      {/* Phone Field */}
+                      <div>
+                        <Label className="text-sm text-gray-400 mb-2 block">
+                          Nomor Telepon
+                        </Label>
+                        <CountryPhoneInput
+                          value={phoneValue || ""}
+                          onChange={(val) => setValue("phone", val)}
+                        />
+                        {errors.phone && (
+                          <p className="text-xs text-red-400 mt-1">
+                            {errors.phone.message}
+                          </p>
+                        )}
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gray-700/50 p-2 rounded-lg">
-                      <Mail className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Email</p>
-                      <p className="text-white font-medium">{user.email}</p>
-                    </div>
-                  </div>
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 pt-4">
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {isLoading ? "Menyimpan..." : "Simpan"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditing(false);
+                            // Reset form to original values
+                            setValue("name", userData?.name || "");
+                            setValue("phone", userData?.phone || "");
+                          }}
+                          className="border-gray-600 text-white hover:bg-gray-700"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Batal
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-700/50 p-2 rounded-lg">
+                          <User className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Nama</p>
+                          <p className="text-white font-medium">{displayName}</p>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gray-700/50 p-2 rounded-lg">
-                      <Phone className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Nomor Telepon</p>
-                      <p className="text-white font-medium">{displayPhone}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Card>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-700/50 p-2 rounded-lg">
+                          <Mail className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Email</p>
+                          <p className="text-white font-medium">{user.email}</p>
+                        </div>
+                      </div>
 
-            {/* Account Security */}
-            <Card className="bg-gray-800/50 border-gray-700 p-6">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-700/50 p-2 rounded-lg">
+                          <Phone className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Nomor Telepon</p>
+                          <p className="text-white font-medium">{displayPhone}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+
+                {/* Account Security */}
+                <Card className="bg-gray-800/50 border-gray-700 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold text-white">
                   Keamanan Akun
@@ -682,6 +777,8 @@ export default function ProfileContent() {
                 )}
               </div>
             </Card>
+              </>
+            )}
           </div>
         </div>
       </div>

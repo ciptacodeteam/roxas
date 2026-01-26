@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import ProductDetailClient from "./ProductDetailClient";
 import { db } from "@/server/db";
-import { ensurePricesSynced } from "@/lib/ensure-prices-synced";
 
 export default async function ProductDetailPage({
   params,
@@ -9,9 +8,6 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-
-  // Ensure prices are synced before fetching
-  await ensurePricesSynced();
 
   // Try to find product by slug, with fallback to alternative slug formats
   // Database might have "mobile-legends-games" but URL might be "mobile-legends-bang-bang"

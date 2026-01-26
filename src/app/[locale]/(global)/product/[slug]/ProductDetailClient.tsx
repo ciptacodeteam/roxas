@@ -175,6 +175,7 @@ export default function ProductDetailClient({
   const [verifiedAccount, setVerifiedAccount] = useState<{
     userId: string;
     serverId: string;
+    username?: string;
   } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -452,6 +453,7 @@ export default function ProductDetailClient({
         setVerifiedAccount({
           userId: userId.trim(),
           serverId: serverOrZoneId.trim(),
+          username: data.data?.username || undefined,
         });
         setVerificationError(null);
       } else {
@@ -762,10 +764,19 @@ export default function ProductDetailClient({
                       </p>
                     )}
                     {isVerified && verifiedAccount && (
-                      <p className="mt-2 text-sm text-green-400">
-                        ✓ User ID: {verifiedAccount.userId} | Server:{" "}
-                        {verifiedAccount.serverId}
-                      </p>
+                      <div className="mt-2 rounded-lg bg-green-500/10 border border-green-500/30 p-3">
+                        <p className="text-sm text-green-400 font-medium">
+                          ✓ Akun Terverifikasi
+                        </p>
+                        {verifiedAccount.username && (
+                          <p className="text-sm text-green-300 mt-1">
+                            Nama: {verifiedAccount.username}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          User ID: {verifiedAccount.userId} | Server: {verifiedAccount.serverId}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}

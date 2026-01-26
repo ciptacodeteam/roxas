@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
       recentAuditLogs,
       pendingOrdersNeedingAttention,
       newOrdersLast24h,
-      recentApiLogs,
     ] = await Promise.all([
       // Total Revenue (from completed orders)
       db.order.aggregate({
@@ -175,15 +174,21 @@ export async function GET(request: NextRequest) {
       db.order.count({
         where: { createdAt: { gte: last24Hours } },
       }),
-      // Recent API logs (last 24 hours)
-      db.apiLog.findMany({
+    ]);
+
+    // Recent API logs (last 24 hours) - separate query to handle potential errors
+    let recentApiLogs: any[] = [];
+    try {
+      recentApiLogs = await db.apiLog.findMany({
         take: 30,
         orderBy: { createdAt: "desc" },
         where: {
           createdAt: { gte: last24Hours },
         },
-      }),
-    ]);
+      });
+    } catch (apiLogError) {
+      console.warn("Failed to fetch API logs (might need Prisma regeneration):", apiLogError);
+    }
 
     // Sales data for the current month (for chart) - optimized with a single query
     const salesDataRaw = await db.order.groupBy({

@@ -6,6 +6,16 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone", // For Docker production builds
+  // Disable HMR websocket when using ngrok to prevent connection errors
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: /node_modules/,
+      };
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {
