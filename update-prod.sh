@@ -9,7 +9,9 @@
 set -e
 
 # Configuration
-APP_DIR="/var/www/roxas"
+# Use current directory as APP_DIR (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
 
 # Colors
 GREEN='\033[0;32m'
@@ -31,8 +33,8 @@ log_step() {
 
 # Check if in app directory
 if [ ! -f "docker-compose.prod.yml" ]; then
-    log_warn "Not in app directory. Changing to $APP_DIR..."
-    cd $APP_DIR
+    log_warn "docker-compose.prod.yml not found in current directory. Changing to $APP_DIR..."
+    cd "$APP_DIR"
 fi
 
 log_step "Starting code update process..."

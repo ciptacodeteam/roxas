@@ -17,7 +17,9 @@ set -e
 # Configuration - UPDATE THESE VALUES
 DOMAIN="${DOMAIN:-yourdomain.com}"
 EMAIL="${EMAIL:-your-email@example.com}"
-APP_DIR="/var/www/roxas"
+# Use current directory as APP_DIR (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
 
 # Colors for output
 RED='\033[0;31m'

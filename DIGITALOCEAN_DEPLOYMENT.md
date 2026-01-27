@@ -74,22 +74,25 @@ This will:
 
 **Option A: Clone from GitHub (Recommended)**
 ```bash
-cd /var/www
+# Clone to home directory (or any preferred location)
+cd ~
 git clone https://github.com/yourusername/roxas.git
 cd roxas
 ```
 
 **Option B: Upload via SCP**
 ```bash
-# On your local machine
-scp -r /path/to/roxas root@YOUR_DROPLET_IP:/var/www/
+# On your local machine - upload to home directory
+scp -r /path/to/roxas root@YOUR_DROPLET_IP:~/
 ```
+
+> **Note:** All commands in this guide assume you're running them from the project root directory (`~/roxas` or wherever you cloned it).
 
 ### Step 5: Configure Environment Variables
 
 **Create production environment file:**
 ```bash
-cd /var/www/roxas
+# From project root directory
 nano .env.production
 ```
 
@@ -139,7 +142,7 @@ openssl rand -base64 24
 
 **Run full deployment:**
 ```bash
-cd /var/www/roxas
+# From project root directory
 chmod +x deploy-prod.sh update-prod.sh
 
 # Deploy (builds images, starts services, runs migrations)
@@ -203,9 +206,7 @@ Visit `https://yourdomain.com/admin/login` and register first admin account.
 When you only changed code files (no dependencies, no schema changes):
 
 ```bash
-cd /var/www/roxas
-
-# Pull latest code
+# From project root directory
 git pull origin main
 
 # Quick update (no rebuild)
@@ -224,7 +225,7 @@ This script:
 When you changed dependencies, Dockerfiles, or need clean slate:
 
 ```bash
-cd /var/www/roxas
+# From project root directory
 git pull origin main
 
 # Full deployment
@@ -282,15 +283,15 @@ docker stats  # Resource usage
 ./deploy-prod.sh backup
 ```
 
-Backups stored in `/var/www/roxas/backups/` (automatically keeps last 7)
+Backups stored in `./backups/` directory (automatically keeps last 7)
 
 **Automatic backups (setup cron):**
 ```bash
 # Edit crontab
 crontab -e
 
-# Add daily backup at 2 AM
-0 2 * * * cd /var/www/roxas && ./deploy-prod.sh backup
+# Add daily backup at 2 AM (replace ~/roxas with your project path)
+0 2 * * * cd ~/roxas && ./deploy-prod.sh backup
 ```
 
 **Restore from backup:**
@@ -426,6 +427,8 @@ docker system df
 ## 🎯 Quick Reference
 
 ```bash
+# All commands run from project root directory (e.g., ~/roxas)
+
 # Initial deployment
 sudo ./deploy-prod.sh init
 sudo DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com ./deploy-prod.sh deploy
