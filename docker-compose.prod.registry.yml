@@ -1,24 +1,27 @@
-version: '3.8'
+# Production Docker Compose - Uses Pre-built Images
+# Images are built by GitHub Actions and pushed to ghcr.io
+# This file pulls images instead of building (fast deployment!)
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/${GITHUB_REPO:-yourusername/roxas}/app:main
     container_name: roxas-app-prod
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=${AUTH_URL}
       - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
       - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
+      - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
       - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY}
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
-      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-false}
+      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-true}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
       - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
@@ -33,53 +36,32 @@ services:
     networks:
       - roxas-network
     volumes:
-      - ./prisma:/app/prisma
       - uploads:/var/www/uploads
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Scheduler worker for background jobs (price sync, etc)
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.scheduler
+    image: ghcr.io/${GITHUB_REPO:-yourusername/roxas}/scheduler:main
     container_name: roxas-scheduler-prod
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
       - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
+      - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
     depends_on:
       db:
         condition: service_healthy
     networks:
       - roxas-network
-    volumes:
-      - ./prisma:/app/prisma
 
-  # Redis for email queue and caching
-  redis:
-    image: redis:7-alpine
-    container_name: roxas-redis-prod
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - roxas-network
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
-
-  # Email worker for processing email queue
   email-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.email-worker
+    image: ghcr.io/${GITHUB_REPO:-yourusername/roxas}/email-worker:main
     container_name: roxas-email-worker-prod
     restart: unless-stopped
     environment:
@@ -90,7 +72,6 @@ services:
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
       - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
       - MAILGUN_REGION=${MAILGUN_REGION:-eu}
-      - EMAIL_WORKER_CONCURRENCY=${EMAIL_WORKER_CONCURRENCY:-5}
     depends_on:
       redis:
         condition: service_healthy
@@ -98,12 +79,6 @@ services:
         condition: service_healthy
     networks:
       - roxas-network
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
 
   db:
     image: postgres:15-alpine
@@ -113,10 +88,8 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-roxas}
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
       interval: 10s
@@ -125,7 +98,21 @@ services:
     networks:
       - roxas-network
 
-  # Nginx reverse proxy with SSL
+  redis:
+    image: redis:7-alpine
+    container_name: roxas-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - roxas-network
+
   nginx:
     image: nginx:alpine
     container_name: roxas-nginx-prod
@@ -142,13 +129,10 @@ services:
       - app
     networks:
       - roxas-network
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
 
-  # Certbot for SSL certificates
   certbot:
     image: certbot/certbot
     container_name: roxas-certbot-prod
-    restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
@@ -159,9 +143,9 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  postgres-data:
     driver: local
-  redis_data:
+  redis-data:
     driver: local
   uploads:
     driver: local

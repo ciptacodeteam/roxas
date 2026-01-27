@@ -25,7 +25,7 @@ export const env = createEnv({
     MIDTRANS_SERVER_KEY: z.string().min(1),
     MIDTRANS_CLIENT_KEY: z.string().min(1),
     MIDTRANS_IS_PRODUCTION: z.string().default("false"),
-    BLOB_READ_WRITE_TOKEN: z.string().min(1),
+    // BLOB_READ_WRITE_TOKEN: z.string().min(1), // Removed - using local file storage
   },
 
   /**
@@ -58,7 +58,7 @@ export const env = createEnv({
     MIDTRANS_SERVER_KEY: process.env.MIDTRANS_SERVER_KEY,
     MIDTRANS_CLIENT_KEY: process.env.MIDTRANS_CLIENT_KEY,
     MIDTRANS_IS_PRODUCTION: process.env.MIDTRANS_IS_PRODUCTION,
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    // BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN, // Removed - using local file storage
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

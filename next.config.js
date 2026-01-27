@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone", // For Docker production builds
-  // Disable HMR websocket when using ngrok to prevent connection errors
+  
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
       config.watchOptions = {
@@ -20,7 +20,8 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.public.blob.vercel-storage.com",
+        // hostname: "*.public.blob.vercel-storage.com", // Removed - using local storage
+        hostname: "localhost",
       },
       {
         protocol: 'https',

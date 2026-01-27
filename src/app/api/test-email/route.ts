@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { sendEmail } from "@/lib/mailgun";
+import { queueEmail, EmailPriority } from "@/lib/email-queue";
 import { env } from "@/env";
 
 /**
- * Test endpoint to verify Mailgun configuration
+ * Test endpoint to verify email queue and Mailgun configuration
  * Only works in development mode
  */
 export async function POST(request: NextRequest) {
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
       <html>
         <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #13171C; color: #ffffff;">
           <h1 style="color: #ff6b6b;">Test Email from Roxas Store</h1>
-          <p>This is a test email to verify Mailgun configuration.</p>
-          <p>If you received this, Mailgun is working correctly!</p>
+          <p>This is a test email to verify email queue and Mailgun configuration.</p>
+          <p>If you received this, the email worker and Mailgun are working correctly!</p>
           <p style="color: #a0a0a0; font-size: 12px; margin-top: 30px;">
             Sent at: ${new Date().toISOString()}
           </p>
@@ -48,17 +48,18 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    const result = await sendEmail({
+    const jobId = await queueEmail({
       to,
       subject: "Test Email - Roxas Store",
       html: testEmailHtml,
+      priority: EmailPriority.HIGH, // High priority for tests
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Test email sent successfully",
-        messageId: result.messageId,
+        message: "Test email queued successfully",
+        jobId,
         config: {
           domain: env.MAILGUN_DOMAIN,
           from: env.MAILGUN_FROM_EMAIL,

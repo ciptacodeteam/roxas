@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
-import { sendEmail } from "@/lib/mailgun";
+import { queuePasswordResetEmail } from "@/lib/email-queue";
 import { getPasswordResetEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/env";
 import crypto from "crypto";
@@ -68,20 +68,19 @@ export async function POST(
     const baseUrl = env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
 
-    // Send reset email
+    // Queue reset email
     try {
-      await sendEmail({
-        to: user.email,
-        subject: "Reset Kata Sandi - Roxas Store",
-        html: getPasswordResetEmailTemplate(user.name, user.email, resetUrl),
-      });
+      await queuePasswordResetEmail(
+        user.email,
+        getPasswordResetEmailTemplate(user.name, user.email, resetUrl)
+      );
 
       return NextResponse.json({
         success: true,
         message: "Password reset email sent successfully",
       });
     } catch (emailError) {
-      console.error("Failed to send password reset email:", emailError);
+      console.error("Failed to queue password reset email:", emailError);
       return NextResponse.json(
         {
           success: false,

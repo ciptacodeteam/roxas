@@ -1,12 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { put } from "@vercel/blob";
-import { env } from "@/env";
+import { uploadFile } from "@/lib/file-storage";
 import { compressToWebP } from "@/lib/image-compression";
 
 /**
  * POST /api/admin/upload
- * Upload image file to Vercel Blob storage with WebP compression
+ * Upload image file to local storage with WebP compression
  */
 export async function POST(request: NextRequest) {
   try {
@@ -75,17 +74,16 @@ export async function POST(request: NextRequest) {
     const url = new URL(request.url);
     const type = url.searchParams.get("type") || "products";
 
-    // Upload to Vercel Blob
-    const blob = await put(`${type}/${filename}`, compressedBuffer, {
-      access: "public",
-      token: env.BLOB_READ_WRITE_TOKEN,
+    // Upload to local storage
+    const result = await uploadFile(compressedBuffer, filename, {
+      subDir: type,
       contentType: "image/webp",
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        url: blob.url,
+        url: result.url,
         filename: filename,
         size: compressedBuffer.length,
       },

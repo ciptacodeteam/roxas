@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { auth } from "@/auth";
 import { UserRole } from "@prisma/client";
-import { sendEmail } from "@/lib/mailgun";
+import { queueWelcomeEmail } from "@/lib/email-queue";
 import { getWelcomeEmailTemplate } from "@/lib/email-templates";
 import { headers } from "next/headers";
 
@@ -73,23 +73,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send welcome email (don't wait for it to complete)
+    // Queue welcome email (async, non-blocking)
     const baseUrl = process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    sendEmail({
-      to: user.email,
-      subject: "Selamat Datang di Roxas Store! 🎮",
-      html: getWelcomeEmailTemplate(user.name, user.email, baseUrl),
-    })
-      .then((result) => {
-        console.log("Welcome email sent successfully:", result);
+    queueWelcomeEmail(
+      user.email,
+      getWelcomeEmailTemplate(user.name, user.email, baseUrl)
+    )
+      .then((jobId) => {
+        console.log("Welcome email queued successfully:", { jobId, email: user.email });
       })
       .catch((error) => {
-        console.error("Failed to send welcome email:", {
+        console.error("Failed to queue welcome email:", {
           error: error?.message || error,
-          stack: error?.stack,
           userEmail: user.email,
         });
-        // Don't fail registration if email fails
+        // Don't fail registration if email queueing fails
       });
 
     return NextResponse.json(

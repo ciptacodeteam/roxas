@@ -14,6 +14,11 @@ dist/
 .next/
 out/
 build/
+.cache/
+.turbo/
+
+# Uploads (mounted as volume)
+public/uploads/
 
 # Environment files (will be mounted or set via env_file)
 .env

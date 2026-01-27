@@ -1,0 +1,21 @@
+# Uploads Directory
+
+This directory stores user-uploaded files (images, documents, etc.)
+
+## Structure
+
+- `products/` - Product images
+- `banners/` - Marketing banner images
+- `categories/` - Category images
+- `general/` - Other uploaded files
+
+## Important Notes
+
+- Files are automatically organized by type
+- Filenames include timestamps to prevent collisions
+- Images are automatically compressed to WebP format
+- This directory is ignored by git (see .gitignore)
+
+## Production
+
+In production (Docker), files are stored in `/var/www/uploads` and served by nginx with caching headers.

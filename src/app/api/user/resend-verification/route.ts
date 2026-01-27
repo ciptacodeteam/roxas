@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { getServerAuthSession } from "@/auth";
-import { sendEmail } from "@/lib/mailgun";
+import { queueVerificationEmail } from "@/lib/email-queue";
 import { getVerificationEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/env";
 import crypto from "crypto";
@@ -66,16 +66,15 @@ export async function POST(request: NextRequest) {
     const baseUrl = env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const verificationUrl = `${baseUrl}/api/user/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
 
-    // Send verification email
+    // Queue verification email
     try {
-      console.log("Sending verification email to:", user.email);
-      const emailResult = await sendEmail({
-        to: user.email,
-        subject: "Verifikasi Email Anda - Roxas Store",
-        html: getVerificationEmailTemplate(user.name, user.email, verificationUrl),
-      });
+      console.log("Queueing verification email to:", user.email);
+      const jobId = await queueVerificationEmail(
+        user.email,
+        getVerificationEmailTemplate(user.name, user.email, verificationUrl)
+      );
 
-      console.log("Verification email sent successfully:", emailResult);
+      console.log("Verification email queued successfully:", { jobId, email: user.email });
 
       return NextResponse.json(
         {
@@ -85,18 +84,14 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     } catch (emailError: any) {
-      console.error("Failed to send verification email:", {
+      console.error("Failed to queue verification email:", {
         error: emailError?.message || emailError,
-        status: emailError?.status,
-        statusCode: emailError?.statusCode,
-        details: emailError?.details,
         stack: emailError?.stack,
       });
       return NextResponse.json(
-        { 
-          success: false, 
-          message: emailError?.message || "Failed to send verification email. Please try again later.",
-          error: process.env.NODE_ENV === "development" ? emailError?.details : undefined,
+        {
+          success: false,
+          message: "Failed to send verification email. Please try again later.",
         },
         { status: 500 }
       );

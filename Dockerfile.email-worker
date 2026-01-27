@@ -1,0 +1,23 @@
+# Minimal Email Worker Dockerfile
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy only needed files
+COPY package.json bun.lock* tsconfig.json ./
+COPY prisma ./prisma
+
+# Install deps (skip postinstall, run prisma generate manually)
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
+# Copy worker and required libs
+COPY worker ./worker
+COPY src/lib/mailgun.ts src/lib/email-templates.ts src/lib/api-logger.ts ./src/lib/
+COPY src/env.js ./src/
+COPY src/server ./src/server
+
+# Generate Prisma Client
+RUN bunx prisma generate
+
+CMD ["bun", "run", "worker/email-worker.ts"]

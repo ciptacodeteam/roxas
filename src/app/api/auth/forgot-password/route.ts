@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { sendEmail } from "@/lib/mailgun";
+import { queuePasswordResetEmail } from "@/lib/email-queue";
 import { getPasswordResetEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/env";
 import crypto from "crypto";
@@ -57,21 +57,20 @@ export async function POST(request: NextRequest) {
         "http://localhost:3000";
       const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email as string)}`;
 
-      // Send reset email
+      // Queue reset email
       try {
-        await sendEmail({
-          to: user.email,
-          subject: "Reset Kata Sandi - Roxas Store",
-          html: getPasswordResetEmailTemplate(
+        await queuePasswordResetEmail(
+          user.email,
+          getPasswordResetEmailTemplate(
             user.name as string,
             user.email as string,
             resetUrl,
-          ),
-        });
+          )
+        );
 
-        console.log("Password reset email sent to:", user.email);
+        console.log("Password reset email queued for:", user.email);
       } catch (emailError) {
-        console.error("Failed to send password reset email:", emailError);
+        console.error("Failed to queue password reset email:", emailError);
         // Don't fail the request, just log the error
       }
     } else {

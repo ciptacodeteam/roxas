@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/server/db";
-import { sendEmail } from "@/lib/mailgun";
+import { queueVerificationEmail } from "@/lib/email-queue";
 import { getVerificationEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/env";
 import crypto from "crypto";
@@ -68,20 +68,19 @@ export async function POST(
     const baseUrl = env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const verificationUrl = `${baseUrl}/api/user/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
 
-    // Send verification email
+    // Queue verification email
     try {
-      await sendEmail({
-        to: user.email,
-        subject: "Verifikasi Email Anda - Roxas Store",
-        html: getVerificationEmailTemplate(user.name, user.email, verificationUrl),
-      });
+      await queueVerificationEmail(
+        user.email,
+        getVerificationEmailTemplate(user.name, user.email, verificationUrl)
+      );
 
       return NextResponse.json({
         success: true,
         message: "Verification email sent successfully",
       });
     } catch (emailError) {
-      console.error("Failed to send verification email:", emailError);
+      console.error("Failed to queue verification email:", emailError);
       return NextResponse.json(
         {
           success: false,
