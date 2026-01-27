@@ -146,7 +146,7 @@ openssl rand -base64 24
 chmod +x deploy-prod.sh update-prod.sh
 
 # Deploy (builds images, starts services, runs migrations)
-sudo DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com ./deploy-prod.sh deploy
+sudo DOMAIN=roxasgamestore.com EMAIL=admin@roxasgamestore.com ./deploy-prod.sh deploy
 ```
 
 This will:
@@ -166,7 +166,7 @@ You should see all services "Up" and healthy.
 
 **Request Let's Encrypt certificates:**
 ```bash
-sudo DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com ./deploy-prod.sh ssl
+sudo DOMAIN=roxasgamestore.com EMAIL=admin@roxasgamestore.com ./deploy-prod.sh ssl
 ```
 
 This will:

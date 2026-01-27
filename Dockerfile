@@ -43,8 +43,10 @@ COPY . .
 # Generate Prisma Client
 RUN bun run prisma generate
 
-# Build Next.js application
+# Build Next.js application (skip env validation during build)
+ENV SKIP_ENV_VALIDATION=1
 RUN bun run build
+ENV SKIP_ENV_VALIDATION=
 
 # ============================================
 # Stage 3: Runner (Production)
