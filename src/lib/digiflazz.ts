@@ -335,6 +335,10 @@ export async function createDigiflazzTopup(
     }
 
     const data = await response.json();
+    
+    // Log full response for debugging
+    console.log("[Digiflazz] Full API response:", JSON.stringify(data, null, 2));
+    
     const result: DigiflazzTopupResponse = data.data;
 
     // Log API call based on status

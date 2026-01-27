@@ -6,7 +6,52 @@ import { createDigiflazzTopup, type DigiflazzTopupResponse } from "@/lib/digifla
  * POST /api/products/verify-ml-account
  * Verify Mobile Legends account by checking if user ID and server ID are valid
  * This uses Digiflazz API "cek username" (MLCU SKU) to check account validity
+ * 
+ * For Prepaid transactions, status check is done by re-sending the same request
+ * with the same ref_id (as per Digiflazz docs)
  */
+
+// Helper function to poll for transaction status
+async function pollForStatus(
+  skuCode: string,
+  customerNo: string,
+  refId: string,
+  maxAttempts: number = 5,
+  delayMs: number = 2000
+): Promise<DigiflazzTopupResponse> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Wait before polling (skip first attempt)
+    if (attempt > 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+
+    console.log(`[ML Verify] Polling attempt ${attempt}/${maxAttempts} for refId: ${refId}`);
+    
+    try {
+      // For prepaid, check status by re-sending with same ref_id
+      const result = await createDigiflazzTopup({
+        skuCode: skuCode,
+        customerNo: customerNo,
+        refId: refId,
+        // Don't use testing mode for real verification
+      });
+
+      // If status is no longer Pending, return result
+      if (result.status !== "Pending") {
+        console.log(`[ML Verify] Got final status: ${result.status}`);
+        return result;
+      }
+
+      console.log(`[ML Verify] Still Pending, will retry...`);
+    } catch (error) {
+      console.error(`[ML Verify] Polling error on attempt ${attempt}:`, error);
+      // Continue polling on error (might be temporary)
+    }
+  }
+
+  // Return last known result (Pending)
+  throw new Error("Verification timeout - please try again later");
+}
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -84,16 +129,35 @@ export async function POST(request: NextRequest) {
     const refId = `ML_VERIFY_${Date.now()}_${userId}`;
 
     try {
-      const result: DigiflazzTopupResponse = await createDigiflazzTopup({
+      // NOTE: MLCU (cek username) requires real API call without testing mode
+      // This uses Digiflazz balance but is typically a low-cost verification
+      let result: DigiflazzTopupResponse = await createDigiflazzTopup({
         skuCode: mlcuItem.skuCode!,
         customerNo: customerNo,
         refId: refId,
-        testing: true, // Always use testing mode for verification
+        // Don't use testing mode for MLCU - it needs real API to get username
       });
+
+      // If status is Pending, poll for final status
+      if (result.status === "Pending") {
+        console.log("[ML Verify] Got Pending status, polling for final result...");
+        try {
+          result = await pollForStatus(
+            mlcuItem.skuCode!,
+            customerNo,
+            refId,
+            5,  // max 5 attempts
+            2000 // 2 second delay between attempts
+          );
+        } catch (pollError) {
+          console.error("[ML Verify] Polling failed:", pollError);
+          // Continue with Pending result - might still have username
+        }
+      }
 
       // Check if verification was successful
       // Digiflazz returns the username in the message or sn field for successful verification
-      if (result.status === "Sukses" || result.status === "Pending") {
+      if (result.status === "Sukses") {
         // Extract username from response (usually in sn or message field)
         const username = result.sn || result.message;
         
@@ -105,6 +169,16 @@ export async function POST(request: NextRequest) {
             verified: true,
             username: username,
             message: result.message || "Account verified successfully",
+          },
+        });
+      } else if (result.status === "Pending") {
+        // Still pending after polling - let user know to try again
+        return NextResponse.json({
+          success: false,
+          message: "Verification is still processing. Please try again in a few moments.",
+          data: {
+            verified: false,
+            status: "pending",
           },
         });
       } else {

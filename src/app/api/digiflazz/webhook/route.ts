@@ -11,7 +11,12 @@ import { env } from "@/env";
  * Digiflazz will send transaction updates via POST to this endpoint
  * Format: { data: { ref_id, customer_no, buyer_sku_code, status, sn, message, rc, ... } }
  * 
- * Documentation: https://developer.digiflazz.com/api/callback
+ * Documentation: https://developer.digiflazz.com/api/buyer/webhook/
+ * 
+ * Headers:
+ * - X-Digiflazz-Event: "create" | "update"
+ * - X-Hub-Signature: sha1=<HMAC-SHA1 of body using webhook secret>
+ * - User-Agent: "Digiflazz-Hookshot" (prepaid) | "Digiflazz-Pasca-Hookshot" (postpaid)
  */
 
 interface DigiflazzCallbackData {
@@ -27,47 +32,99 @@ interface DigiflazzCallbackData {
 }
 
 interface DigiflazzCallbackBody {
-    data: DigiflazzCallbackData;
-    sign?: string;
+    data?: DigiflazzCallbackData;
+    // Ping event fields
+    sed?: string;
+    hook_id?: string;
+    hook?: {
+        url: string;
+        secret: string;
+        type: string;
+        status: number;
+    };
 }
 
 /**
- * Verify Digiflazz webhook signature
- * sign = md5(username + apiKey + ref_id)
+ * Verify Digiflazz webhook signature using HMAC-SHA1
+ * X-Hub-Signature: sha1=<HMAC-SHA1 of raw body using webhook secret>
+ * 
+ * Example from docs:
+ * $signature = hash_hmac('sha1', $post_data, $secret);
+ * if ($request->header('X-Hub-Signature') == 'sha1='.$signature) { ... }
  */
-function verifyDigiflazzSignature(refId: string, providedSign?: string): boolean {
-    if (!providedSign) {
-        console.warn("[Digiflazz Webhook] No signature provided");
+function verifyDigiflazzSignature(rawBody: string, signatureHeader?: string | null): boolean {
+    const webhookSecret = env.DIGIFLAZZ_WEBHOOK_SECRET;
+    
+    // If no secret configured, skip verification with warning
+    if (!webhookSecret) {
+        console.warn("[Digiflazz Webhook] No DIGIFLAZZ_WEBHOOK_SECRET configured, skipping signature verification");
+        return true;
+    }
+
+    // If no signature provided by Digiflazz
+    if (!signatureHeader) {
+        console.warn("[Digiflazz Webhook] No X-Hub-Signature header provided");
         return true; // Allow for now, but log warning
     }
 
-    const expectedSign = crypto
-        .createHash("md5")
-        .update(`${env.DIGIFLAZZ_USERNAME}${env.DIGIFLAZZ_API_KEY}${refId}`)
+    // Calculate expected signature: HMAC-SHA1(rawBody, secret)
+    const expectedSignature = "sha1=" + crypto
+        .createHmac("sha1", webhookSecret)
+        .update(rawBody)
         .digest("hex");
 
-    return expectedSign === providedSign;
+    const isValid = expectedSignature === signatureHeader;
+    
+    if (!isValid) {
+        console.error("[Digiflazz Webhook] Signature mismatch:", {
+            expected: expectedSignature,
+            received: signatureHeader,
+        });
+    }
+
+    return isValid;
 }
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        const body: DigiflazzCallbackBody = await request.json();
+        // Get raw body for signature verification
+        const rawBody = await request.text();
+        const body: DigiflazzCallbackBody = JSON.parse(rawBody);
 
-        console.log("=== DIGIFLAZZ WEBHOOK RECEIVED ===", JSON.stringify(body, null, 2));
+        // Get headers for logging
+        const eventType = request.headers.get("X-Digiflazz-Event");
+        const signatureHeader = request.headers.get("X-Hub-Signature");
+        const userAgent = request.headers.get("User-Agent");
 
-        const { data, sign } = body;
+        console.log("=== DIGIFLAZZ WEBHOOK RECEIVED ===");
+        console.log("Event:", eventType);
+        console.log("User-Agent:", userAgent);
+        console.log("Signature:", signatureHeader);
+        console.log("Body:", JSON.stringify(body, null, 2));
+
+        // Handle ping event (webhook verification)
+        if (body.hook_id && body.sed) {
+            console.log("[Digiflazz Webhook] Ping event received, webhook is active");
+            return NextResponse.json({
+                success: true,
+                message: "Webhook ping received",
+                hook_id: body.hook_id,
+            });
+        }
+
+        const { data } = body;
 
         if (!data || !data.ref_id) {
             return NextResponse.json(
-                { success: false, message: "Invalid webhook data" },
+                { success: false, message: "Invalid webhook data - missing data or ref_id" },
                 { status: 400 }
             );
         }
 
-        // Verify signature
-        if (!verifyDigiflazzSignature(data.ref_id, sign)) {
+        // Verify HMAC-SHA1 signature
+        if (!verifyDigiflazzSignature(rawBody, signatureHeader)) {
             console.error("[Digiflazz Webhook] Invalid signature for ref_id:", data.ref_id);
             return NextResponse.json(
                 { success: false, message: "Invalid signature" },
