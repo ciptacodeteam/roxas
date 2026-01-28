@@ -6,7 +6,12 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone", // For Docker production builds
-  
+
+  // Disable experimental features for stability on low-memory servers
+  experimental: {
+    turbo: undefined, // Disable Turbopack, use Webpack
+  },
+
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
       config.watchOptions = {

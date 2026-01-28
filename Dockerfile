@@ -45,8 +45,10 @@ RUN bun run prisma generate
 
 # Build Next.js application (skip env validation during build)
 ENV SKIP_ENV_VALIDATION=1
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN bun run build
 ENV SKIP_ENV_VALIDATION=
+ENV NODE_OPTIONS=
 
 # ============================================
 # Stage 3: Runner (Production)
