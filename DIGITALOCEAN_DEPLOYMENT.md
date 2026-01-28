@@ -205,10 +205,38 @@ Your site should now be accessible at `https://yourdomain.com` 🎉
 
 ### Step 8: Initial Setup & Testing
 
-**Seed initial data (if needed):**
+**Run database migrations (if not already applied):**
 ```bash
-docker compose -f docker-compose.prod.yml exec app bunx prisma db seed
+# Run migrations using a temporary container
+sudo docker run --rm \
+    --network roxas_roxas-network \
+    -v ~/roxas:/app \
+    -w /app \
+    -e DATABASE_URL="postgresql://postgres:YOUR_DB_PASSWORD@roxas-db-prod:5432/roxas" \
+    oven/bun:1.3-alpine \
+    sh -c "bun add prisma@6.5.0 && bunx prisma migrate deploy"
 ```
+
+**Seed initial data (categories, payment methods, etc.):**
+
+The production Docker image uses Next.js standalone output and doesn't include source files. 
+To run the seed script, use a temporary container:
+
+```bash
+# Get your database password
+grep DATABASE_URL ~/roxas/.env.production
+
+# Run seed using temporary container (replace YOUR_DB_PASSWORD)
+sudo docker run --rm \
+    --network roxas_roxas-network \
+    -v ~/roxas:/app \
+    -w /app \
+    -e DATABASE_URL="postgresql://postgres:YOUR_DB_PASSWORD@roxas-db-prod:5432/roxas" \
+    oven/bun:1.3-alpine \
+    sh -c "bun install --frozen-lockfile && bun prisma/seed.ts"
+```
+
+> **Note:** Replace `YOUR_DB_PASSWORD` with your actual database password from `.env.production`
 
 **Create admin user:**
 Visit `https://yourdomain.com/admin/login` and register first admin account.
