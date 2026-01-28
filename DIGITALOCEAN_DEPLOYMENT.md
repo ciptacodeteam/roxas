@@ -16,11 +16,13 @@ Complete guide to deploy Roxas application on DigitalOcean with Docker, SSL, and
 1. **Login to DigitalOcean** and create a new Droplet:
    - **Image:** Ubuntu 22.04 LTS
    - **Plan:** 
-     - Minimum: Basic - $12/month (2GB RAM, 1 vCPU, 50GB SSD)
+     - Minimum: Basic - $12/month (2GB RAM, 1 vCPU, 50GB SSD) ⚠️ Requires swap space
      - Recommended: Basic - $24/month (4GB RAM, 2 vCPU, 80GB SSD)
    - **Region:** Choose closest to your target users
    - **Authentication:** SSH Key (add your public key)
    - **Hostname:** roxas-production
+
+> **⚠️ Important for 2GB Droplets:** The deployment script automatically creates 2GB swap space to prevent OOM (Out of Memory) errors during Docker builds. Initial deployment will take 15-20 minutes.
 
 2. **Note your Droplet's IP address** (e.g., 192.168.1.100)
 
@@ -68,6 +70,7 @@ This will:
 - Install Docker and Docker Compose
 - Configure UFW firewall (ports 22, 80, 443)
 - Create application directories
+- **Setup 2GB swap space** (automatic for low-memory servers)
 - Setup fail2ban for security
 
 ### Step 4: Deploy Application Code
@@ -146,7 +149,25 @@ openssl rand -base64 24
 chmod +x deploy-prod.sh update-prod.sh
 
 # Deploy (builds images, starts services, runs migrations)
+# This will take 15-20 minutes on a 2GB droplet
 sudo DOMAIN=roxasgamestore.com EMAIL=admin@roxasgamestore.com ./deploy-prod.sh deploy
+```
+
+The deployment script will:
+1. ✅ Check/create swap space automatically
+2. 🧹 Clean up old Docker resources
+3. 🏗️ Build Docker images **sequentially** (prevents OOM on 2GB droplets)
+4. 🚀 Start all services
+5. 🗄️ Run database migrations
+6. ✨ Generate Prisma Client
+
+**Monitor the build progress:**
+```bash
+# In another terminal, watch memory usage
+watch -n 2 free -h
+
+# Or check Docker build logs
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 This will:
@@ -416,6 +437,45 @@ docker compose -f docker-compose.prod.yml logs --tail=0 app > /dev/null
 # Check volume sizes
 docker system df
 ```
+
+### Out of Memory (OOM) During Build
+
+**Symptoms:**
+- `signal: killed` error during `docker compose build`
+- Build process stops unexpectedly
+- Server becomes unresponsive
+
+**Solutions:**
+
+1. **Check if swap is active:**
+```bash
+free -h
+swapon --show
+```
+
+2. **Create swap if missing (automatic in latest deploy-prod.sh):**
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+3. **Clean Docker cache before building:**
+```bash
+docker system prune -af --volumes
+```
+
+4. **Monitor memory during build:**
+```bash
+# In another terminal
+watch -n 2 'free -h && echo "---" && docker stats --no-stream'
+```
+
+5. **If still failing, upgrade droplet to 4GB RAM** (recommended for smoother deployments)
+
+> **Note:** The deploy script now builds images **sequentially** instead of in parallel to prevent OOM on 2GB droplets. First deployment will take 15-20 minutes.
 
 ## 📞 Support & Resources
 

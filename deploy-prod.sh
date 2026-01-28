@@ -100,6 +100,19 @@ init_server() {
     mkdir -p $APP_DIR/volumes/redis
     mkdir -p $APP_DIR/backups
     
+    # Setup swap space (crucial for 2GB droplets)
+    if ! swapon --show | grep -q '/swapfile'; then
+        log_info "Setting up 2GB swap space..."
+        fallocate -l 2G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        log_info "Swap space configured successfully"
+    else
+        log_info "Swap space already configured"
+    fi
+    
     log_info "Server initialization complete!"
     log_warn "Next steps:"
     log_warn "1. Clone/copy your code to $APP_DIR"
@@ -107,9 +120,31 @@ init_server() {
     log_warn "3. Run: ./deploy-prod.sh deploy"
 }
 
+# Ensure swap space exists
+ensure_swap() {
+    if ! swapon --show | grep -q '/swapfile'; then
+        log_warn "No swap space detected. Creating 2GB swap..."
+        if [ "$EUID" -ne 0 ]; then
+            log_error "Need root privileges to create swap. Please run with sudo"
+            exit 1
+        fi
+        fallocate -l 2G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        log_info "Swap space created successfully"
+    else
+        log_info "Swap space OK: $(free -h | grep Swap | awk '{print $2}')"
+    fi
+}
+
 # Deploy application from scratch
 deploy_app() {
     log_step "Starting full production deployment..."
+    
+    # Ensure swap is available (critical for 2GB droplets)
+    ensure_swap
     
     # Check if .env.production exists
     if [ ! -f ".env.production" ]; then
@@ -135,9 +170,16 @@ deploy_app() {
         git pull origin main || git pull origin master || true
     fi
     
+    # Clean up Docker to free memory
+    log_info "Cleaning up Docker resources..."
+    docker system prune -af --volumes || true
+    
     # Build and start services
-    log_info "Building Docker images..."
-    docker compose -f docker-compose.prod.yml build --no-cache
+    log_info "Building Docker images sequentially to avoid OOM..."
+    log_warn "This will take 10-15 minutes on a 2GB droplet..."
+    docker compose -f docker-compose.prod.yml build --no-cache app
+    docker compose -f docker-compose.prod.yml build --no-cache scheduler
+    docker compose -f docker-compose.prod.yml build --no-cache email-worker
     
     log_info "Starting services..."
     docker compose -f docker-compose.prod.yml up -d
