@@ -11,10 +11,9 @@ COPY prisma ./prisma
 # Install deps (skip postinstall)
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
-# Copy scheduler and required libs
+# Copy source code (needed for module resolution)
+COPY src ./src
 COPY scheduler ./scheduler
-COPY src/lib ./src/lib
-COPY src/env.js ./src/
 
 # Generate Prisma Client
 RUN bunx prisma generate

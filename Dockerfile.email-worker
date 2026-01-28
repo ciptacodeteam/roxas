@@ -11,11 +11,9 @@ COPY prisma ./prisma
 # Install deps (skip postinstall, run prisma generate manually)
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
-# Copy worker and required libs
+# Copy source code (needed for module resolution)
+COPY src ./src
 COPY worker ./worker
-COPY src/lib/mailgun.ts src/lib/email-templates.ts src/lib/api-logger.ts ./src/lib/
-COPY src/env.js ./src/
-COPY src/server ./src/server
 
 # Generate Prisma Client
 RUN bunx prisma generate
