@@ -213,13 +213,13 @@ cmd_ssl() {
     
     cd "$APP_DIR"
     
-    # Check if certificate already exists
+    # Check if certificate already exists and is valid
     if [ -d "$APP_DIR/certbot/conf/live/$DOMAIN" ]; then
         log_info "Certificate already exists for $DOMAIN"
-        read -p "Renew certificate? (y/N): " renew
-        if [ "$renew" != "y" ] && [ "$renew" != "Y" ]; then
-            return 0
-        fi
+        log_info "Starting nginx with existing certificate..."
+        dc up -d nginx
+        log_info "SSL is active! Site: https://$DOMAIN"
+        return 0
     fi
     
     # Stop nginx
@@ -238,6 +238,7 @@ cmd_ssl() {
         --email "$EMAIL" \
         --agree-tos \
         --no-eff-email \
+        --non-interactive \
         -d "$DOMAIN" \
         -d "www.$DOMAIN"
     
