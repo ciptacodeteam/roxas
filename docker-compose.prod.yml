@@ -8,23 +8,23 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - AUTH_SECRET=${NEXTAUTH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-dummy}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-dummy}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis}@redis:6379
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://roxasgamestore.com}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://roxasgamestore.com}
+      - NEXTAUTH_SECRET=${AUTH_SECRET}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
       - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
       - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
       - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY}
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
-      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-false}
+      - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-true}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
       - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
-      - MAILGUN_REGION=${MAILGUN_REGION:-eu}
+      - MAILGUN_REGION=${MAILGUN_REGION:-us}
     ports:
       - "3000:3000"
     depends_on:
@@ -48,16 +48,16 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      - AUTH_SECRET=${NEXTAUTH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-dummy}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-dummy}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://roxasgamestore.com}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
       - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
       - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
-      - MAILGUN_API_KEY=${MAILGUN_API_KEY:-dummy}
-      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-dummy}
-      - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL:-noreply@localhost}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
       - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY}
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
     depends_on:
@@ -80,11 +80,11 @@ services:
     networks:
       - roxas-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
 
   # Email worker for processing email queue
   email-worker:
@@ -95,18 +95,18 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis}@redis:6379
       - DATABASE_URL=${DATABASE_URL}
-      - AUTH_SECRET=${NEXTAUTH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-dummy}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-dummy}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - DIGIFLAZZ_USERNAME=${DIGIFLAZZ_USERNAME}
       - DIGIFLAZZ_API_KEY=${DIGIFLAZZ_API_KEY}
       - DIGIFLAZZ_API_URL=${DIGIFLAZZ_API_URL:-https://api.digiflazz.com/v1}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
       - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
-      - MAILGUN_REGION=${MAILGUN_REGION:-eu}
+      - MAILGUN_REGION=${MAILGUN_REGION:-us}
       - MIDTRANS_SERVER_KEY=${MIDTRANS_SERVER_KEY}
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
       - EMAIL_WORKER_CONCURRENCY=${EMAIL_WORKER_CONCURRENCY:-5}
@@ -130,7 +130,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: ${DB_NAME:-roxas}
     ports:
       - "5432:5432"

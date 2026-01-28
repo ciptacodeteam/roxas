@@ -27,7 +27,13 @@ EMAIL="${EMAIL:-admin@${DOMAIN}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
 COMPOSE_FILE="docker-compose.prod.yml"
+ENV_FILE=".env.production"
 NETWORK_NAME="roxas_roxas-network"
+
+# Docker compose command with env file
+dc() {
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
 
 # Colors
 RED='\033[0;31m'
@@ -70,7 +76,7 @@ wait_for_healthy() {
     
     echo -n "Waiting for $container..."
     while [ $wait_time -lt $max_wait ]; do
-        if docker compose -f $COMPOSE_FILE ps $container | grep -q "healthy\|running"; then
+        if dc ps $container | grep -q "healthy\|running"; then
             echo " ready!"
             return 0
         fi
@@ -160,25 +166,20 @@ cmd_deploy() {
     log_info "Cleaning Docker resources..."
     docker system prune -af 2>/dev/null || true
     
-    # Load environment
-    set -a
-    source .env.production
-    set +a
-    
     # Build images sequentially (prevents OOM on 2-4GB servers)
     log_info "Building Docker images (10-15 minutes)..."
     log_info "Building app..."
-    docker compose -f $COMPOSE_FILE build app
+    dc build app
     
     log_info "Building scheduler..."
-    docker compose -f $COMPOSE_FILE build scheduler
+    dc build scheduler
     
     log_info "Building email-worker..."
-    docker compose -f $COMPOSE_FILE build email-worker
+    dc build email-worker
     
     # Start infrastructure first
     log_info "Starting database and redis..."
-    docker compose -f $COMPOSE_FILE up -d db redis
+    dc up -d db redis
     wait_for_healthy db 60
     
     # Run migrations
@@ -187,7 +188,7 @@ cmd_deploy() {
     
     # Start all services
     log_info "Starting all services..."
-    docker compose -f $COMPOSE_FILE up -d
+    dc up -d
     
     # Wait and check
     sleep 10
@@ -223,7 +224,7 @@ cmd_ssl() {
     
     # Stop nginx
     log_info "Stopping nginx..."
-    docker compose -f $COMPOSE_FILE stop nginx 2>/dev/null || true
+    dc stop nginx 2>/dev/null || true
     
     # Request certificate
     log_info "Requesting certificate for $DOMAIN..."
@@ -242,7 +243,7 @@ cmd_ssl() {
     
     # Restart nginx
     log_info "Starting nginx..."
-    docker compose -f $COMPOSE_FILE up -d nginx
+    dc up -d nginx
     
     # Setup auto-renewal cron
     log_info "Setting up auto-renewal cron..."
@@ -259,12 +260,12 @@ cmd_ssl() {
 # =============================================================================
 cmd_ssl_renew() {
     cd "$APP_DIR"
-    docker compose -f $COMPOSE_FILE stop nginx
+    dc stop nginx
     docker run --rm \
         -p 80:80 \
         -v "$APP_DIR/certbot/conf:/etc/letsencrypt" \
         certbot/certbot renew --quiet
-    docker compose -f $COMPOSE_FILE start nginx
+    dc start nginx
 }
 
 # =============================================================================
@@ -285,13 +286,13 @@ cmd_update() {
     
     # Rebuild only changed images
     log_info "Rebuilding images..."
-    docker compose -f $COMPOSE_FILE build --no-cache app
-    docker compose -f $COMPOSE_FILE build --no-cache scheduler
-    docker compose -f $COMPOSE_FILE build --no-cache email-worker
+    dc build --no-cache app
+    dc build --no-cache scheduler
+    dc build --no-cache email-worker
     
     # Rolling restart
     log_info "Restarting services..."
-    docker compose -f $COMPOSE_FILE up -d
+    dc up -d
     
     # Run migrations
     cmd_migrate || true
@@ -327,7 +328,7 @@ cmd_reset() {
     
     # Stop everything
     log_info "Stopping all containers..."
-    docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
+    dc down -v --remove-orphans 2>/dev/null || true
     
     # Remove images
     log_info "Removing Docker images..."
@@ -359,7 +360,7 @@ cmd_backup() {
     mkdir -p backups
     local backup_file="backups/roxas_$(date +%Y%m%d_%H%M%S).sql.gz"
     
-    docker compose -f $COMPOSE_FILE exec -T db \
+    dc exec -T db \
         pg_dump -U postgres roxas | gzip > "$backup_file"
     
     log_info "Backup saved: $backup_file"
@@ -392,7 +393,7 @@ cmd_restore() {
     [ "$confirm" != "y" ] && exit 0
     
     log_info "Restoring from $backup_file..."
-    gunzip -c "$backup_file" | docker compose -f $COMPOSE_FILE exec -T db \
+    gunzip -c "$backup_file" | dc exec -T db \
         psql -U postgres roxas
     
     log_info "Restore complete!"
@@ -455,9 +456,9 @@ cmd_logs() {
     local service="${2:-}"
     
     if [ -z "$service" ]; then
-        docker compose -f $COMPOSE_FILE logs -f --tail=100
+        dc logs -f --tail=100
     else
-        docker compose -f $COMPOSE_FILE logs -f --tail=100 "$service"
+        dc logs -f --tail=100 "$service"
     fi
 }
 
@@ -469,7 +470,7 @@ cmd_status() {
     
     echo ""
     log_info "Container Status:"
-    docker compose -f $COMPOSE_FILE ps
+    dc ps
     
     echo ""
     log_info "Resource Usage:"
@@ -486,7 +487,7 @@ cmd_status() {
 cmd_restart() {
     log_info "Restarting services..."
     cd "$APP_DIR"
-    docker compose -f $COMPOSE_FILE restart
+    dc restart
     cmd_status
 }
 
@@ -495,7 +496,7 @@ cmd_restart() {
 # =============================================================================
 cmd_shell() {
     local service="${2:-app}"
-    docker compose -f $COMPOSE_FILE exec "$service" sh
+    dc exec "$service" sh
 }
 
 # =============================================================================
