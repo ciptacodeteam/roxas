@@ -1,0 +1,39 @@
+# Ngrok Configuration for Development
+# This allows external services (Midtrans, Digiflazz) to send webhooks to your local dev server
+
+# Get your authtoken from: https://dashboard.ngrok.com/get-started/your-authtoken
+authtoken: YOUR_NGROK_AUTHTOKEN_HERE
+
+version: "2"
+
+tunnels:
+  # Django backend tunnel
+  backend:
+    proto: http
+    addr: 8000
+    subdomain: roxas-backend-dev  # Optional: requires paid plan
+    # Without subdomain, you'll get random URLs like: https://abc123.ngrok.io
+    
+    # Custom domain (requires paid plan)
+    # hostname: dev.roxasgamestore.com
+    
+    # Request inspection
+    inspect: true
+    
+    # Basic auth (optional, for security)
+    # auth: "username:password"
+    
+    # Custom headers
+    host_header: "localhost:8000"
+
+# Log configuration
+log_level: info
+log_format: json
+log: ./ngrok.log
+
+# Web interface
+web_addr: localhost:4040
+
+# Region (use closest to your location)
+# Options: us, eu, ap, au, sa, jp, in
+region: ap  # Asia Pacific

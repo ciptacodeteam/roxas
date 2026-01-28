@@ -1,0 +1,204 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: roxas-api-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/data.goholiday.id.conf:/etc/nginx/conf.d/data.goholiday.id.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      # HTTP-only config (use when SSL certificates don't exist):
+      # - ./nginx/data.goholiday.id.http-only.conf:/etc/nginx/conf.d/data.goholiday.id.conf:ro
+      - media_volume:/app/media:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[n]ginx: master' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 50M
+        reservations:
+          cpus: '0.05'
+          memory: 20M
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: roxas-api-backend
+    # Optimized for 2GB RAM: 1 worker instead of 2
+    command: gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info
+    env_file:
+      - .env
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 200M
+        reservations:
+          cpus: '0.2'
+          memory: 100M
+
+  db:
+    image: postgres:15-alpine
+    container_name: roxas-api-db
+    environment:
+      POSTGRES_DB: ${SQL_DATABASE}
+      POSTGRES_USER: ${SQL_USER}
+      POSTGRES_PASSWORD: ${SQL_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER} -d ${SQL_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 200M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  redis:
+    image: redis:7-alpine
+    container_name: roxas-api-redis
+    # Optimized for 2GB RAM: 80MB max instead of 100MB
+    command: redis-server --appendonly yes --maxmemory 80mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 100M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: roxas-api-celery
+    # Optimized for 2GB RAM: 1 concurrency instead of 2
+    command: celery -A backend worker --loglevel=info --concurrency=1 --max-tasks-per-child=1000
+    env_file:
+      - .env
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 200M
+        reservations:
+          cpus: '0.15'
+          memory: 100M
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: roxas-api-celery-beat
+    command: celery -A backend beat --loglevel=info -s /tmp/celerybeat-schedule
+    env_file:
+      - .env
+    volumes:
+      - celerybeat_schedule:/tmp
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - roxas-network
+    healthcheck:
+      test: ["CMD-SHELL", "python /app/scripts/check_celery_beat.py || ps aux | grep '[c]elery.*beat' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 100M
+        reservations:
+          cpus: '0.05'
+          memory: 50M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  celerybeat_schedule:
+    driver: local
+  media_volume:
+    driver: local
+
+networks:
+  roxas-network:
+    driver: bridge
+

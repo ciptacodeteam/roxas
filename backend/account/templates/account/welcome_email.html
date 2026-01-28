@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selamat Datang di Roxas Store</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #13171C;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #13171C;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #1B2129; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1B2129 0%, #2a3441 100%); padding: 40px 30px; text-align: center; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: 1px;">
+                🎮 ROXAS STORE
+              </h1>
+              <p style="margin: 10px 0 0 0; color: #a0a0a0; font-size: 14px;">Game Top-Up & Digital Services</p>
+            </td>
+          </tr>
+          
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 20px 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                Selamat Datang, {{ profile_name }}! 👋
+              </h2>
+              
+              <p style="margin: 0 0 20px 0; color: #d0d0d0; font-size: 16px; line-height: 1.6;">
+                Terima kasih telah bergabung dengan <strong style="color: #ff6b6b;">Roxas Store</strong>! 
+                Kami senang Anda menjadi bagian dari komunitas gaming kami.
+              </p>
+              
+              <div style="background-color: rgba(255, 107, 107, 0.1); border-left: 4px solid #ff6b6b; padding: 20px; margin: 30px 0; border-radius: 8px;">
+                <p style="margin: 0; color: #ffffff; font-size: 15px; line-height: 1.6;">
+                  <strong style="color: #ff6b6b;">Akun Anda:</strong><br>
+                  Email: {{ user.email }}<br>
+                  Status: Aktif
+                </p>
+              </div>
+              
+              <p style="margin: 20px 0; color: #d0d0d0; font-size: 16px; line-height: 1.6;">
+                Mulai jelajahi berbagai produk game top-up, diamond, dan layanan digital lainnya 
+                yang tersedia di platform kami. Setiap transaksi Anda aman dan terjamin!
+              </p>
+              
+              <div style="text-align: center; margin: 40px 0;">
+                <a href="{{ FRONTEND_URL }}" 
+                   style="display: inline-block; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); 
+                          color: #ffffff; text-decoration: none; padding: 16px 40px; 
+                          border-radius: 8px; font-weight: 600; font-size: 16px; 
+                          box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);">
+                  Mulai Berbelanja 🛒
+                </a>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #171D25; padding: 30px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+              <p style="margin: 0 0 10px 0; color: #a0a0a0; font-size: 14px;">
+                © {% now "Y" %} Roxas Store. All rights reserved.
+              </p>
+              <p style="margin: 0; color: #808080; font-size: 12px;">
+                Email ini dikirim ke {{ user.email }}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

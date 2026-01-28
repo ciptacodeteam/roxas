@@ -1,0 +1,27 @@
+[Unit]
+Description=Roxas Backend Docker Compose
+Documentation=https://github.com/yourusername/roxas
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/roxas/backend
+ExecStart=/usr/bin/docker compose -f /opt/roxas/backend/docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f /opt/roxas/backend/docker-compose.prod.yml down
+ExecReload=/usr/bin/docker compose -f /opt/roxas/backend/docker-compose.prod.yml restart
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=5
+
+# Security settings
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/roxas/backend
+
+[Install]
+WantedBy=multi-user.target
+
