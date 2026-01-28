@@ -437,15 +437,34 @@ cmd_seed() {
     
     log_info "Running seed script..."
     
-    # Get DB credentials from env file
+    # Get all required env vars from env file
     local db_password=$(grep "^DB_PASSWORD" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
     local db_url="postgresql://postgres:${db_password:-password}@db:5432/roxas"
+    local auth_secret=$(grep "^AUTH_SECRET" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local digiflazz_username=$(grep "^DIGIFLAZZ_USERNAME" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local digiflazz_api_key=$(grep "^DIGIFLAZZ_API_KEY" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local mailgun_api_key=$(grep "^MAILGUN_API_KEY" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local mailgun_domain=$(grep "^MAILGUN_DOMAIN" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local mailgun_from=$(grep "^MAILGUN_FROM_EMAIL" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local midtrans_server=$(grep "^MIDTRANS_SERVER_KEY" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+    local midtrans_client=$(grep "^MIDTRANS_CLIENT_KEY" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
     
     docker run --rm \
         --network $NETWORK_NAME \
         -v "$APP_DIR:/app" \
         -w /app \
         -e DATABASE_URL="$db_url" \
+        -e AUTH_SECRET="${auth_secret:-secret}" \
+        -e GOOGLE_CLIENT_ID="dummy" \
+        -e GOOGLE_CLIENT_SECRET="dummy" \
+        -e DIGIFLAZZ_USERNAME="${digiflazz_username:-dummy}" \
+        -e DIGIFLAZZ_API_KEY="${digiflazz_api_key:-dummy}" \
+        -e DIGIFLAZZ_API_URL="https://api.digiflazz.com/v1" \
+        -e MAILGUN_API_KEY="${mailgun_api_key:-dummy}" \
+        -e MAILGUN_DOMAIN="${mailgun_domain:-dummy}" \
+        -e MAILGUN_FROM_EMAIL="${mailgun_from:-noreply@localhost}" \
+        -e MIDTRANS_SERVER_KEY="${midtrans_server:-dummy}" \
+        -e MIDTRANS_CLIENT_KEY="${midtrans_client:-dummy}" \
         oven/bun:1.3-alpine \
         sh -c "bun install && bun run prisma/seed.ts"
     
