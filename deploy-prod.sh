@@ -412,19 +412,23 @@ cmd_migrate() {
     local db_password=$(grep "^DB_PASSWORD" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'")
     local db_url="postgresql://postgres:${db_password:-password}@db:5432/roxas"
     
+    log_info "Using DATABASE_URL: postgresql://postgres:****@db:5432/roxas"
+    
+    # Try migrate deploy first, fall back to db push
     docker run --rm \
         --network $NETWORK_NAME \
         -v "$APP_DIR/prisma:/app/prisma" \
         -e DATABASE_URL="$db_url" \
         oven/bun:1.3-alpine \
-        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma migrate deploy" 2>/dev/null || \
+        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma migrate deploy" || \
     docker run --rm \
         --network $NETWORK_NAME \
         -v "$APP_DIR/prisma:/app/prisma" \
         -e DATABASE_URL="$db_url" \
         oven/bun:1.3-alpine \
-        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma db push --accept-data-loss" || \
-    log_warn "Migration may have already been applied"
+        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma db push"
+    
+    log_info "Migration complete!"
 }
 
 # =============================================================================
