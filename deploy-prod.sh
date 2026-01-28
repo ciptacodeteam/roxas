@@ -414,13 +414,7 @@ cmd_migrate() {
     
     log_info "Using DATABASE_URL: postgresql://postgres:****@db:5432/roxas"
     
-    # Try migrate deploy first, fall back to db push
-    docker run --rm \
-        --network $NETWORK_NAME \
-        -v "$APP_DIR/prisma:/app/prisma" \
-        -e DATABASE_URL="$db_url" \
-        oven/bun:1.3-alpine \
-        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma migrate deploy" || \
+    # Use db push to sync schema (creates tables if they don't exist)
     docker run --rm \
         --network $NETWORK_NAME \
         -v "$APP_DIR/prisma:/app/prisma" \
