@@ -114,6 +114,9 @@
   "overrides": {
     "@t3-oss/env-nextjs": "^0.13.10"
   },
+  "prisma": {
+    "seed": "bun run prisma/seed.ts"
+  },
   "ct3aMetadata": {
     "initVersion": "7.39.3"
   }
