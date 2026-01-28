@@ -34,8 +34,10 @@ WORKDIR /app
 RUN apk add --no-cache \
     libc6-compat
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy package files and install ALL dependencies (including dev)
+COPY package.json bun.lockb* ./
+COPY prisma ./prisma
+RUN bun install --frozen-lockfile
 
 # Copy application code
 COPY . .
@@ -45,10 +47,12 @@ RUN bun run prisma generate
 
 # Build Next.js application (skip env validation during build)
 ENV SKIP_ENV_VALIDATION=1
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+ENV NEXT_PRIVATE_DISABLE_TURBOPACK=1
 RUN bun run build
 ENV SKIP_ENV_VALIDATION=
 ENV NODE_OPTIONS=
+ENV NEXT_PRIVATE_DISABLE_TURBOPACK=
 
 # ============================================
 # Stage 3: Runner (Production)
