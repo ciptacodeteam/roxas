@@ -1,50 +1,49 @@
 #!/bin/bash
-
-# Production Deployment Script for Roxas
-# Usage: ./deploy-prod.sh [init|deploy|pull|ssl|restart|logs|backup]
+# =============================================================================
+# Roxas Production Deployment Script
+# Usage: ./deploy-prod.sh [command]
 #
 # Commands:
-#   init    - First time server setup (install Docker, create directories, etc.)
-#   deploy  - Full deployment from scratch (build images locally - SLOW)
-#   pull    - Deploy using pre-built images from registry (FAST - recommended)
-#   ssl     - Setup SSL certificates with Let's Encrypt
-#   restart - Restart all services
-#   logs    - View logs
-#   backup  - Create database backup
+#   init      - First time server setup
+#   deploy    - Build and deploy application
+#   ssl       - Setup SSL certificates
+#   update    - Quick update (pull & restart)
+#   restart   - Restart all services
+#   reset     - Reset everything (DESTRUCTIVE)
+#   backup    - Backup database
+#   logs      - View logs
+#   status    - Check service status
+#   seed      - Run database seed
+#   shell     - Open shell in app container
+# =============================================================================
 
 set -e
 
-# Configuration - UPDATE THESE VALUES
-DOMAIN="${DOMAIN:-yourdomain.com}"
-EMAIL="${EMAIL:-your-email@example.com}"
-# Use current directory as APP_DIR (where this script is located)
+# =============================================================================
+# Configuration
+# =============================================================================
+DOMAIN="${DOMAIN:-roxasgamestore.com}"
+EMAIL="${EMAIL:-admin@${DOMAIN}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
+COMPOSE_FILE="docker-compose.prod.yml"
+NETWORK_NAME="roxas_roxas-network"
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+# =============================================================================
+# Helper Functions
+# =============================================================================
+log_info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step()  { echo -e "\n${BLUE}━━━ $1 ━━━${NC}\n"; }
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_step() {
-    echo -e "${BLUE}[STEP]${NC} $1"
-}
-
-# Check if running as root
 check_root() {
     if [ "$EUID" -ne 0 ]; then 
         log_error "Please run as root (use sudo)"
@@ -52,25 +51,54 @@ check_root() {
     fi
 }
 
-# Initialize server (first time only)
-init_server() {
-    log_step "Initializing server for first-time deployment..."
+check_env() {
+    if [ ! -f ".env.production" ]; then
+        log_error ".env.production file not found!"
+        log_info "Create it with: cp env.example .env.production"
+        exit 1
+    fi
+}
+
+get_db_url() {
+    grep "^DATABASE_URL" .env.production | cut -d '=' -f2- | tr -d '"' | tr -d "'"
+}
+
+wait_for_healthy() {
+    local container=$1
+    local max_wait=${2:-60}
+    local wait_time=0
+    
+    echo -n "Waiting for $container..."
+    while [ $wait_time -lt $max_wait ]; do
+        if docker compose -f $COMPOSE_FILE ps $container | grep -q "healthy\|running"; then
+            echo " ready!"
+            return 0
+        fi
+        echo -n "."
+        sleep 2
+        wait_time=$((wait_time + 2))
+    done
+    echo " timeout!"
+    return 1
+}
+
+# =============================================================================
+# Command: init - First time server setup
+# =============================================================================
+cmd_init() {
+    log_step "Initializing Server"
     check_root
     
     # Update system
     log_info "Updating system packages..."
     apt update && apt upgrade -y
     
-    # Install required packages
-    log_info "Installing required packages..."
-    apt install -y curl git ufw fail2ban
-    
     # Install Docker
     if ! command -v docker &> /dev/null; then
         log_info "Installing Docker..."
-        curl -fsSL https://get.docker.com -o get-docker.sh
-        sh get-docker.sh
-        rm get-docker.sh
+        curl -fsSL https://get.docker.com | sh
+        systemctl enable docker
+        systemctl start docker
     else
         log_info "Docker already installed"
     fi
@@ -79,301 +107,471 @@ init_server() {
     if ! docker compose version &> /dev/null; then
         log_info "Installing Docker Compose..."
         apt install -y docker-compose-plugin
-    else
-        log_info "Docker Compose already installed"
     fi
     
     # Setup firewall
     log_info "Configuring firewall..."
+    apt install -y ufw fail2ban
     ufw --force enable
     ufw allow ssh
     ufw allow http
     ufw allow https
-    ufw status
     
-    # Create app directory
-    log_info "Creating app directory..."
-    mkdir -p $APP_DIR
-    mkdir -p $APP_DIR/volumes/certbot/conf
-    mkdir -p $APP_DIR/volumes/certbot/www
-    mkdir -p $APP_DIR/volumes/postgres
-    mkdir -p $APP_DIR/volumes/redis
-    mkdir -p $APP_DIR/backups
-    
-    # Setup swap space (crucial for 2GB droplets)
-    if ! swapon --show | grep -q '/swapfile'; then
-        log_info "Setting up 2GB swap space..."
+    # Setup swap (2GB for low-memory servers)
+    if [ ! -f /swapfile ]; then
+        log_info "Creating 2GB swap..."
         fallocate -l 2G /swapfile
         chmod 600 /swapfile
         mkswap /swapfile
         swapon /swapfile
         echo '/swapfile none swap sw 0 0' >> /etc/fstab
-        log_info "Swap space configured successfully"
-    else
-        log_info "Swap space already configured"
     fi
     
-    log_info "Server initialization complete!"
+    # Redis memory overcommit
+    sysctl vm.overcommit_memory=1
+    echo 'vm.overcommit_memory = 1' >> /etc/sysctl.conf 2>/dev/null || true
+    
+    # Create directories
+    mkdir -p "$APP_DIR"/{certbot/conf,certbot/www,backups}
+    
+    log_info "Server initialized!"
+    echo ""
     log_warn "Next steps:"
-    log_warn "1. Clone/copy your code to $APP_DIR"
-    log_warn "2. Create .env.production file with your configuration"
-    log_warn "3. Run: ./deploy-prod.sh deploy"
+    echo "  1. cp env.example .env.production"
+    echo "  2. Edit .env.production with your values"
+    echo "  3. sudo DOMAIN=yourdomain.com ./deploy-prod.sh deploy"
 }
 
-# Ensure swap space exists
-ensure_swap() {
-    if ! swapon --show | grep -q '/swapfile'; then
-        log_warn "No swap space detected. Creating 2GB swap..."
-        if [ "$EUID" -ne 0 ]; then
-            log_error "Need root privileges to create swap. Please run with sudo"
-            exit 1
-        fi
-        fallocate -l 2G /swapfile
-        chmod 600 /swapfile
-        mkswap /swapfile
-        swapon /swapfile
-        echo '/swapfile none swap sw 0 0' >> /etc/fstab
-        log_info "Swap space created successfully"
-    else
-        log_info "Swap space OK: $(free -h | grep Swap | awk '{print $2}')"
-    fi
-}
-
-# Deploy application from scratch
-deploy_app() {
-    log_step "Starting full production deployment..."
+# =============================================================================
+# Command: deploy - Full build and deploy
+# =============================================================================
+cmd_deploy() {
+    log_step "Deploying Application"
+    check_root
+    check_env
     
-    # Ensure swap is available (critical for 2GB droplets)
-    ensure_swap
+    cd "$APP_DIR"
     
-    # Check if .env.production exists
-    if [ ! -f ".env.production" ]; then
-        log_error ".env.production file not found!"
-        log_error "Please create .env.production with your production configuration"
-        exit 1
-    fi
+    # Update nginx.conf with domain
+    log_info "Configuring nginx for $DOMAIN..."
+    sed -i "s/yourdomain.com/$DOMAIN/g" nginx.conf 2>/dev/null || true
     
-    # Stop existing containers
-    log_info "Stopping existing containers..."
-    docker compose -f docker-compose.prod.yml down || true
+    # Free up memory
+    log_info "Cleaning Docker resources..."
+    docker system prune -af 2>/dev/null || true
     
-    # Update nginx.conf with actual domain
-    log_info "Updating nginx configuration..."
-    if [ ! -f "nginx.conf.backup" ]; then
-        cp nginx.conf nginx.conf.backup
-    fi
-    sed -i "s/yourdomain.com/$DOMAIN/g" nginx.conf
+    # Load environment
+    set -a
+    source .env.production
+    set +a
     
-    # Pull latest code (if git repo)
-    if [ -d ".git" ]; then
-        log_info "Pulling latest code..."
-        git pull origin main || git pull origin master || true
-    fi
+    # Build images sequentially (prevents OOM on 2-4GB servers)
+    log_info "Building Docker images (10-15 minutes)..."
+    log_info "Building app..."
+    docker compose -f $COMPOSE_FILE build app
     
-    # Clean up Docker to free memory
-    log_info "Cleaning up Docker resources..."
-    docker system prune -af --volumes || true
+    log_info "Building scheduler..."
+    docker compose -f $COMPOSE_FILE build scheduler
     
-    # Build and start services
-    log_info "Building Docker images sequentially to avoid OOM..."
-    log_warn "This will take 10-15 minutes on a 2GB droplet..."
-    docker compose -f docker-compose.prod.yml build --no-cache app
-    docker compose -f docker-compose.prod.yml build --no-cache scheduler
-    docker compose -f docker-compose.prod.yml build --no-cache email-worker
+    log_info "Building email-worker..."
+    docker compose -f $COMPOSE_FILE build email-worker
     
-    log_info "Starting services..."
-    docker compose -f docker-compose.prod.yml up -d
-    
-    # Wait for services to be healthy
-    log_info "Waiting for services to start..."
-    sleep 10
-    
-    # Run database migrations
-    log_info "Running database migrations..."
-    docker compose -f docker-compose.prod.yml exec -T app bunx prisma migrate deploy || log_warn "Migration failed or already applied"
-    
-    # Generate Prisma Client
-    log_info "Generating Prisma Client..."
-    docker compose -f docker-compose.prod.yml exec -T app bunx prisma generate || log_warn "Prisma generate failed"
-    
-    # Show service status
-    log_info "Service status:"
-    docker compose -f docker-compose.prod.yml ps
-    
-    log_info "Deployment complete!"
-    log_warn "Next step: Run './deploy-prod.sh ssl' to setup SSL certificates"
-}
-
-# Setup SSL certificates
-setup_ssl() {
-    log_step "Setting up SSL certificates..."
-    
-    # Check if domain is provided
-    if [ "$DOMAIN" = "yourdomain.com" ]; then
-        log_error "Please set DOMAIN environment variable or update the script"
-        log_error "Example: DOMAIN=example.com EMAIL=admin@example.com ./deploy-prod.sh ssl"
-        exit 1
-    fi
-    
-    # Stop nginx temporarily
-    log_info "Stopping nginx..."
-    docker compose -f docker-compose.prod.yml stop nginx
-    
-    # Request certificate
-    log_info "Requesting SSL certificate for $DOMAIN..."
-    docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-        --standalone \
-        --preferred-challenges http \
-        --email $EMAIL \
-        --agree-tos \
-        --no-eff-email \
-        -d $DOMAIN \
-        -d www.$DOMAIN
-    
-    # Start nginx with SSL
-    log_info "Starting nginx with SSL..."
-    docker compose -f docker-compose.prod.yml up -d nginx
-    
-    # Setup auto-renewal
-    log_info "Setting up auto-renewal..."
-    (crontab -l 2>/dev/null; echo "0 3 * * * cd $APP_DIR && docker compose -f docker-compose.prod.yml run --rm certbot renew && docker compose -f docker-compose.prod.yml restart nginx") | crontab -
-    
-    log_info "SSL setup complete!"
-    log_info "Your site should now be accessible at https://$DOMAIN"
-}
-
-# Restart services
-restart_services() {
-    log_step "Restarting services..."
-    docker compose -f docker-compose.prod.yml restart
-    log_info "Services restarted"
-    docker compose -f docker-compose.prod.yml ps
-}
-
-# View logs
-view_logs() {
-    log_step "Viewing application logs..."
-    docker compose -f docker-compose.prod.yml logs -f --tail=100
-}
-
-# Backup database
-backup_database() {
-    log_step "Creating database backup..."
-    
-    BACKUP_FILE="backups/postgres_backup_$(date +%Y%m%d_%H%M%S).sql"
-    
-    log_info "Backing up database to $BACKUP_FILE..."
-    docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres roxas > $BACKUP_FILE
-    
-    # Compress backup
-    gzip $BACKUP_FILE
-    
-    log_info "Backup created: ${BACKUP_FILE}.gz"
-    
-    # Keep only last 7 backups
-    log_info "Cleaning old backups..."
-    ls -t backups/postgres_backup_*.sql.gz | tail -n +8 | xargs -r rm
-    
-    log_info "Backup complete!"
-}
-
-# Deploy using pre-built images from registry (FAST)
-pull_deploy() {
-    log_step "Deploying from container registry (fast mode)..."
-    
-    # Check required vars
-    if [ -z "$GITHUB_REPO" ]; then
-        log_error "GITHUB_REPO not set. Example: GITHUB_REPO=yourusername/roxas ./deploy-prod.sh pull"
-        exit 1
-    fi
-    
-    # Check if .env.production exists
-    if [ ! -f ".env.production" ]; then
-        log_error ".env.production file not found!"
-        exit 1
-    fi
-    
-    # Export for docker-compose
-    export GITHUB_REPO
-    
-    # Login to GitHub Container Registry
-    log_info "Logging into GitHub Container Registry..."
-    echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin || log_warn "Already logged in or using public images"
-    
-    # Stop existing containers
-    log_info "Stopping existing containers..."
-    docker compose -f docker-compose.prod.registry.yml down || true
-    
-    # Update nginx.conf with actual domain
-    if [ "$DOMAIN" != "yourdomain.com" ] && [ -n "$DOMAIN" ]; then
-        log_info "Updating nginx configuration..."
-        sed -i "s/yourdomain.com/$DOMAIN/g" nginx.conf
-    fi
-    
-    # Pull latest images
-    log_info "Pulling latest images..."
-    docker compose -f docker-compose.prod.registry.yml pull
-    
-    # Start services
-    log_info "Starting services..."
-    docker compose -f docker-compose.prod.registry.yml up -d
-    
-    # Wait for services
-    log_info "Waiting for services to start..."
-    sleep 15
+    # Start infrastructure first
+    log_info "Starting database and redis..."
+    docker compose -f $COMPOSE_FILE up -d db redis
+    wait_for_healthy db 60
     
     # Run migrations
     log_info "Running database migrations..."
-    docker compose -f docker-compose.prod.registry.yml exec -T app bunx prisma migrate deploy || log_warn "Migration failed or already applied"
+    cmd_migrate || true
     
-    # Show status
-    log_info "Service status:"
-    docker compose -f docker-compose.prod.registry.yml ps
+    # Start all services
+    log_info "Starting all services..."
+    docker compose -f $COMPOSE_FILE up -d
     
-    log_info "Deployment complete! 🚀"
-    log_info "Pull deployment is ~10x faster than build deployment"
+    # Wait and check
+    sleep 10
+    cmd_status
+    
+    log_info "Deployment complete!"
+    echo ""
+    log_warn "Next: sudo DOMAIN=$DOMAIN ./deploy-prod.sh ssl"
 }
 
-# Main script
-case "$1" in
-    init)
-        init_server
-        ;;
-    deploy)
-        deploy_app
-        ;;
-    pull)
-        pull_deploy
-        ;;
-    ssl)
-        setup_ssl
-        ;;
-    restart)
-        restart_services
-        ;;
-    logs)
-        view_logs
-        ;;
-    backup)
-        backup_database
-        ;;
-    *)
-        echo "Usage: $0 {init|deploy|pull|ssl|restart|logs|backup}"
-        echo ""
-        echo "Commands:"
-        echo "  init    - First time server setup"
-        echo "  deploy  - Full deployment (builds locally - SLOW)"
-        echo "  pull    - Deploy from registry (FAST - recommended)"
-        echo "  ssl     - Setup SSL certificates"
-        echo "  restart - Restart all services"
-        echo "  logs    - View application logs"
-        echo "  backup  - Backup database"
-        echo ""
-        echo "Example first-time deployment:"
-        echo "  sudo ./deploy-prod.sh init"
-        echo "  # Copy code and create .env.production"
-        echo "  sudo DOMAIN=example.com GITHUB_REPO=user/roxas ./deploy-prod.sh pull"
-        echo "  sudo DOMAIN=example.com EMAIL=admin@example.com ./deploy-prod.sh ssl"
+# =============================================================================
+# Command: ssl - Setup SSL with Let's Encrypt
+# =============================================================================
+cmd_ssl() {
+    log_step "Setting Up SSL"
+    check_root
+    
+    if [ "$DOMAIN" = "yourdomain.com" ]; then
+        log_error "Set DOMAIN: sudo DOMAIN=example.com ./deploy-prod.sh ssl"
         exit 1
-        ;;
+    fi
+    
+    cd "$APP_DIR"
+    
+    # Check if certificate already exists
+    if [ -d "$APP_DIR/certbot/conf/live/$DOMAIN" ]; then
+        log_info "Certificate already exists for $DOMAIN"
+        read -p "Renew certificate? (y/N): " renew
+        if [ "$renew" != "y" ] && [ "$renew" != "Y" ]; then
+            return 0
+        fi
+    fi
+    
+    # Stop nginx
+    log_info "Stopping nginx..."
+    docker compose -f $COMPOSE_FILE stop nginx 2>/dev/null || true
+    
+    # Request certificate
+    log_info "Requesting certificate for $DOMAIN..."
+    docker run --rm \
+        -p 80:80 \
+        -v "$APP_DIR/certbot/conf:/etc/letsencrypt" \
+        -v "$APP_DIR/certbot/www:/var/www/certbot" \
+        certbot/certbot certonly \
+        --standalone \
+        --preferred-challenges http \
+        --email "$EMAIL" \
+        --agree-tos \
+        --no-eff-email \
+        -d "$DOMAIN" \
+        -d "www.$DOMAIN"
+    
+    # Restart nginx
+    log_info "Starting nginx..."
+    docker compose -f $COMPOSE_FILE up -d nginx
+    
+    # Setup auto-renewal cron
+    log_info "Setting up auto-renewal cron..."
+    local cron_job="0 3 1 * * cd $APP_DIR && ./deploy-prod.sh ssl-renew"
+    (crontab -l 2>/dev/null | grep -v "ssl-renew"; echo "$cron_job") | crontab -
+    
+    log_info "SSL setup complete!"
+    echo ""
+    log_info "Your site: https://$DOMAIN"
+}
+
+# =============================================================================
+# Command: ssl-renew - Renew SSL (for cron)
+# =============================================================================
+cmd_ssl_renew() {
+    cd "$APP_DIR"
+    docker compose -f $COMPOSE_FILE stop nginx
+    docker run --rm \
+        -p 80:80 \
+        -v "$APP_DIR/certbot/conf:/etc/letsencrypt" \
+        certbot/certbot renew --quiet
+    docker compose -f $COMPOSE_FILE start nginx
+}
+
+# =============================================================================
+# Command: update - Quick update without rebuild
+# =============================================================================
+cmd_update() {
+    log_step "Quick Update"
+    check_root
+    
+    cd "$APP_DIR"
+    
+    # Pull latest code
+    log_info "Pulling latest code..."
+    git pull origin main || git pull origin master
+    
+    # Update nginx config
+    sed -i "s/yourdomain.com/$DOMAIN/g" nginx.conf 2>/dev/null || true
+    
+    # Rebuild only changed images
+    log_info "Rebuilding images..."
+    docker compose -f $COMPOSE_FILE build --no-cache app
+    docker compose -f $COMPOSE_FILE build --no-cache scheduler
+    docker compose -f $COMPOSE_FILE build --no-cache email-worker
+    
+    # Rolling restart
+    log_info "Restarting services..."
+    docker compose -f $COMPOSE_FILE up -d
+    
+    # Run migrations
+    cmd_migrate || true
+    
+    cmd_status
+    log_info "Update complete!"
+}
+
+# =============================================================================
+# Command: reset - Reset everything (DESTRUCTIVE)
+# =============================================================================
+cmd_reset() {
+    log_step "Reset Everything"
+    check_root
+    
+    echo -e "${RED}⚠️  WARNING: This will DELETE all data including:${NC}"
+    echo "  - All Docker containers and images"
+    echo "  - Database and Redis data"
+    echo "  - All volumes"
+    echo ""
+    read -p "Type 'RESET' to confirm: " confirm
+    
+    if [ "$confirm" != "RESET" ]; then
+        log_info "Reset cancelled"
+        exit 0
+    fi
+    
+    cd "$APP_DIR"
+    
+    # Backup first
+    log_info "Creating backup before reset..."
+    cmd_backup 2>/dev/null || true
+    
+    # Stop everything
+    log_info "Stopping all containers..."
+    docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
+    
+    # Remove images
+    log_info "Removing Docker images..."
+    docker images -q | xargs -r docker rmi -f 2>/dev/null || true
+    
+    # Clean Docker
+    log_info "Cleaning Docker system..."
+    docker system prune -af --volumes
+    
+    # Optional: Remove SSL
+    read -p "Remove SSL certificates? (y/N): " remove_ssl
+    if [ "$remove_ssl" = "y" ]; then
+        rm -rf "$APP_DIR/certbot/conf/"*
+        log_info "SSL certificates removed"
+    fi
+    
+    log_info "Reset complete!"
+    echo ""
+    log_warn "To rebuild: sudo DOMAIN=$DOMAIN ./deploy-prod.sh deploy"
+}
+
+# =============================================================================
+# Command: backup - Backup database
+# =============================================================================
+cmd_backup() {
+    log_info "Creating database backup..."
+    cd "$APP_DIR"
+    
+    mkdir -p backups
+    local backup_file="backups/roxas_$(date +%Y%m%d_%H%M%S).sql.gz"
+    
+    docker compose -f $COMPOSE_FILE exec -T db \
+        pg_dump -U postgres roxas | gzip > "$backup_file"
+    
+    log_info "Backup saved: $backup_file"
+    
+    # Keep only last 10 backups
+    ls -t backups/*.gz 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
+}
+
+# =============================================================================
+# Command: restore - Restore database from backup
+# =============================================================================
+cmd_restore() {
+    log_step "Restore Database"
+    cd "$APP_DIR"
+    
+    # List backups
+    echo "Available backups:"
+    ls -la backups/*.gz 2>/dev/null || { log_error "No backups found"; exit 1; }
+    echo ""
+    
+    read -p "Enter backup filename: " backup_file
+    
+    if [ ! -f "$backup_file" ]; then
+        log_error "File not found: $backup_file"
+        exit 1
+    fi
+    
+    log_warn "This will replace current database!"
+    read -p "Continue? (y/N): " confirm
+    [ "$confirm" != "y" ] && exit 0
+    
+    log_info "Restoring from $backup_file..."
+    gunzip -c "$backup_file" | docker compose -f $COMPOSE_FILE exec -T db \
+        psql -U postgres roxas
+    
+    log_info "Restore complete!"
+}
+
+# =============================================================================
+# Command: migrate - Run database migrations
+# =============================================================================
+cmd_migrate() {
+    cd "$APP_DIR"
+    check_env
+    
+    log_info "Running migrations..."
+    
+    local db_url=$(get_db_url)
+    # Replace 'db' with actual container IP for external access
+    db_url="${db_url//@db:/@localhost:}"
+    
+    docker run --rm \
+        --network $NETWORK_NAME \
+        -v "$APP_DIR/prisma:/app/prisma" \
+        -e DATABASE_URL="postgresql://postgres:password@db:5432/roxas" \
+        oven/bun:1.3-alpine \
+        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma migrate deploy" 2>/dev/null || \
+    docker run --rm \
+        --network $NETWORK_NAME \
+        -v "$APP_DIR/prisma:/app/prisma" \
+        -e DATABASE_URL="postgresql://postgres:password@db:5432/roxas" \
+        oven/bun:1.3-alpine \
+        sh -c "cd /app && bun add prisma@6.5.0 @prisma/client@6.5.0 && bunx prisma db push --accept-data-loss" || \
+    log_warn "Migration may have already been applied"
+}
+
+# =============================================================================
+# Command: seed - Run database seed
+# =============================================================================
+cmd_seed() {
+    log_step "Seeding Database"
+    cd "$APP_DIR"
+    check_env
+    
+    log_info "Running seed script..."
+    
+    docker run --rm \
+        --network $NETWORK_NAME \
+        -v "$APP_DIR:/app" \
+        -w /app \
+        -e DATABASE_URL="postgresql://postgres:password@db:5432/roxas" \
+        oven/bun:1.3-alpine \
+        sh -c "bun install && bun run prisma/seed.ts"
+    
+    log_info "Seed complete!"
+}
+
+# =============================================================================
+# Command: logs - View logs
+# =============================================================================
+cmd_logs() {
+    cd "$APP_DIR"
+    local service="${2:-}"
+    
+    if [ -z "$service" ]; then
+        docker compose -f $COMPOSE_FILE logs -f --tail=100
+    else
+        docker compose -f $COMPOSE_FILE logs -f --tail=100 "$service"
+    fi
+}
+
+# =============================================================================
+# Command: status - Show status
+# =============================================================================
+cmd_status() {
+    cd "$APP_DIR"
+    
+    echo ""
+    log_info "Container Status:"
+    docker compose -f $COMPOSE_FILE ps
+    
+    echo ""
+    log_info "Resource Usage:"
+    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" 2>/dev/null || true
+    
+    echo ""
+    log_info "Health Check:"
+    curl -s -o /dev/null -w "  App: %{http_code}\n" http://localhost:3000/api/health 2>/dev/null || echo "  App: not responding"
+}
+
+# =============================================================================
+# Command: restart - Restart services
+# =============================================================================
+cmd_restart() {
+    log_info "Restarting services..."
+    cd "$APP_DIR"
+    docker compose -f $COMPOSE_FILE restart
+    cmd_status
+}
+
+# =============================================================================
+# Command: shell - Open shell in container
+# =============================================================================
+cmd_shell() {
+    local service="${2:-app}"
+    docker compose -f $COMPOSE_FILE exec "$service" sh
+}
+
+# =============================================================================
+# Command: help - Show help
+# =============================================================================
+cmd_help() {
+    cat << 'EOF'
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    Roxas Production Deployment Script                     ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+USAGE:
+    sudo ./deploy-prod.sh [command]
+    sudo DOMAIN=example.com ./deploy-prod.sh [command]
+
+COMMANDS:
+    init        First-time server setup (Docker, firewall, swap)
+    deploy      Full build and deploy (takes 10-15 min)
+    ssl         Setup Let's Encrypt SSL certificates
+    update      Quick update: pull, rebuild, restart
+    restart     Restart all services
+    reset       Delete everything and start fresh (DESTRUCTIVE)
+    
+    backup      Create database backup
+    restore     Restore database from backup
+    migrate     Run database migrations
+    seed        Run database seed script
+    
+    logs        View logs (all or specific service)
+    status      Show container status and health
+    shell       Open shell in container
+
+EXAMPLES:
+    # First time setup
+    sudo ./deploy-prod.sh init
+    cp env.example .env.production
+    nano .env.production
+    sudo DOMAIN=mysite.com ./deploy-prod.sh deploy
+    sudo DOMAIN=mysite.com ./deploy-prod.sh ssl
+    sudo ./deploy-prod.sh seed
+    
+    # Regular updates
+    sudo ./deploy-prod.sh update
+    
+    # View logs
+    sudo ./deploy-prod.sh logs app
+    sudo ./deploy-prod.sh logs nginx
+    
+    # Reset and rebuild
+    sudo ./deploy-prod.sh reset
+    sudo DOMAIN=mysite.com ./deploy-prod.sh deploy
+
+EOF
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+cd "$APP_DIR"
+
+case "${1:-}" in
+    init)       cmd_init ;;
+    deploy)     cmd_deploy ;;
+    ssl)        cmd_ssl ;;
+    ssl-renew)  cmd_ssl_renew ;;
+    update)     cmd_update ;;
+    reset)      cmd_reset ;;
+    restart)    cmd_restart ;;
+    backup)     cmd_backup ;;
+    restore)    cmd_restore ;;
+    migrate)    cmd_migrate ;;
+    seed)       cmd_seed ;;
+    logs)       cmd_logs "$@" ;;
+    status)     cmd_status ;;
+    shell)      cmd_shell "$@" ;;
+    help|--help|-h) cmd_help ;;
+    *)          cmd_help ;;
 esac

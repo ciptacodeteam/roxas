@@ -1,543 +1,334 @@
 # DigitalOcean Deployment Guide
 
-Complete guide to deploy Roxas application on DigitalOcean with Docker, SSL, and production setup.
+Complete guide to deploy Roxas on DigitalOcean with Docker.
 
-## 📋 Prerequisites
+## Quick Start
 
-- DigitalOcean account
-- Domain name (e.g., example.com)
-- SSH key pair
-- GitHub account (for code repository)
-
-## 🚀 Step-by-Step Deployment
-
-### Step 1: Create DigitalOcean Droplet
-
-1. **Login to DigitalOcean** and create a new Droplet:
-   - **Image:** Ubuntu 22.04 LTS
-   - **Plan:** 
-     - Minimum: Basic - $12/month (2GB RAM, 1 vCPU, 50GB SSD) ⚠️ Requires swap space
-     - Recommended: Basic - $24/month (4GB RAM, 2 vCPU, 80GB SSD)
-   - **Region:** Choose closest to your target users
-   - **Authentication:** SSH Key (add your public key)
-   - **Hostname:** roxas-production
-
-> **⚠️ Important for 2GB Droplets:** The deployment script automatically creates 2GB swap space to prevent OOM (Out of Memory) errors during Docker builds. Initial deployment will take 15-20 minutes.
-
-2. **Note your Droplet's IP address** (e.g., 192.168.1.100)
-
-### Step 2: Configure DNS
-
-Point your domain to the Droplet:
-
-**In your DNS provider (Cloudflare, Namecheap, etc.):**
-
-```
-Type    Name    Value              TTL
-A       @       YOUR_DROPLET_IP    Auto
-A       www     YOUR_DROPLET_IP    Auto
-```
-
-**Verify DNS propagation:**
 ```bash
-# On your local machine
-nslookup yourdomain.com
-```
+# 1. Create droplet (4GB recommended, 2GB minimum)
+# 2. SSH into server
+ssh root@your-server-ip
 
-Wait 5-30 minutes for DNS propagation.
-
-### Step 3: Initial Server Setup
-
-**SSH into your server:**
-```bash
-ssh root@YOUR_DROPLET_IP
-```
-
-**Run initialization:**
-```bash
-# Download initialization script
-curl -fsSL https://raw.githubusercontent.com/yourusername/roxas/main/deploy-prod.sh -o deploy-prod.sh
-
-# Make executable
-chmod +x deploy-prod.sh
-
-# Initialize server (installs Docker, sets up firewall, creates directories)
-sudo ./deploy-prod.sh init
-```
-
-This will:
-- Update system packages
-- Install Docker and Docker Compose
-- Configure UFW firewall (ports 22, 80, 443)
-- Create application directories
-- **Setup 2GB swap space** (automatic for low-memory servers)
-- Setup fail2ban for security
-
-### Step 4: Deploy Application Code
-
-**Option A: Clone from GitHub (Recommended)**
-```bash
-# Clone to home directory (or any preferred location)
-cd ~
+# 3. Clone repository
 git clone https://github.com/yourusername/roxas.git
 cd roxas
-```
 
-**Option B: Upload via SCP**
-```bash
-# On your local machine - upload to home directory
-scp -r /path/to/roxas root@YOUR_DROPLET_IP:~/
-```
-
-> **Note:** All commands in this guide assume you're running them from the project root directory (`~/roxas` or wherever you cloned it).
-
-### Step 5: Configure Environment Variables
-
-**Create production environment file:**
-```bash
-# From project root directory
-nano .env.production
-```
-
-**Add your production configuration:**
-```bash
-# Database
-DATABASE_URL="postgresql://postgres:STRONG_PASSWORD_HERE@db:5432/roxas"
-
-# Redis
-REDIS_URL="redis://:REDIS_PASSWORD_HERE@redis:6379"
-
-# NextAuth
-NEXTAUTH_URL="https://yourdomain.com"
-NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
-
-# Email (Mailgun)
-MAILGUN_API_KEY="your-mailgun-api-key"
-MAILGUN_DOMAIN="mg.yourdomain.com"
-MAILGUN_FROM="noreply@yourdomain.com"
-
-# Payment Gateways
-MIDTRANS_SERVER_KEY="your-midtrans-server-key"
-MIDTRANS_CLIENT_KEY="your-midtrans-client-key"
-MIDTRANS_IS_PRODUCTION="true"
-
-DIGIFLAZZ_USERNAME="your-digiflazz-username"
-DIGIFLAZZ_API_KEY="your-digiflazz-api-key"
-DIGIFLAZZ_API_URL="https://api.digiflazz.com/v1"
-
-# Node Environment
-NODE_ENV="production"
-```
-
-**Generate secure secrets:**
-```bash
-# Generate NEXTAUTH_SECRET
-openssl rand -base64 32
-
-# Generate database password
-openssl rand -base64 24
-
-# Generate Redis password
-openssl rand -base64 24
-```
-
-### Step 6: Deploy Application
-
-**Run full deployment:**
-```bash
-# From project root directory
-chmod +x deploy-prod.sh update-prod.sh
-
-# Deploy (builds images, starts services, runs migrations)
-# This will take 15-20 minutes on a 2GB droplet
-sudo DOMAIN=roxasgamestore.com EMAIL=admin@roxasgamestore.com ./deploy-prod.sh deploy
-```
-
-The deployment script will:
-1. ✅ Check/create swap space automatically
-2. 🧹 Clean up old Docker resources
-3. 🏗️ Build Docker images **sequentially** (prevents OOM on 2GB droplets)
-4. 🚀 Start all services
-5. 🗄️ Run database migrations
-6. ✨ Generate Prisma Client
-
-**Monitor the build progress:**
-```bash
-# In another terminal, watch memory usage
-watch -n 2 free -h
-
-# Or check Docker build logs
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-This will:
-- Build Docker images
-- Start all services (app, database, redis, nginx, etc.)
-- Run database migrations
-- Generate Prisma client
-
-**Verify services are running:**
-```bash
-docker compose -f docker-compose.prod.yml ps
-```
-
-You should see all services "Up" and healthy.
-
-### Step 7: Setup SSL Certificates
-
-**Request Let's Encrypt certificates:**
-```bash
-sudo DOMAIN=roxasgamestore.com EMAIL=admin@roxasgamestore.com ./deploy-prod.sh ssl
-```
-
-This will:
-- Stop nginx temporarily
-- Request SSL certificates from Let's Encrypt
-- Configure auto-renewal (runs daily at 3 AM)
-- Restart nginx with HTTPS enabled
-
-**Verify SSL is working:**
-```bash
-curl -I https://yourdomain.com
-```
-
-Your site should now be accessible at `https://yourdomain.com` 🎉
-
-### Step 8: Initial Setup & Testing
-
-**Run database migrations (if not already applied):**
-```bash
-# Run migrations using a temporary container
-sudo docker run --rm \
-    --network roxas_roxas-network \
-    -v ~/roxas:/app \
-    -w /app \
-    -e DATABASE_URL="postgresql://postgres:YOUR_DB_PASSWORD@roxas-db-prod:5432/roxas" \
-    oven/bun:1.3-alpine \
-    sh -c "bun add prisma@6.5.0 && bunx prisma migrate deploy"
-```
-
-**Seed initial data (categories, payment methods, etc.):**
-
-The production Docker image uses Next.js standalone output and doesn't include source files. 
-To run the seed script, use a temporary container:
-
-```bash
-# Get your database password
-grep DATABASE_URL ~/roxas/.env.production
-
-# Run seed using temporary container (replace YOUR_DB_PASSWORD)
-sudo docker run --rm \
-    --network roxas_roxas-network \
-    -v ~/roxas:/app \
-    -w /app \
-    -e DATABASE_URL="postgresql://postgres:YOUR_DB_PASSWORD@roxas-db-prod:5432/roxas" \
-    oven/bun:1.3-alpine \
-    sh -c "bun install --frozen-lockfile && bun prisma/seed.ts"
-```
-
-> **Note:** Replace `YOUR_DB_PASSWORD` with your actual database password from `.env.production`
-
-**Create admin user:**
-Visit `https://yourdomain.com/admin/login` and register first admin account.
-
-**Test functionality:**
-- [ ] Homepage loads
-- [ ] User registration works
-- [ ] Email sending works
-- [ ] Payment integration works
-- [ ] Admin panel accessible
-
-## 🔄 Updating Your Application
-
-### For Code Changes Only (Fast)
-
-When you only changed code files (no dependencies, no schema changes):
-
-```bash
-# From project root directory
-git pull origin main
-
-# Quick update (no rebuild)
-./update-prod.sh
-```
-
-This script:
-- Creates automatic database backup
-- Pulls latest code
-- Detects if package.json or schema changed
-- Rebuilds only if necessary
-- Restarts services with minimal downtime
-
-### For Major Changes (Full Rebuild)
-
-When you changed dependencies, Dockerfiles, or need clean slate:
-
-```bash
-# From project root directory
-git pull origin main
-
-# Full deployment
-sudo DOMAIN=yourdomain.com ./deploy-prod.sh deploy
-```
-
-## 📊 Monitoring & Maintenance
-
-### View Logs
-
-**All services:**
-```bash
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-**Specific service:**
-```bash
-docker compose -f docker-compose.prod.yml logs -f app
-docker compose -f docker-compose.prod.yml logs -f nginx
-docker compose -f docker-compose.prod.yml logs -f db
-```
-
-**Last 100 lines:**
-```bash
-docker compose -f docker-compose.prod.yml logs --tail=100 app
-```
-
-### Service Management
-
-**Restart services:**
-```bash
-./deploy-prod.sh restart
-```
-
-**Stop all services:**
-```bash
-docker compose -f docker-compose.prod.yml down
-```
-
-**Start services:**
-```bash
-docker compose -f docker-compose.prod.yml up -d
-```
-
-**Check service health:**
-```bash
-docker compose -f docker-compose.prod.yml ps
-docker stats  # Resource usage
-```
-
-### Database Backup
-
-**Manual backup:**
-```bash
-./deploy-prod.sh backup
-```
-
-Backups stored in `./backups/` directory (automatically keeps last 7)
-
-**Automatic backups (setup cron):**
-```bash
-# Edit crontab
-crontab -e
-
-# Add daily backup at 2 AM (replace ~/roxas with your project path)
-0 2 * * * cd ~/roxas && ./deploy-prod.sh backup
-```
-
-**Restore from backup:**
-```bash
-# Stop app
-docker compose -f docker-compose.prod.yml stop app
-
-# Restore database
-gunzip < backups/postgres_backup_YYYYMMDD_HHMMSS.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db psql -U postgres roxas
-
-# Restart app
-docker compose -f docker-compose.prod.yml start app
-```
-
-## 🔒 Security Checklist
-
-- [x] Firewall configured (UFW) - only ports 22, 80, 443 open
-- [x] SSL certificates installed (HTTPS)
-- [x] Strong database passwords
-- [x] Redis password protected
-- [x] Fail2ban installed (blocks brute force)
-- [ ] Regular backups scheduled
-- [ ] Monitoring setup (optional: use DigitalOcean Monitoring)
-- [ ] Regular system updates
-
-**Keep system updated:**
-```bash
-apt update && apt upgrade -y
-```
-
-## 📈 Scaling & Performance
-
-### Vertical Scaling (Resize Droplet)
-
-1. Go to DigitalOcean dashboard
-2. Select your Droplet → Resize
-3. Choose larger plan
-4. Restart services after resize
-
-### Horizontal Scaling (Multiple Workers)
-
-Edit `docker-compose.prod.yml`:
-
-```yaml
-email-worker:
-  deploy:
-    replicas: 3  # Increase from 2 to 3
-
-app:
-  deploy:
-    replicas: 2  # Add multiple app instances
-```
-
-Then redeploy:
-```bash
-docker compose -f docker-compose.prod.yml up -d --scale app=2
-```
-
-### Database Performance
-
-**Enable connection pooling** (already configured in Prisma)
-
-**Monitor slow queries:**
-```bash
-docker compose -f docker-compose.prod.yml exec db psql -U postgres roxas -c "SELECT * FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;"
-```
-
-## 🐛 Troubleshooting
-
-### Services Not Starting
-
-```bash
-# Check logs
-docker compose -f docker-compose.prod.yml logs
-
-# Check disk space
-df -h
-
-# Check memory
-free -h
-
-# Restart specific service
-docker compose -f docker-compose.prod.yml restart app
-```
-
-### SSL Certificate Issues
-
-```bash
-# Check certificate status
-docker compose -f docker-compose.prod.yml exec certbot certbot certificates
-
-# Manually renew
-docker compose -f docker-compose.prod.yml run --rm certbot renew
-
-# Test renewal
-docker compose -f docker-compose.prod.yml run --rm certbot renew --dry-run
-```
-
-### Database Connection Issues
-
-```bash
-# Check database logs
-docker compose -f docker-compose.prod.yml logs db
-
-# Access database directly
-docker compose -f docker-compose.prod.yml exec db psql -U postgres roxas
-
-# Check connections
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -c "SELECT count(*) FROM pg_stat_activity;"
-```
-
-### Out of Disk Space
-
-```bash
-# Clean Docker images/containers
-docker system prune -a
-
-# Clean old logs
-docker compose -f docker-compose.prod.yml logs --tail=0 app > /dev/null
-
-# Check volume sizes
-docker system df
-```
-
-### Out of Memory (OOM) During Build
-
-**Symptoms:**
-- `signal: killed` error during `docker compose build`
-- Build process stops unexpectedly
-- Server becomes unresponsive
-
-**Solutions:**
-
-1. **Check if swap is active:**
-```bash
-free -h
-swapon --show
-```
-
-2. **Create swap if missing (automatic in latest deploy-prod.sh):**
-```bash
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-3. **Clean Docker cache before building:**
-```bash
-docker system prune -af --volumes
-```
-
-4. **Monitor memory during build:**
-```bash
-# In another terminal
-watch -n 2 'free -h && echo "---" && docker stats --no-stream'
-```
-
-5. **If still failing, upgrade droplet to 4GB RAM** (recommended for smoother deployments)
-
-> **Note:** The deploy script now builds images **sequentially** instead of in parallel to prevent OOM on 2GB droplets. First deployment will take 15-20 minutes.
-
-## 📞 Support & Resources
-
-- **DigitalOcean Docs:** https://docs.digitalocean.com/
-- **Docker Docs:** https://docs.docker.com/
-- **Let's Encrypt:** https://letsencrypt.org/docs/
-- **Next.js Deployment:** https://nextjs.org/docs/deployment
-
-## 🎯 Quick Reference
-
-```bash
-# All commands run from project root directory (e.g., ~/roxas)
-
-# Initial deployment
+# 4. Initialize server
 sudo ./deploy-prod.sh init
-sudo DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com ./deploy-prod.sh deploy
-sudo DOMAIN=yourdomain.com EMAIL=admin@yourdomain.com ./deploy-prod.sh ssl
 
-# Regular updates
-./update-prod.sh
+# 5. Configure environment
+cp env.example .env.production
+nano .env.production
 
-# View logs
-docker compose -f docker-compose.prod.yml logs -f app
+# 6. Deploy
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh deploy
 
-# Backup
-./deploy-prod.sh backup
+# 7. Setup SSL
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh ssl
 
-# Restart
-./deploy-prod.sh restart
+# 8. Seed database (optional)
+sudo ./deploy-prod.sh seed
 ```
 
 ---
 
-**✨ Your application is now live!**
+## Prerequisites
 
-Visit: `https://yourdomain.com`
-Admin: `https://yourdomain.com/admin`
+- **DigitalOcean Droplet**: 4GB RAM recommended (2GB works with swap)
+- **Domain**: Pointed to your droplet IP
+- **Email**: For SSL certificate notifications
+
+---
+
+## Detailed Setup
+
+### Step 1: Create Droplet
+
+1. Go to [DigitalOcean](https://cloud.digitalocean.com)
+2. Create Droplet:
+   - **Image**: Ubuntu 22.04 LTS
+   - **Size**: 4GB / 2 vCPU ($24/mo) or 2GB with swap
+   - **Region**: Closest to your users
+   - **Authentication**: SSH keys (recommended)
+
+### Step 2: Point Domain
+
+Add DNS A records:
+```
+@     A    your-droplet-ip
+www   A    your-droplet-ip
+```
+
+### Step 3: Connect & Setup
+
+```bash
+# SSH into droplet
+ssh root@your-droplet-ip
+
+# Clone repo
+cd ~
+git clone https://github.com/yourusername/roxas.git
+cd roxas
+
+# Make script executable
+chmod +x deploy-prod.sh
+
+# Initialize (installs Docker, firewall, swap)
+sudo ./deploy-prod.sh init
+```
+
+### Step 4: Configure Environment
+
+```bash
+# Copy template
+cp env.example .env.production
+
+# Edit configuration
+nano .env.production
+```
+
+**Required variables:**
+```env
+# Database (use defaults for Docker)
+DATABASE_URL="postgresql://postgres:password@db:5432/roxas"
+
+# Auth (generate with: openssl rand -base64 32)
+AUTH_SECRET="your-super-secret-key-here"
+NEXTAUTH_URL="https://yourdomain.com"
+
+# Optional: Google OAuth
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Payment (Midtrans)
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=""
+MIDTRANS_SERVER_KEY=""
+MIDTRANS_MERCHANT_ID=""
+
+# Email (Mailgun)
+MAILGUN_API_KEY=""
+MAILGUN_DOMAIN=""
+
+# Game API (Digiflazz)
+DIGIFLAZZ_USERNAME=""
+DIGIFLAZZ_API_KEY=""
+```
+
+### Step 5: Deploy
+
+```bash
+# Deploy (10-15 minutes on first run)
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh deploy
+```
+
+### Step 6: Setup SSL
+
+```bash
+# Get SSL certificate
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh ssl
+```
+
+### Step 7: Seed Database (Optional)
+
+```bash
+# Add initial data
+sudo ./deploy-prod.sh seed
+```
+
+---
+
+## Script Commands
+
+| Command | Description |
+|---------|-------------|
+| `init` | First-time server setup |
+| `deploy` | Full build and deploy |
+| `ssl` | Setup SSL certificates |
+| `update` | Quick update (pull, rebuild, restart) |
+| `restart` | Restart all services |
+| `reset` | Delete everything (DESTRUCTIVE) |
+| `backup` | Create database backup |
+| `restore` | Restore from backup |
+| `migrate` | Run database migrations |
+| `seed` | Run database seed |
+| `logs` | View logs |
+| `status` | Show service status |
+| `shell` | Open container shell |
+
+### Examples
+
+```bash
+# View app logs
+sudo ./deploy-prod.sh logs app
+
+# View all logs
+sudo ./deploy-prod.sh logs
+
+# Check status
+sudo ./deploy-prod.sh status
+
+# Create backup
+sudo ./deploy-prod.sh backup
+
+# Update after code changes
+sudo ./deploy-prod.sh update
+
+# Reset everything
+sudo ./deploy-prod.sh reset
+```
+
+---
+
+## Common Operations
+
+### Update After Code Changes
+
+```bash
+cd ~/roxas
+sudo ./deploy-prod.sh update
+```
+
+### View Logs
+
+```bash
+# All services
+sudo ./deploy-prod.sh logs
+
+# Specific service
+sudo ./deploy-prod.sh logs app
+sudo ./deploy-prod.sh logs nginx
+sudo ./deploy-prod.sh logs db
+```
+
+### Database Operations
+
+```bash
+# Backup
+sudo ./deploy-prod.sh backup
+
+# Restore (interactive)
+sudo ./deploy-prod.sh restore
+
+# Run migrations
+sudo ./deploy-prod.sh migrate
+
+# Seed data
+sudo ./deploy-prod.sh seed
+```
+
+### Debug Issues
+
+```bash
+# Check status
+sudo ./deploy-prod.sh status
+
+# View logs
+sudo ./deploy-prod.sh logs app
+
+# Open shell in container
+sudo ./deploy-prod.sh shell app
+```
+
+---
+
+## Troubleshooting
+
+### Out of Memory (OOM)
+
+If build fails with OOM:
+```bash
+# Check swap
+free -h
+
+# Script auto-creates swap, but verify:
+swapon --show
+```
+
+### Container Not Starting
+
+```bash
+# Check logs
+sudo ./deploy-prod.sh logs app
+
+# Restart services
+sudo ./deploy-prod.sh restart
+
+# Full reset if needed
+sudo ./deploy-prod.sh reset
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh deploy
+```
+
+### SSL Issues
+
+```bash
+# Check certificate
+sudo ls -la ~/roxas/certbot/conf/live/
+
+# Re-request certificate
+sudo DOMAIN=yourdomain.com ./deploy-prod.sh ssl
+```
+
+### Database Connection Failed
+
+```bash
+# Check if db is running
+docker compose -f docker-compose.prod.yml ps db
+
+# View db logs
+sudo ./deploy-prod.sh logs db
+
+# Restart db
+docker compose -f docker-compose.prod.yml restart db
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    NGINX (SSL)                      │
+│                   Port 80/443                       │
+└─────────────────────┬───────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────┐
+│              Next.js App (Port 3000)                │
+└─────────────────────┬───────────────────────────────┘
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+┌───────▼──────┐ ┌────▼────┐ ┌──────▼──────┐
+│  PostgreSQL  │ │  Redis  │ │   Workers   │
+│  Port 5432   │ │  6379   │ │  scheduler  │
+│              │ │         │ │email-worker │
+└──────────────┘ └─────────┘ └─────────────┘
+```
+
+---
+
+## File Locations
+
+| Path | Description |
+|------|-------------|
+| `~/roxas` | Application root |
+| `~/roxas/.env.production` | Environment variables |
+| `~/roxas/backups/` | Database backups |
+| `~/roxas/certbot/conf/` | SSL certificates |
+
+---
+
+## Security Checklist
+
+- [ ] Change default database password in `.env.production`
+- [ ] Generate strong `AUTH_SECRET` 
+- [ ] Enable firewall (done by `init`)
+- [ ] Setup fail2ban (done by `init`)
+- [ ] Regular backups (use cron with `backup` command)
+
+---
+
+## Need Help?
+
+1. Check logs: `sudo ./deploy-prod.sh logs`
+2. Check status: `sudo ./deploy-prod.sh status`
+3. Reset and try again: `sudo ./deploy-prod.sh reset`
