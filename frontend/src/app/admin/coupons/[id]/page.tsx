@@ -25,48 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAdminCoupon, useUpdateCoupon } from "@/lib/queries";
-import { DiscountType } from "@/lib/types";
+import { useCoupon, useUpdateCoupon, DiscountType, type Coupon } from "@/lib/coupons";
 import { formatDateTime } from "@/lib/date-utils";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-
-interface CouponDetail {
-  id: string;
-  code: string;
-  description: string | null;
-  discountType: DiscountType;
-  discountValue: number;
-  minPurchase: number | null;
-  maxDiscount: number | null;
-  usageLimit: number | null;
-  usageCount: number;
-  userLimit: number | null;
-  isActive: boolean;
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-  _count?: {
-    usages: number;
-  };
-  usages?: Array<{
-    id: string;
-    userId: string;
-    orderId: string;
-    discountAmount: number;
-    createdAt: string;
-    user: {
-      id: string;
-      email: string;
-      name: string | null;
-    };
-    order: {
-      id: string;
-      orderNumber: string;
-      finalPrice: number;
-    };
-  }>;
-}
 
 export default function CouponEditPage() {
   const router = useRouter();
@@ -77,64 +38,62 @@ export default function CouponEditPage() {
   const [formData, setFormData] = useState<{
     code: string;
     description: string;
-    discountType: DiscountType;
-    discountValue: number;
-    minPurchase: number | null;
-    maxDiscount: number | null;
-    usageLimit: number | null;
-    userLimit: number | null;
-    isActive: boolean;
-    startDate: string | null;
-    endDate: string | null;
+    discount_type: DiscountType;
+    discount_value: number;
+    min_purchase: number | null;
+    max_discount: number | null;
+    usage_limit: number | null;
+    user_limit: number | null;
+    is_active: boolean;
+    start_date: string | null;
+    end_date: string | null;
   }>({
     code: "",
     description: "",
-    discountType: DiscountType.PERCENTAGE,
-    discountValue: 0,
-    minPurchase: null,
-    maxDiscount: null,
-    usageLimit: null,
-    userLimit: null,
-    isActive: true,
-    startDate: null,
-    endDate: null,
+    discount_type: DiscountType.PERCENTAGE,
+    discount_value: 0,
+    min_purchase: null,
+    max_discount: null,
+    usage_limit: null,
+    user_limit: null,
+    is_active: true,
+    start_date: null,
+    end_date: null,
   });
 
   // Use React Query to fetch coupon data
-  const { data: couponData, isLoading: loading, error } = useAdminCoupon(couponId, {
+  const { data: couponData, isLoading: loading, error } = useCoupon(couponId, {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
-  const typedCouponData = couponData as CouponDetail | null | undefined;
+  const typedCouponData = couponData as Coupon | null | undefined;
 
   // Update form data when coupon data changes
   useEffect(() => {
     if (typedCouponData) {
-      // Ensure discountType is a string to match SelectItem values exactly
-      const discountTypeValue = typedCouponData.discountType ? String(typedCouponData.discountType) : DiscountType.PERCENTAGE;
+      // Ensure discount_type is a string to match SelectItem values exactly
+      const discountTypeValue = typedCouponData.discount_type ? String(typedCouponData.discount_type) : DiscountType.PERCENTAGE;
 
       setFormData({
         code: typedCouponData.code,
         description: typedCouponData.description || "",
-        discountType: discountTypeValue as DiscountType,
-        discountValue: typedCouponData.discountValue,
-        minPurchase: typedCouponData.minPurchase,
-        maxDiscount: typedCouponData.maxDiscount,
-        usageLimit: typedCouponData.usageLimit,
-        userLimit: typedCouponData.userLimit,
-        isActive: typedCouponData.isActive,
-        startDate: typedCouponData.startDate,
-        endDate: typedCouponData.endDate,
+        discount_type: discountTypeValue as DiscountType,
+        discount_value: typedCouponData.discount_value,
+        min_purchase: typedCouponData.min_purchase,
+        max_discount: typedCouponData.max_discount,
+        usage_limit: typedCouponData.usage_limit,
+        user_limit: typedCouponData.user_limit,
+        is_active: typedCouponData.is_active,
+        start_date: typedCouponData.start_date,
+        end_date: typedCouponData.end_date,
       });
     }
   }, [typedCouponData]);
 
   const updateCouponMutation = useUpdateCoupon({
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Coupon updated successfully");
-      // Wait a bit for query invalidation to complete before navigating
-      await new Promise(resolve => setTimeout(resolve, 100));
       router.push("/admin/coupons");
     },
     onError: (error) => {
@@ -146,17 +105,17 @@ export default function CouponEditPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.code || !formData.discountType || !formData.discountValue) {
+    if (!formData.code || !formData.discount_type || !formData.discount_value) {
       toast.error("Code, discount type, and discount value are required");
       return;
     }
 
-    if (formData.discountValue <= 0) {
+    if (formData.discount_value <= 0) {
       toast.error("Discount value must be greater than 0");
       return;
     }
 
-    if (formData.discountType === DiscountType.PERCENTAGE && formData.discountValue > 100) {
+    if (formData.discount_type === DiscountType.PERCENTAGE && formData.discount_value > 100) {
       toast.error("Percentage discount cannot exceed 100%");
       return;
     }
@@ -165,12 +124,12 @@ export default function CouponEditPage() {
     const submitData = {
       ...formData,
       code: formData.code.toUpperCase().trim(),
-      description: formData.description || null,
-      minPurchase: formData.minPurchase || 0,
-      maxDiscount: formData.maxDiscount || null,
-      usageLimit: formData.usageLimit || null,
-      startDate: formData.startDate || null,
-      endDate: formData.endDate || null,
+      description: formData.description || undefined,
+      min_purchase: formData.min_purchase || 0,
+      max_discount: formData.max_discount || undefined,
+      usage_limit: formData.usage_limit || undefined,
+      start_date: formData.start_date || undefined,
+      end_date: formData.end_date || undefined,
     };
 
     updateCouponMutation.mutate(
@@ -320,12 +279,12 @@ export default function CouponEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="discountType">Discount Type <span className="text-red-400">*</span></Label>
                                 <Select
-                                  value={formData.discountType || undefined}
+                                  value={formData.discount_type || undefined}
                                   onValueChange={(value) => {
                                     if (!value?.trim()) return;
                                     setFormData({
                                       ...formData,
-                                      discountType: value as DiscountType,
+                                      discount_type: value as DiscountType,
                                     });
                                   }}
                                 >
@@ -344,28 +303,28 @@ export default function CouponEditPage() {
                                   id="discountValue"
                                   type="number"
                                   step="0.01"
-                                  value={formData.discountValue}
+                                  value={formData.discount_value}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      discountValue: parseFloat(e.target.value) || 0,
+                                      discount_value: parseFloat(e.target.value) || 0,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
                                 />
                               </div>
                             </div>
-                            {formData.discountType === DiscountType.PERCENTAGE && (
+                            {formData.discount_type === DiscountType.PERCENTAGE && (
                               <div className="space-y-2">
                                 <Label htmlFor="maxDiscount">Max Discount (Optional)</Label>
                                 <Input
                                   id="maxDiscount"
                                   type="number"
-                                  value={formData.maxDiscount || ""}
+                                  value={formData.max_discount || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      maxDiscount: e.target.value ? parseFloat(e.target.value) : null,
+                                      max_discount: e.target.value ? parseFloat(e.target.value) : null,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
@@ -388,11 +347,11 @@ export default function CouponEditPage() {
                                 <Input
                                   id="minPurchase"
                                   type="number"
-                                  value={formData.minPurchase || ""}
+                                  value={formData.min_purchase || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      minPurchase: e.target.value ? parseFloat(e.target.value) : null,
+                                      min_purchase: e.target.value ? parseFloat(e.target.value) : null,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
@@ -403,11 +362,11 @@ export default function CouponEditPage() {
                                 <Input
                                   id="userLimit"
                                   type="number"
-                                  value={formData.userLimit || ""}
+                                  value={formData.user_limit || ""}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      userLimit: e.target.value ? parseInt(e.target.value) : null,
+                                      user_limit: e.target.value ? parseInt(e.target.value) : null,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
@@ -419,11 +378,11 @@ export default function CouponEditPage() {
                               <Input
                                 id="usageLimit"
                                 type="number"
-                                value={formData.usageLimit || ""}
+                                value={formData.usage_limit || ""}
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    usageLimit: e.target.value ? parseInt(e.target.value) : null,
+                                    usage_limit: e.target.value ? parseInt(e.target.value) : null,
                                   })
                                 }
                                 className="bg-gray-800 text-gray-100 border-gray-700"
@@ -443,9 +402,9 @@ export default function CouponEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="startDate">Start Date</Label>
                                 <DateTimePicker
-                                  value={formData.startDate || undefined}
+                                  value={formData.start_date || undefined}
                                   onChange={(value) =>
-                                    setFormData({ ...formData, startDate: value || null })
+                                    setFormData({ ...formData, start_date: value || null })
                                   }
                                   placeholder="Select start date and time"
                                 />
@@ -453,9 +412,9 @@ export default function CouponEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="endDate">End Date</Label>
                                 <DateTimePicker
-                                  value={formData.endDate || undefined}
+                                  value={formData.end_date || undefined}
                                   onChange={(value) =>
-                                    setFormData({ ...formData, endDate: value || null })
+                                    setFormData({ ...formData, end_date: value || null })
                                   }
                                   placeholder="Select end date and time"
                                 />
@@ -467,9 +426,9 @@ export default function CouponEditPage() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id="isActive"
-                              checked={formData.isActive}
+                              checked={formData.is_active}
                               onCheckedChange={(checked) =>
-                                setFormData({ ...formData, isActive: checked === true })
+                                setFormData({ ...formData, is_active: checked === true })
                               }
                               className="border-gray-700"
                             />
@@ -523,17 +482,17 @@ export default function CouponEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Current Status</span>
                           <Badge
-                            variant={typedCouponData.isActive ? "default" : "secondary"}
-                            className={typedCouponData.isActive ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
+                            variant={typedCouponData.is_active ? "default" : "secondary"}
+                            className={typedCouponData.is_active ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
                           >
-                            {typedCouponData.isActive ? "Active" : "Inactive"}
+                            {typedCouponData.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Usage Count</span>
                           <span className="text-sm text-gray-200 font-semibold">
-                            {typedCouponData.usageCount}
-                            {typedCouponData.usageLimit !== null && ` / ${typedCouponData.usageLimit}`}
+                            {typedCouponData.usage_count}
+                            {typedCouponData.usage_limit !== null && ` / ${typedCouponData.usage_limit}`}
                           </span>
                         </div>
                       </CardContent>
@@ -551,38 +510,38 @@ export default function CouponEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Discount</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {typedCouponData.discountType === DiscountType.PERCENTAGE
-                              ? `${typedCouponData.discountValue}%`
-                              : `Rp ${typedCouponData.discountValue.toLocaleString("id-ID")}`}
+                            {typedCouponData.discount_type === DiscountType.PERCENTAGE
+                              ? `${typedCouponData.discount_value}%`
+                              : `Rp ${typedCouponData.discount_value.toLocaleString("id-ID")}`}
                           </p>
                         </div>
-                        {typedCouponData.minPurchase !== null && typedCouponData.minPurchase > 0 && (
+                        {typedCouponData.min_purchase !== null && typedCouponData.min_purchase > 0 && (
                           <div>
                             <span className="text-xs text-gray-400">Min Purchase</span>
                             <p className="text-sm text-gray-200">
-                              Rp {typedCouponData.minPurchase.toLocaleString("id-ID")}
+                              Rp {typedCouponData.min_purchase.toLocaleString("id-ID")}
                             </p>
                           </div>
                         )}
-                        {typedCouponData.maxDiscount !== null && (
+                        {typedCouponData.max_discount !== null && (
                           <div>
                             <span className="text-xs text-gray-400">Max Discount</span>
                             <p className="text-sm text-gray-200">
-                              Rp {typedCouponData.maxDiscount.toLocaleString("id-ID")}
+                              Rp {typedCouponData.max_discount.toLocaleString("id-ID")}
                             </p>
                           </div>
                         )}
-                        {typedCouponData.userLimit !== null && (
+                        {typedCouponData.user_limit !== null && (
                           <div>
                             <span className="text-xs text-gray-400">Per User Limit</span>
-                            <p className="text-sm text-gray-200">{typedCouponData.userLimit}</p>
+                            <p className="text-sm text-gray-200">{typedCouponData.user_limit}</p>
                           </div>
                         )}
                       </CardContent>
                     </Card>
 
                     {/* Validity Period */}
-                    {(typedCouponData.startDate || typedCouponData.endDate) && (
+                    {(typedCouponData.start_date || typedCouponData.end_date) && (
                       <Card className="bg-gray-900 border-gray-800">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
@@ -591,19 +550,19 @@ export default function CouponEditPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {typedCouponData.startDate && (
+                          {typedCouponData.start_date && (
                             <div>
                               <span className="text-xs text-gray-400">Start Date</span>
                               <p className="text-sm text-gray-200">
-                                {formatDateTime(typedCouponData.startDate)}
+                                {formatDateTime(typedCouponData.start_date)}
                               </p>
                             </div>
                           )}
-                          {typedCouponData.endDate && (
+                          {typedCouponData.end_date && (
                             <div>
                               <span className="text-xs text-gray-400">End Date</span>
                               <p className="text-sm text-gray-200">
-                                {formatDateTime(typedCouponData.endDate)}
+                                {formatDateTime(typedCouponData.end_date)}
                               </p>
                             </div>
                           )}
@@ -629,15 +588,15 @@ export default function CouponEditPage() {
                                     {usage.user.name || usage.user.email}
                                   </p>
                                   <p className="text-xs text-gray-400">
-                                    Order: {usage.order.orderNumber}
+                                    Order: {usage.order.order_number}
                                   </p>
                                   <p className="text-xs text-gray-400">
-                                    {formatDateTime(usage.createdAt)}
+                                    {formatDateTime(usage.created_at)}
                                   </p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-sm font-semibold text-green-400">
-                                    -Rp {usage.discountAmount.toLocaleString("id-ID")}
+                                    -Rp {usage.discount_amount.toLocaleString("id-ID")}
                                   </p>
                                 </div>
                               </div>
@@ -659,13 +618,13 @@ export default function CouponEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedCouponData.createdAt)}
+                            {formatDateTime(typedCouponData.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedCouponData.updatedAt)}
+                            {formatDateTime(typedCouponData.updated_at)}
                           </p>
                         </div>
                       </CardContent>

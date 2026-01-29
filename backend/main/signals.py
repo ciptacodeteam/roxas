@@ -17,6 +17,7 @@ from .models import (
     ProductItem,
     MarketingBanner,
     CategoryInstructionImage,
+    PaymentMethod,
 )
 
 
@@ -186,3 +187,9 @@ def optimize_product_item_icon(sender, instance, created, **kwargs):
 def optimize_banner_image(sender, instance, created, **kwargs):
     """Optimize marketing banner image when saved."""
     _optimize_image_field(instance, 'image', max_width=2560, max_height=1440)
+
+
+@receiver(post_save, sender=PaymentMethod)
+def optimize_payment_method_icon(sender, instance, created, **kwargs):
+    """Optimize payment method icon when saved."""
+    _optimize_image_field(instance, 'icon', max_width=512, max_height=512)

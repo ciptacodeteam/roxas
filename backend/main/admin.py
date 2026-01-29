@@ -54,14 +54,14 @@ class FlashSaleItemInline(admin.TabularInline):
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
-    list_display = ["name", "type", "bank", "fee_value", "vat_value", "is_active", "created_at"]
-    list_filter = ["type", "is_active", "bank"]
+    list_display = ["name", "type", "fee_value", "vat_value", "is_active", "created_at"]
+    list_filter = ["type", "is_active"]
     search_fields = ["name", "midtrans_code"]
     readonly_fields = ["id", "created_at", "updated_at"]
     
     fieldsets = (
         ("Basic Information", {
-            "fields": ("type", "bank", "name", "description", "icon", "is_active")
+            "fields": ("type", "name", "description", "icon", "is_active")
         }),
         ("Midtrans Configuration", {
             "fields": ("midtrans_code",)

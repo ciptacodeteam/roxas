@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -14,12 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  PhoneInput,
-  validateIndonesianPhone,
-} from "@/components/ui/phone-input";
-import { BackButton } from "@/components/admin/back-button";
+import { PhoneInputWithCountry } from "@/components/ui/phone-input-with-country";
 import {
   Select,
   SelectContent,
@@ -39,34 +34,54 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCreateUser, queryKeys } from "@/lib/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import { 
+  useCreateStaffUser, 
+  useCreateCustomerUser,
+  createUserSchema,
+  type CreateUserRequest 
+} from "@/lib/users";
 
 export default function UserAddPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    name: "",
-    phone: "",
-    role: "USER",
-    emailVerified: false,
-    password: "",
-  });
+  const searchParams = useSearchParams();
+  const userType = useMemo(() => 
+    (searchParams?.get("type") || "customer") as "staff" | "customer",
+    [searchParams]
+  );
 
-  const createUserMutation = useCreateUser({
-    onSuccess: async () => {
-      // Ensure queries are invalidated and refetched
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      await queryClient.refetchQueries({ queryKey: queryKeys.users.all });
-      toast.success("User created successfully");
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<{
+    email: string;
+    password: string;
+    full_name: string;
+    contact_phone: string;
+    role: "STAFF" | "CUSTOMER";
+  }>(() => ({
+    email: "",
+    password: "",
+    full_name: "",
+    contact_phone: "",
+    role: (searchParams?.get("type") === "staff" ? "STAFF" : "CUSTOMER") as "STAFF" | "CUSTOMER",
+  }));
+
+  const createStaffMutation = useCreateStaffUser({
+    onSuccess: () => {
+      toast.success("Staff user created successfully");
       router.push("/admin/users");
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create user",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to create staff user");
+      setSaving(false);
+    },
+  });
+
+  const createCustomerMutation = useCreateCustomerUser({
+    onSuccess: () => {
+      toast.success("Customer created successfully");
+      router.push("/admin/users");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create customer");
       setSaving(false);
     },
   });
@@ -79,21 +94,38 @@ export default function UserAddPage() {
       return;
     }
 
-    // Validate phone number if provided
-    if (formData.phone) {
-      const phoneValidation = validateIndonesianPhone(formData.phone);
-      if (!phoneValidation.isValid) {
-        toast.error(phoneValidation.error || "Invalid phone number");
-        return;
-      }
+    // Validate with Zod schema
+    const validationResult = createUserSchema.safeParse(formData);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      toast.error(firstError?.message || "Validation failed");
+      return;
     }
 
+    // Prepare data for submission
+    const submitData: CreateUserRequest = {
+      email: formData.email,
+      password: formData.password,
+      full_name: formData.full_name,
+      contact_phone: formData.contact_phone || undefined,
+      role: userType === "staff" ? "STAFF" : "CUSTOMER",
+    };
+
+    console.log("Submitting user data:", submitData);
     setSaving(true);
-    createUserMutation.mutate(formData, {
-      onSettled: () => {
-        setSaving(false);
-      },
-    });
+    
+    if (userType === "staff") {
+      createStaffMutation.mutate(submitData);
+    } else {
+      createCustomerMutation.mutate(submitData);
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      contact_phone: value,
+    }));
   };
 
   return (
@@ -124,9 +156,11 @@ export default function UserAddPage() {
                       Back to Users
                     </Button>
                     <div>
-                      <h1 className="text-3xl font-bold">Tambah User</h1>
+                      <h1 className="text-3xl font-bold">
+                        Add {userType === "staff" ? "Staff User" : "Customer"}
+                      </h1>
                       <p className="mt-2 text-gray-400">
-                        Create a new user account
+                        Create a new {userType} account
                       </p>
                     </div>
                   </div>
@@ -141,7 +175,7 @@ export default function UserAddPage() {
                         User Information
                       </CardTitle>
                       <CardDescription>
-                        Fill in the details to create a new user account
+                        Fill in the details to create a new {userType} account
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -172,44 +206,6 @@ export default function UserAddPage() {
                           />
                         </div>
 
-                        {/* Name */}
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="name"
-                            className="flex items-center gap-2"
-                          >
-                            <User className="h-4 w-4" />
-                            Full Name
-                          </Label>
-                          <Input
-                            id="name"
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) =>
-                              setFormData({ ...formData, name: e.target.value })
-                            }
-                            placeholder="User name"
-                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
-                          />
-                        </div>
-
-                        {/* Phone */}
-                        <PhoneInput
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(value) =>
-                            setFormData({
-                              ...formData,
-                              phone: value,
-                            })
-                          }
-                          placeholder="81234567890"
-                          label="Phone Number"
-                          showLabel={true}
-                          className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
-                          wrapperClassName="space-y-2"
-                        />
-
                         {/* Password */}
                         <div className="space-y-2">
                           <Label htmlFor="password">
@@ -234,49 +230,41 @@ export default function UserAddPage() {
                           </p>
                         </div>
 
-                        {/* Role */}
+                        {/* Full Name */}
                         <div className="space-y-2">
                           <Label
-                            htmlFor="role"
+                            htmlFor="full_name"
                             className="flex items-center gap-2"
                           >
-                            <Shield className="h-4 w-4" />
-                            Role
+                            <User className="h-4 w-4" />
+                            Full Name
                           </Label>
-                          <Select
-                            value={formData.role}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, role: value })
+                          <Input
+                            id="full_name"
+                            type="text"
+                            value={formData.full_name}
+                            onChange={(e) =>
+                              setFormData({ ...formData, full_name: e.target.value })
                             }
-                          >
-                            <SelectTrigger className="border-gray-700 bg-gray-800 text-gray-100">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="border-gray-700 bg-gray-800 text-gray-100">
-                              <SelectItem value="USER">User</SelectItem>
-                              <SelectItem value="ADMIN">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            placeholder="Full name"
+                            className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
+                          />
                         </div>
 
-                        {/* Email Verified */}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="emailVerified"
-                            checked={formData.emailVerified}
-                            onCheckedChange={(checked) =>
-                              setFormData({
-                                ...formData,
-                                emailVerified: !!checked,
-                              })
-                            }
-                          />
+                        {/* Phone */}
+                        <div className="space-y-2">
                           <Label
-                            htmlFor="emailVerified"
-                            className="cursor-pointer"
+                            htmlFor="contact_phone"
+                            className="flex items-center gap-2"
                           >
-                            Email Verified
+                            <Phone className="h-4 w-4" />
+                            Phone Number
                           </Label>
+                          <PhoneInputWithCountry
+                            value={formData.contact_phone}
+                            onChange={handlePhoneChange}
+                            placeholder="Enter phone number"
+                          />
                         </div>
 
                         <Separator className="bg-gray-700" />

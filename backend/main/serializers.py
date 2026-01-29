@@ -35,7 +35,7 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = [
-            'id', 'type', 'bank', 'name', 'description', 'icon',
+            'id', 'type', 'name', 'description', 'icon',
             'fee_type', 'fee_value', 'vat_type', 'vat_value',
             'is_active', 'midtrans_code', 'created_at', 'updated_at'
         ]
@@ -48,7 +48,7 @@ class PaymentMethodPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = [
-            'id', 'type', 'bank', 'name', 'description', 'icon',
+            'id', 'type', 'name', 'description', 'icon',
             'fee_type', 'fee_value', 'vat_type', 'vat_value'
         ]
         read_only_fields = ['id']

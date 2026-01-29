@@ -26,26 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAdminPaymentMethod, useUpdatePaymentMethod } from "@/lib/queries";
-import { PaymentMethodType, BankTransferBank, FeeType } from "@/lib/types";
+import { usePaymentMethod, useUpdatePaymentMethod, PaymentMethodType, FeeType, type PaymentMethod } from "@/lib/payment-methods";
 import { formatDateTime } from "@/lib/date-utils";
-
-interface PaymentMethodDetail {
-  id: string;
-  type: PaymentMethodType;
-  bank: BankTransferBank | null;
-  name: string;
-  description: string | null;
-  icon: string | null;
-  feeType: FeeType;
-  feeValue: number;
-  vatType: FeeType;
-  vatValue: number;
-  isActive: boolean;
-  midtransCode: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export default function PaymentMethodEditPage() {
   const router = useRouter();
@@ -54,41 +36,40 @@ export default function PaymentMethodEditPage() {
 
   const [saving, setSaving] = useState(false);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
-  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [iconFile, setIconFile] = useState<File | null>(null);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
   const [formData, setFormData] = useState<{
     type: PaymentMethodType | "";
-    bank: BankTransferBank | "" | null;
     name: string;
     description: string;
-    icon: string;
-    feeType: string;
-    feeValue: number;
-    vatType: string;
-    vatValue: number;
-    isActive: boolean;
-    midtransCode: string;
+    fee_type: string;
+    fee_value: number;
+    vat_type: string;
+    vat_value: number;
+    is_active: boolean;
+    midtrans_code: string;
   }>({
     type: "",
-    bank: "",
     name: "",
     description: "",
-    icon: "",
-    feeType: "PERCENTAGE",
-    feeValue: 0,
-    vatType: "PERCENTAGE",
-    vatValue: 0,
-    isActive: true,
-    midtransCode: "",
+    fee_type: "PERCENTAGE",
+    fee_value: 0,
+    vat_type: "PERCENTAGE",
+    vat_value: 0,
+    is_active: true,
+    midtrans_code: "",
   });
 
   // Use React Query to fetch payment method data
-  const { data: paymentMethodData, isLoading: loading, error } = useAdminPaymentMethod(paymentMethodId, {
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
-  const typedPaymentMethodData = paymentMethodData as PaymentMethodDetail | null | undefined;
+  const { data: paymentMethodData, isLoading: loading, error } = usePaymentMethod(
+    paymentMethodId,
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
+  const typedPaymentMethodData = paymentMethodData as PaymentMethod | null | undefined;
 
   // Update form data when payment method data changes
   useEffect(() => {
@@ -97,24 +78,23 @@ export default function PaymentMethodEditPage() {
       // Convert to string to ensure it matches SelectItem values exactly
       const typeValue = typedPaymentMethodData.type ? String(typedPaymentMethodData.type) as PaymentMethodType : "";
 
-      // Keep feeType and vatType as strings for consistent state management
-      const feeTypeValue = typedPaymentMethodData.feeType ? String(typedPaymentMethodData.feeType) : "PERCENTAGE";
-      const vatTypeValue = typedPaymentMethodData.vatType ? String(typedPaymentMethodData.vatType) : "PERCENTAGE";
+      // Keep fee_type and vat_type as strings for consistent state management
+      const feeTypeValue = typedPaymentMethodData.fee_type ? String(typedPaymentMethodData.fee_type) : "PERCENTAGE";
+      const vatTypeValue = typedPaymentMethodData.vat_type ? String(typedPaymentMethodData.vat_type) : "PERCENTAGE";
 
       setFormData({
         type: typeValue,
-        bank: typedPaymentMethodData.bank || "",
         name: typedPaymentMethodData.name,
         description: typedPaymentMethodData.description || "",
-        icon: typedPaymentMethodData.icon || "",
-        feeType: feeTypeValue,
-        feeValue: typedPaymentMethodData.feeValue,
-        vatType: vatTypeValue,
-        vatValue: typedPaymentMethodData.vatValue,
-        isActive: typedPaymentMethodData.isActive,
-        midtransCode: typedPaymentMethodData.midtransCode,
+        fee_type: feeTypeValue,
+        fee_value: typedPaymentMethodData.fee_value,
+        vat_type: vatTypeValue,
+        vat_value: typedPaymentMethodData.vat_value,
+        is_active: typedPaymentMethodData.is_active,
+        midtrans_code: typedPaymentMethodData.midtrans_code,
       });
       setIconPreview(typedPaymentMethodData.icon || null);
+      setIconFile(null);
       if (!isFormInitialized) {
         setIsFormInitialized(true);
       }
@@ -122,10 +102,8 @@ export default function PaymentMethodEditPage() {
   }, [typedPaymentMethodData, isFormInitialized]);
 
   const updatePaymentMethodMutation = useUpdatePaymentMethod({
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Payment method updated successfully");
-      // Wait a bit for query invalidation to complete before navigating
-      await new Promise(resolve => setTimeout(resolve, 100));
       router.push("/admin/payment-methods");
     },
     onError: (error) => {
@@ -134,74 +112,35 @@ export default function PaymentMethodEditPage() {
     },
   });
 
-  const handleImageUpload = async (file: File) => {
-    try {
-      setUploadingIcon(true);
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=payment-methods`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `Upload failed with status ${response.status}`);
-      }
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      if (!data.data || !data.data.url) {
-        throw new Error("No URL returned from upload");
-      }
-
-      setFormData((prev) => ({ ...prev, icon: data.data.url }));
-      setIconPreview(data.data.url);
-
-      toast.success("Icon uploaded successfully");
-    } catch (err) {
-      console.error("Icon upload error:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload icon"
-      );
-    } finally {
-      setUploadingIcon(false);
-    }
+  const handleImageChange = (file: File) => {
+    setIconFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setIconPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.type || !formData.name || !formData.midtransCode) {
+    if (!formData.type || !formData.name || !formData.midtrans_code) {
       toast.error("Type, name, and Midtrans code are required");
       return;
     }
 
-    if (String(formData.type) === "MOBILE_BANKING" && !formData.bank) {
-      toast.error("Bank is required for bank transfer payment method");
-      return;
-    }
-
     setSaving(true);
-    const submitData = {
+    const submitData: any = {
       ...formData,
-      feeType: formData.feeType as FeeType,
-      vatType: formData.vatType as FeeType,
-      bank: String(formData.type) === "MOBILE_BANKING" ? formData.bank : null,
-      description: formData.description || null,
-      icon: formData.icon || null,
+      fee_type: formData.fee_type as FeeType,
+      vat_type: formData.vat_type as FeeType,
+      description: formData.description || undefined,
     };
 
-    console.log("Submitting payment method update:", {
-      feeType: submitData.feeType,
-      vatType: submitData.vatType,
-      fullData: submitData,
-    });
+    // Add icon file if selected
+    if (iconFile) {
+      submitData.icon = iconFile;
+    }
 
     updatePaymentMethodMutation.mutate(
       { id: paymentMethodId, data: submitData },
@@ -320,7 +259,6 @@ export default function PaymentMethodEditPage() {
                                 setFormData({
                                   ...formData,
                                   type: value as PaymentMethodType,
-                                  bank: value === "MOBILE_BANKING" ? formData.bank : "",
                                 });
                               }}
                             >
@@ -336,36 +274,6 @@ export default function PaymentMethodEditPage() {
                               </SelectContent>
                             </Select>
                           </div>
-
-                          {/* Bank (only for MOBILE_BANKING) */}
-                          {String(formData.type) === "MOBILE_BANKING" && (
-                            <div className="space-y-2">
-                              <Label htmlFor="bank" className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4" />
-                                Bank <span className="text-red-400">*</span>
-                              </Label>
-                              <Select
-                                value={formData.bank || undefined}
-                                onValueChange={(value) =>
-                                  setFormData({
-                                    ...formData,
-                                    bank: value as BankTransferBank,
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                  <SelectValue placeholder="Select bank" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                  {Object.values(BankTransferBank).map((bank) => (
-                                    <SelectItem key={bank} value={bank} className="hover:bg-gray-700">
-                                      {bank}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
 
                           {/* Name */}
                           <div className="space-y-2">
@@ -391,9 +299,9 @@ export default function PaymentMethodEditPage() {
                             </Label>
                             <Input
                               id="midtransCode"
-                              value={formData.midtransCode}
+                              value={formData.midtrans_code}
                               onChange={(e) =>
-                                setFormData({ ...formData, midtransCode: e.target.value })
+                                setFormData({ ...formData, midtrans_code: e.target.value })
                               }
                               className="bg-gray-800 text-gray-100 border-gray-700"
                             />
@@ -439,7 +347,7 @@ export default function PaymentMethodEditPage() {
                                     className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
                                     onClick={() => {
                                       setIconPreview(null);
-                                      setFormData((prev) => ({ ...prev, icon: "" }));
+                                      setIconFile(null);
                                     }}
                                   >
                                     <X className="h-3 w-3 text-white" />
@@ -454,34 +362,10 @@ export default function PaymentMethodEditPage() {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
-                                        handleImageUpload(file);
-                                        // Reset file input
-                                        e.target.value = "";
+                                        handleImageChange(file);
                                       }
                                     }}
-                                    disabled={uploadingIcon}
                                     className="bg-gray-800 text-gray-100 border-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer"
-                                  />
-                                  {uploadingIcon && (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  )}
-                                </div>
-                              )}
-                              {/* Fallback: Manual URL input */}
-                              {!iconPreview && (
-                                <div className="mt-2">
-                                  <Label htmlFor="icon-url" className="text-xs text-gray-400">
-                                    Or enter URL manually:
-                                  </Label>
-                                  <Input
-                                    id="icon-url"
-                                    value={formData.icon}
-                                    onChange={(e) => {
-                                      setFormData({ ...formData, icon: e.target.value });
-                                      setIconPreview(e.target.value || null);
-                                    }}
-                                    placeholder="https://example.com/icon.png"
-                                    className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500 mt-1"
                                   />
                                 </div>
                               )}
@@ -500,12 +384,12 @@ export default function PaymentMethodEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="feeType">Fee Type</Label>
                                 <Select
-                                  value={formData.feeType || "PERCENTAGE"}
+                                  value={formData.fee_type || "PERCENTAGE"}
                                   onValueChange={(value) => {
                                     if (value) {
                                       setFormData({
                                         ...formData,
-                                        feeType: value,
+                                        fee_type: value,
                                       });
                                     }
                                   }}
@@ -525,11 +409,11 @@ export default function PaymentMethodEditPage() {
                                   id="feeValue"
                                   type="number"
                                   step="0.01"
-                                  value={formData.feeValue}
+                                  value={formData.fee_value}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      feeValue: parseFloat(e.target.value) || 0,
+                                      fee_value: parseFloat(e.target.value) || 0,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
@@ -548,13 +432,12 @@ export default function PaymentMethodEditPage() {
                               <div className="space-y-2">
                                 <Label htmlFor="vatType">VAT Type</Label>
                                 <Select
-                                  value={formData.vatType || "PERCENTAGE"}
+                                  value={formData.vat_type || "PERCENTAGE"}
                                   onValueChange={(value) => {
                                     if (value) {
-                                      console.log("VAT type changed to:", value);
                                       setFormData({
                                         ...formData,
-                                        vatType: value,
+                                        vat_type: value,
                                       });
                                     }
                                   }}
@@ -574,11 +457,11 @@ export default function PaymentMethodEditPage() {
                                   id="vatValue"
                                   type="number"
                                   step="0.01"
-                                  value={formData.vatValue}
+                                  value={formData.vat_value}
                                   onChange={(e) =>
                                     setFormData({
                                       ...formData,
-                                      vatValue: parseFloat(e.target.value) || 0,
+                                      vat_value: parseFloat(e.target.value) || 0,
                                     })
                                   }
                                   className="bg-gray-800 text-gray-100 border-gray-700"
@@ -591,9 +474,9 @@ export default function PaymentMethodEditPage() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id="isActive"
-                              checked={formData.isActive}
+                              checked={formData.is_active}
                               onCheckedChange={(checked) =>
-                                setFormData({ ...formData, isActive: checked === true })
+                                setFormData({ ...formData, is_active: checked === true })
                               }
                               className="border-gray-700"
                             />
@@ -647,10 +530,10 @@ export default function PaymentMethodEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Current Status</span>
                           <Badge
-                            variant={typedPaymentMethodData.isActive ? "default" : "secondary"}
-                            className={typedPaymentMethodData.isActive ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
+                            variant={typedPaymentMethodData.is_active ? "default" : "secondary"}
+                            className={typedPaymentMethodData.is_active ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
                           >
-                            {typedPaymentMethodData.isActive ? "Active" : "Inactive"}
+                            {typedPaymentMethodData.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                       </CardContent>
@@ -671,16 +554,10 @@ export default function PaymentMethodEditPage() {
                             {typedPaymentMethodData.type.replace(/_/g, " ")}
                           </p>
                         </div>
-                        {typedPaymentMethodData.bank && (
-                          <div>
-                            <span className="text-xs text-gray-400">Bank</span>
-                            <p className="text-sm text-gray-200">{typedPaymentMethodData.bank}</p>
-                          </div>
-                        )}
                         <div>
                           <span className="text-xs text-gray-400">Midtrans Code</span>
                           <p className="text-sm text-gray-200 font-mono">
-                            {typedPaymentMethodData.midtransCode}
+                            {typedPaymentMethodData.midtrans_code}
                           </p>
                         </div>
                       </CardContent>
@@ -698,17 +575,17 @@ export default function PaymentMethodEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Fee</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {typedPaymentMethodData.feeType === FeeType.PERCENTAGE
-                              ? `${typedPaymentMethodData.feeValue}%`
-                              : `Rp ${typedPaymentMethodData.feeValue.toLocaleString("id-ID")}`}
+                            {typedPaymentMethodData.fee_type === FeeType.PERCENTAGE
+                              ? `${typedPaymentMethodData.fee_value}%`
+                              : `Rp ${typedPaymentMethodData.fee_value.toLocaleString("id-ID")}`}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">VAT</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {typedPaymentMethodData.vatType === FeeType.PERCENTAGE
-                              ? `${typedPaymentMethodData.vatValue}%`
-                              : `Rp ${typedPaymentMethodData.vatValue.toLocaleString("id-ID")}`}
+                            {typedPaymentMethodData.vat_type === FeeType.PERCENTAGE
+                              ? `${typedPaymentMethodData.vat_value}%`
+                              : `Rp ${typedPaymentMethodData.vat_value.toLocaleString("id-ID")}`}
                           </p>
                         </div>
                       </CardContent>
@@ -726,13 +603,13 @@ export default function PaymentMethodEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedPaymentMethodData.createdAt)}
+                            {formatDateTime(typedPaymentMethodData.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedPaymentMethodData.updatedAt)}
+                            {formatDateTime(typedPaymentMethodData.updated_at)}
                           </p>
                         </div>
                       </CardContent>

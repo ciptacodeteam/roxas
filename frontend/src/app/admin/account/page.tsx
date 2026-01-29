@@ -4,181 +4,151 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Loader2, Save, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
+
+// UI Components
 import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/ui/phone-input";
+import { PhoneInputWithCountry } from "@/components/ui/phone-input-with-country";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
-import { toast } from "sonner";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-interface AccountData {
-  id: string;
-  email: string;
-  name: string | null;
-  phone: string | null;
-  image: string | null;
-  hasPassword?: boolean;
-}
-
-// Validation schemas
-const UpdateAccountSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
-  phone: z.string().optional(),
-});
-
-const ChangePasswordSchema = z.object({
-  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
-
-type UpdateAccountFormData = z.infer<typeof UpdateAccountSchema>;
-type ChangePasswordFormData = z.infer<typeof ChangePasswordSchema>;
+// Auth & Admin
+import { useAuth } from "@/lib/auth";
+import {
+  useStaffProfile,
+  useCreateStaffProfile,
+  useUpdateStaffProfile,
+  useChangePassword,
+  updateProfileSchema,
+  changePasswordSchema,
+  type UpdateProfileFormData,
+  type ChangePasswordFormData,
+} from "@/lib/admin";
 
 export default function AdminAccountPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [accountData, setAccountData] = useState<AccountData | null>(null);
+  const { user, isLoading: authLoading } = useAuth();
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false,
   });
 
+  // React Query hooks
+  const { data: profileData, isLoading: profileLoading, error: profileError } = useStaffProfile();
+  const createProfile = useCreateStaffProfile();
+  const updateProfile = useUpdateStaffProfile();
+  const changePasswordMutation = useChangePassword();
+
+  // Form: Profile
   const {
-    register: registerAccount,
-    handleSubmit: handleAccountSubmit,
-    formState: { errors: accountErrors, isSubmitting: isSavingAccount },
-    watch: watchAccount,
-    setValue: setAccountValue,
-    control: accountControl,
-  } = useForm<UpdateAccountFormData>({
-    resolver: zodResolver(UpdateAccountSchema),
+    register: registerProfile,
+    handleSubmit: handleProfileSubmit,
+    formState: { errors: profileErrors },
+    control: profileControl,
+    setValue: setProfileValue,
+  } = useForm<UpdateProfileFormData>({
+    resolver: zodResolver(updateProfileSchema),
   });
 
+  // Form: Password
   const {
     register: registerPassword,
     handleSubmit: handlePasswordSubmit,
-    formState: { errors: passwordErrors, isSubmitting: isChangingPassword },
+    formState: { errors: passwordErrors },
     reset: resetPasswordForm,
   } = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(ChangePasswordSchema),
+    resolver: zodResolver(changePasswordSchema),
   });
 
-  // Load account data
+  // Redirect if not authenticated
   useEffect(() => {
-    const loadAccount = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/admin/account", {
-          method: "GET",
-          credentials: "include",
-        });
-        const data = await res.json();
+    if (!authLoading && !user) {
+      router.replace("/admin/login");
+    }
+  }, [user, authLoading, router]);
 
-        if (res.ok && data?.success && data.user) {
-          setAccountData(data.user);
-          setAccountValue("name", data.user.name || "");
-          setAccountValue("phone", data.user.phone || "");
-        } else if (res.status === 401) {
-          router.replace("/admin/login");
-        } else {
-          toast.error("Failed to load account", {
-            description: data.message || "Please try again.",
-          });
+  // Auto-create profile if it doesn't exist
+  useEffect(() => {
+    if (profileError && !profileLoading && !createProfile.isPending) {
+      const defaultName = user?.name || user?.email?.split('@')[0] || "Admin";
+      
+      createProfile.mutate(
+        { full_name: defaultName, contact_phone: "" },
+        {
+          onSuccess: () => {
+            toast.success("Profile created successfully");
+          },
+          onError: (error) => {
+            toast.error("Failed to create profile", {
+              description: error.message,
+            });
+          },
         }
-      } catch (error) {
-        console.error("Failed to load account", error);
-        toast.error("Failed to load account", {
-          description: "Please try again.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      );
+    }
+  }, [profileError, profileLoading, createProfile, user]);
 
-    loadAccount();
-  }, [router]);
+  // Populate form when profile data loads
+  useEffect(() => {
+    if (profileData) {
+      console.log("Profile Data:", profileData);
+      console.log("User Data:", profileData.user_data);
+      console.log("Email:", profileData.user_data?.email);
+      setProfileValue("full_name", profileData.full_name || "");
+      setProfileValue("contact_phone", profileData.contact_phone || "");
+    }
+  }, [profileData, setProfileValue]);
 
-  const handleAccountUpdate = async (data: UpdateAccountFormData) => {
-    try {
-      const res = await fetch("/api/admin/account", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-
-      const responseData = await res.json();
-
-      if (res.ok && responseData.success) {
-        toast.success("Account updated successfully", {
+  // Handle profile update
+  const handleProfileUpdate = (data: UpdateProfileFormData) => {
+    updateProfile.mutate(data, {
+      onSuccess: () => {
+        toast.success("Profile updated successfully", {
           description: "Your profile has been updated.",
         });
-        // Reload to ensure sidebar picks up new name
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      } else {
+        setTimeout(() => window.location.reload(), 500);
+      },
+      onError: (error) => {
         toast.error("Update failed", {
-          description: responseData.message || "Please check your input.",
+          description: error.message,
         });
-      }
-    } catch (error) {
-      console.error("Update account error", error);
-      toast.error("Update failed", {
-        description: "An error occurred. Please try again.",
-      });
-    }
+      },
+    });
   };
 
-  const handlePasswordChange = async (data: ChangePasswordFormData) => {
-    try {
-      const res = await fetch("/api/admin/account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+  // Handle password change
+  const handlePasswordChange = (data: ChangePasswordFormData) => {
+    changePasswordMutation.mutate(
+      {
+        old_password: data.old_password,
+        new_password: data.new_password,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Password changed successfully", {
+            description: "Your password has been updated.",
+          });
+          resetPasswordForm();
         },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-
-      const responseData = await res.json();
-
-      if (res.ok && responseData.success) {
-        toast.success(accountData?.hasPassword ? "Password changed successfully" : "Password set successfully", {
-          description: accountData?.hasPassword ? "Your password has been updated." : "You can now log in with your email and password.",
-        });
-        resetPasswordForm();
-        // Reload account data to update hasPassword status
-        window.location.reload();
-      } else {
-        toast.error(accountData?.hasPassword ? "Password change failed" : "Password set failed", {
-          description: responseData.message || "Please check your input.",
-        });
+        onError: (error) => {
+          toast.error("Password change failed", {
+            description: error.message,
+          });
+        },
       }
-    } catch (error) {
-      console.error("Change password error", error);
-      toast.error("Password change failed", {
-        description: "An error occurred. Please try again.",
-      });
-    }
+    );
   };
 
-  if (loading) {
+  const isLoading = authLoading || profileLoading || createProfile.isPending;
+
+  if (isLoading) {
     return (
       <SidebarProvider
         style={
@@ -227,29 +197,29 @@ export default function AdminAccountPage() {
                 <div className="mb-6">
                   <div>
                     <h1 className="text-3xl font-bold">Account Settings</h1>
-                    <p className="mt-2 text-gray-400">
-                      Manage your admin account information
-                    </p>
+                    <p className="text-gray-400">Manage your account preferences and security settings</p>
                   </div>
                 </div>
 
+                <Separator className="bg-gray-700 mb-6" />
+
                 {/* Main Content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column - Edit Forms */}
+                  {/* Left Column - Forms */}
                   <div className="lg:col-span-2 space-y-6">
-                    {/* Account Information Card */}
+                    {/* Edit Profile Card */}
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <User className="h-5 w-5" />
-                          Account Information
+                          Edit Profile
                         </CardTitle>
                         <CardDescription>
-                          Update your account details
+                          Update your account information
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <form onSubmit={handleAccountSubmit(handleAccountUpdate)} className="space-y-6">
+                        <form onSubmit={handleProfileSubmit(handleProfileUpdate)} className="space-y-6">
                           {/* Email (Read-only) */}
                           <div className="space-y-2">
                             <Label htmlFor="email" className="flex items-center gap-2">
@@ -259,7 +229,7 @@ export default function AdminAccountPage() {
                             <Input
                               id="email"
                               type="email"
-                              value={accountData?.email || ""}
+                              value={profileData?.user_data?.email || ""}
                               disabled
                               className="bg-gray-800 text-gray-400 border-gray-700 cursor-not-allowed"
                             />
@@ -272,21 +242,21 @@ export default function AdminAccountPage() {
 
                           {/* Name */}
                           <div className="space-y-2">
-                            <Label htmlFor="name" className="flex items-center gap-2">
+                            <Label htmlFor="full_name" className="flex items-center gap-2">
                               <User className="h-4 w-4" />
-                              Display Name <span className="text-red-400">*</span>
+                              Full Name <span className="text-red-400">*</span>
                             </Label>
                             <Input
-                              id="name"
+                              id="full_name"
                               type="text"
-                              placeholder="Enter your display name"
-                              {...registerAccount("name")}
+                              placeholder="Enter your full name"
+                              {...registerProfile("full_name")}
                               className={`bg-gray-800 text-gray-100 border-gray-700 ${
-                                accountErrors.name ? "border-red-500" : ""
+                                profileErrors.full_name ? "border-red-500" : ""
                               }`}
                             />
-                            {accountErrors.name && (
-                              <p className="text-xs text-red-500">{accountErrors.name.message}</p>
+                            {profileErrors.full_name && (
+                              <p className="text-xs text-red-500">{profileErrors.full_name.message}</p>
                             )}
                             <p className="text-xs text-gray-500">
                               This name will be displayed in the admin panel
@@ -297,32 +267,26 @@ export default function AdminAccountPage() {
 
                           {/* Phone */}
                           <div className="space-y-2">
-                            <Label htmlFor="phone" className="flex items-center gap-2">
+                            <Label htmlFor="contact_phone" className="flex items-center gap-2">
                               <Mail className="h-4 w-4" />
                               Phone Number
                             </Label>
                             <Controller
-                              name="phone"
-                              control={accountControl}
+                              name="contact_phone"
+                              control={profileControl}
                               render={({ field }) => (
-                                <PhoneInput
-                                  id="phone"
+                                <PhoneInputWithCountry
+                                  id="contact_phone"
                                   value={field.value || ""}
                                   onChange={field.onChange}
                                   onBlur={field.onBlur}
-                                  showLabel={false}
-                                  error={accountErrors.phone?.message}
-                                  className={`bg-gray-800 text-gray-100 border-gray-700 ${
-                                    accountErrors.phone ? "border-red-500" : ""
-                                  }`}
+                                  placeholder="Enter phone number"
+                                  error={profileErrors.contact_phone?.message}
                                 />
                               )}
                             />
-                            {accountErrors.phone && (
-                              <p className="text-xs text-red-500">{accountErrors.phone.message}</p>
-                            )}
                             <p className="text-xs text-gray-500">
-                              Your contact phone number (Indonesia format)
+                              Select your country code and enter your phone number
                             </p>
                           </div>
 
@@ -338,10 +302,10 @@ export default function AdminAccountPage() {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={isSavingAccount}
+                              disabled={updateProfile.isPending}
                               className="bg-primary hover:bg-primary/90"
                             >
-                              {isSavingAccount ? (
+                              {updateProfile.isPending ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   Saving...
@@ -363,40 +327,64 @@ export default function AdminAccountPage() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Lock className="h-5 w-5" />
-                          {accountData?.hasPassword ? 'Change Password' : 'Set Password'}
+                          Change Password
                         </CardTitle>
                         <CardDescription>
-                          {accountData?.hasPassword 
-                            ? 'Update your account password (no current password required)'
-                            : 'Set a password for your account (signed up with Google)'}
+                          Update your account password
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <form onSubmit={handlePasswordSubmit(handlePasswordChange)} className="space-y-6">
+                          {/* Current Password */}
+                          <div className="space-y-2">
+                            <Label htmlFor="old_password" className="flex items-center gap-2">
+                              <Lock className="h-4 w-4" />
+                              Current Password <span className="text-red-400">*</span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="old_password"
+                                type={showPasswords.current ? "text" : "password"}
+                                placeholder="Enter your current password"
+                                {...registerPassword("old_password")}
+                                className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
+                                  passwordErrors.old_password ? "border-red-500" : ""
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                              >
+                                {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                            {passwordErrors.old_password && (
+                              <p className="text-xs text-red-500">{passwordErrors.old_password.message}</p>
+                            )}
+                          </div>
+
+                          <Separator className="bg-gray-700" />
+
                           {/* New Password */}
                           <div className="space-y-2">
-                            <Label htmlFor="newPassword" className="flex items-center gap-2">
+                            <Label htmlFor="new_password" className="flex items-center gap-2">
                               <Lock className="h-4 w-4" />
                               New Password <span className="text-red-400">*</span>
                             </Label>
                             <div className="relative">
                               <Input
-                                id="newPassword"
+                                id="new_password"
                                 type={showPasswords.new ? "text" : "password"}
                                 placeholder="Enter your new password"
-                                {...registerPassword("newPassword")}
+                                {...registerPassword("new_password")}
                                 className={`bg-gray-800 text-gray-100 border-gray-700 pr-10 ${
-                                  passwordErrors.newPassword ? "border-red-500" : ""
+                                  passwordErrors.new_password ? "border-red-500" : ""
                                 }`}
                               />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setShowPasswords({
-                                    ...showPasswords,
-                                    new: !showPasswords.new,
-                                  })
-                                }
+                                onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
                               >
                                 {showPasswords.new ? (
@@ -406,8 +394,8 @@ export default function AdminAccountPage() {
                                 )}
                               </button>
                             </div>
-                            {passwordErrors.newPassword && (
-                              <p className="text-xs text-red-500">{passwordErrors.newPassword.message}</p>
+                            {passwordErrors.new_password && (
+                              <p className="text-xs text-red-500">{passwordErrors.new_password.message}</p>
                             )}
                             <p className="text-xs text-gray-500">
                               Must be at least 8 characters long
@@ -434,12 +422,7 @@ export default function AdminAccountPage() {
                               />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setShowPasswords({
-                                    ...showPasswords,
-                                    confirm: !showPasswords.confirm,
-                                  })
-                                }
+                                onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
                               >
                                 {showPasswords.confirm ? (
@@ -466,18 +449,18 @@ export default function AdminAccountPage() {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={isChangingPassword}
+                              disabled={changePasswordMutation.isPending}
                               className="bg-primary hover:bg-primary/90"
                             >
-                              {isChangingPassword ? (
+                              {changePasswordMutation.isPending ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  {accountData?.hasPassword ? 'Changing...' : 'Setting...'}
+                                  Changing...
                                 </>
                               ) : (
                                 <>
                                   <Lock className="mr-2 h-4 w-4" />
-                                  {accountData?.hasPassword ? 'Change Password' : 'Set Password'}
+                                  Change Password
                                 </>
                               )}
                             </Button>
@@ -495,23 +478,70 @@ export default function AdminAccountPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">User ID</p>
-                          <p className="text-sm font-mono text-gray-300">
-                            {accountData?.id || "-"}
-                          </p>
-                        </div>
-                        <Separator className="bg-gray-700" />
-                        <div>
                           <p className="text-xs text-gray-500 mb-1">Email</p>
                           <p className="text-sm text-gray-300">
-                            {accountData?.email || "-"}
+                            {profileData?.user_data?.email || "-"}
                           </p>
                         </div>
                         <Separator className="bg-gray-700" />
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Display Name</p>
+                          <p className="text-xs text-gray-500 mb-1">Role</p>
                           <p className="text-sm text-gray-300">
-                            {accountData?.name || "Not set"}
+                            {profileData?.user_data?.role === "STAFF" ? "Admin Staff" : "Customer"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Full Name</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.full_name || "Not set"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Phone Number</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.contact_phone || "Not set"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Account Status</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.user_data?.is_active ? "Active" : "Inactive"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Email Verified</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.user_data?.email_verified ? "Yes" : "No"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Created At</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.created_at ? new Date(profileData.created_at).toLocaleDateString("en-US", { 
+                              year: "numeric", 
+                              month: "long", 
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            }) : "-"}
+                          </p>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Updated At</p>
+                          <p className="text-sm text-gray-300">
+                            {profileData?.updated_at ? new Date(profileData.updated_at).toLocaleDateString("en-US", { 
+                              year: "numeric", 
+                              month: "long", 
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            }) : "-"}
                           </p>
                         </div>
                       </CardContent>

@@ -11,6 +11,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Ticket,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminCoupons, useDeleteCoupon } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -45,32 +45,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DiscountType } from "@/lib/types";
 import { formatDateTime } from "@/lib/date-utils";
 import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
-import { Ticket } from "lucide-react";
-
-interface Coupon {
-  id: string;
-  code: string;
-  description: string | null;
-  discountType: DiscountType;
-  discountValue: number;
-  minPurchase: number | null;
-  maxDiscount: number | null;
-  usageLimit: number | null;
-  usageCount: number;
-  userLimit: number | null;
-  isActive: boolean;
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-  _count?: {
-    usages: number;
-  };
-}
+import {
+  useCoupons,
+  useDeleteCoupon,
+  type Coupon,
+  DiscountType,
+} from "@/lib/coupons";
 
 export default function CouponsPage() {
   const router = useRouter();
@@ -80,15 +63,14 @@ export default function CouponsPage() {
   const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
 
   // Use TanStack Query hooks
-  const { data: couponsData = [], isLoading: loading, refetch } = useAdminCoupons(
-    { search },
+  const { data: coupons = [], isLoading: loading, refetch } = useCoupons(
+    { search, page_size: 100 },
     {
       refetchOnMount: 'always',
       refetchOnWindowFocus: true,
       staleTime: 0,
     }
   );
-  const coupons: Coupon[] = couponsData;
 
   const deleteCouponMutation = useDeleteCoupon({
     onSuccess: async () => {
@@ -174,21 +156,21 @@ export default function CouponsPage() {
         ),
       },
       {
-        accessorKey: "discountValue",
+        accessorKey: "discount_value",
         header: "Discount",
         cell: ({ row }) => {
           const coupon = row.original;
           return (
             <div className="text-sm font-semibold">
-              {coupon.discountType === DiscountType.PERCENTAGE
-                ? `${coupon.discountValue}%`
-                : `Rp ${coupon.discountValue.toLocaleString("id-ID")}`}
+              {coupon.discount_type === DiscountType.PERCENTAGE
+                ? `${coupon.discount_value}%`
+                : `Rp ${coupon.discount_value.toLocaleString("id-ID")}`}
             </div>
           );
         },
       },
       {
-        accessorKey: "usageCount",
+        accessorKey: "usage_count",
         header: ({ column }) => {
           return (
             <Button
@@ -211,17 +193,17 @@ export default function CouponsPage() {
         },
         cell: ({ row }) => {
           const coupon = row.original;
-          const limit = coupon.usageLimit;
+          const limit = coupon.usage_limit;
           return (
             <div className="text-sm">
-              {coupon.usageCount}
+              {coupon.usage_count}
               {limit !== null && ` / ${limit}`}
             </div>
           );
         },
       },
       {
-        accessorKey: "isActive",
+        accessorKey: "is_active",
         header: ({ column }) => {
           return (
             <Button
@@ -243,7 +225,7 @@ export default function CouponsPage() {
           );
         },
         cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.getValue("is_active") as boolean;
           return (
             <span
               className={`rounded px-2 py-1 text-xs font-semibold ${isActive
@@ -257,18 +239,18 @@ export default function CouponsPage() {
         },
       },
       {
-        accessorKey: "startDate",
+        accessorKey: "start_date",
         header: "Start Date",
         cell: ({ row }) => {
-          const date = row.getValue("startDate") as string | null;
+          const date = row.getValue("start_date") as string | null;
           return date ? formatDateTime(date) : "-";
         },
       },
       {
-        accessorKey: "endDate",
+        accessorKey: "end_date",
         header: "End Date",
         cell: ({ row }) => {
-          const date = row.getValue("endDate") as string | null;
+          const date = row.getValue("end_date") as string | null;
           return date ? formatDateTime(date) : "-";
         },
       },

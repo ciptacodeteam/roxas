@@ -34,77 +34,70 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
-  user: {
-    name: "Admin",
-    email: "admin@roxas.com",
-    avatar: "/avatars/shadcn.jpg",
+const navMainItems = [
+  {
+    title: "Dashboard",
+    url: "/admin",
+    icon: IconDashboard,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/admin",
-      icon: IconDashboard,
-    },
-    {
-      title: "Categories",
-      url: "/admin/categories",
-      icon: IconFolder,
-    },
-    {
-      title: "Products",
-      url: "/admin/products",
-      icon: IconShoppingBag,
-    },
-    {
-      title: "Product Items",
-      url: "/admin/price-list",
-      icon: IconTags,
-    },
-    {
-      title: "Orders",
-      url: "/admin/orders",
-      icon: IconReceipt,
-    },
-    {
-      title: "Flash Sales",
-      url: "/admin/flash-sales",
-      icon: IconFlame,
-    },
-    {
-      title: "Marketing Banners",
-      url: "/admin/marketing-banners",
-      icon: IconPhoto,
-    },
-    {
-      title: "Transactions",
-      url: "/admin/transactions",
-      icon: IconShoppingCart,
-    },
-    {
-      title: "Users",
-      url: "/admin/users",
-      icon: IconUsers,
-    },
-    {
-      title: "Payment Methods",
-      url: "/admin/payment-methods",
-      icon: IconCurrencyDollar,
-    },
-    {
-      title: "Coupons",
-      url: "/admin/coupons",
-      icon: IconTicket,
-    },
-    {
-      title: "Ratings",
-      url: "/admin/ratings",
-      icon: IconStar,
-    },
-  ],
-  navSecondary: [
-  ],
-}
+  {
+    title: "Categories",
+    url: "/admin/categories",
+    icon: IconFolder,
+  },
+  {
+    title: "Products",
+    url: "/admin/products",
+    icon: IconShoppingBag,
+  },
+  {
+    title: "Product Items",
+    url: "/admin/price-list",
+    icon: IconTags,
+  },
+  {
+    title: "Orders",
+    url: "/admin/orders",
+    icon: IconReceipt,
+  },
+  {
+    title: "Flash Sales",
+    url: "/admin/flash-sales",
+    icon: IconFlame,
+  },
+  {
+    title: "Marketing Banners",
+    url: "/admin/marketing-banners",
+    icon: IconPhoto,
+  },
+  {
+    title: "Transactions",
+    url: "/admin/transactions",
+    icon: IconShoppingCart,
+  },
+  {
+    title: "Users",
+    url: "/admin/users",
+    icon: IconUsers,
+  },
+  {
+    title: "Payment Methods",
+    url: "/admin/payment-methods",
+    icon: IconCurrencyDollar,
+  },
+  {
+    title: "Coupons",
+    url: "/admin/coupons",
+    icon: IconTicket,
+  },
+  {
+    title: "Ratings",
+    url: "/admin/ratings",
+    icon: IconStar,
+  },
+] as const
+
+const navSecondaryItems = [] as const
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -125,11 +118,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navMainItems} />
+        <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

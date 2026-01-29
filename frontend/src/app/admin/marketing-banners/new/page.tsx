@@ -21,34 +21,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { useCreateMarketingBanner, queryKeys } from "@/lib/queries";
+import { useCreateMarketingBanner } from "@/lib/marketing-banners";
 
 export default function MarketingBannerAddPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
-    image: "",
     link: "",
     description: "",
-    isActive: true,
-    sortOrder: 0,
-    startDate: "",
-    endDate: "",
+    is_active: true,
+    sort_order: 0,
+    start_date: "",
+    end_date: "",
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   const createBannerMutation = useCreateMarketingBanner({
     onSuccess: async () => {
-      // Ensure queries are invalidated and refetched
-      await queryClient.invalidateQueries({ queryKey: queryKeys.banners.lists() });
-      await queryClient.refetchQueries({ queryKey: queryKeys.banners.lists() });
       toast.success("Marketing banner created successfully");
-      setTimeout(() => {
-        router.push("/admin/marketing-banners");
-      }, 100);
+      router.push("/admin/marketing-banners");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to create marketing banner");
@@ -56,55 +49,33 @@ export default function MarketingBannerAddPage() {
     },
   });
 
-  const handleImageUpload = async (file: File) => {
-    try {
-      setUploadingImage(true);
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=banners`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      setFormData((prev) => ({ ...prev, image: data.data.url }));
-      setImagePreview(data.data.url);
-
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      setUploadingImage(false);
-    }
+  const handleImageChange = (file: File) => {
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.image) {
+    if (!imageFile) {
       toast.error("Image is required");
       return;
     }
 
     setSaving(true);
-    const submitData = {
-      title: formData.title || null,
-      image: formData.image,
-      link: formData.link || null,
-      description: formData.description || null,
-      isActive: formData.isActive,
-      sortOrder: formData.sortOrder,
-      startDate: formData.startDate || null,
-      endDate: formData.endDate || null,
+    const submitData: any = {
+      title: formData.title || undefined,
+      image: imageFile,
+      link: formData.link || undefined,
+      description: formData.description || undefined,
+      is_active: formData.is_active,
+      sort_order: formData.sort_order,
+      start_date: formData.start_date || null,
+      end_date: formData.end_date || null,
     };
 
     createBannerMutation.mutate(submitData, {
@@ -188,20 +159,19 @@ export default function MarketingBannerAddPage() {
                                   alt="Preview"
                                   fill
                                   className="object-contain"
-                                  onError={() => setImagePreview(null)}
                                 />
                               </div>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-2 top-2"
+                                className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
                                 onClick={() => {
                                   setImagePreview(null);
-                                  setFormData((prev) => ({ ...prev, image: "" }));
+                                  setImageFile(null);
                                 }}
                               >
-                                <X className="h-4 w-4" />
+                                <X className="h-3 w-3 text-white" />
                               </Button>
                             </div>
                           ) : (
@@ -213,29 +183,10 @@ export default function MarketingBannerAddPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    handleImageUpload(file);
+                                    handleImageChange(file);
                                   }
                                 }}
-                                className="hidden"
-                              />
-                              <Label
-                                htmlFor="image-file"
-                                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                              >
-                                <Upload className="h-4 w-4" />
-                                <span className="text-sm">
-                                  {uploadingImage ? "Uploading..." : "Upload Image"}
-                                </span>
-                              </Label>
-                              <Input
-                                id="image-url"
-                                value={formData.image}
-                                onChange={(e) => {
-                                  setFormData({ ...formData, image: e.target.value });
-                                  setImagePreview(e.target.value || null);
-                                }}
-                                placeholder="Or enter image URL"
-                                className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                               />
                             </div>
                           )}
@@ -286,9 +237,9 @@ export default function MarketingBannerAddPage() {
                             Start Date (Optional)
                           </Label>
                           <DateTimePicker
-                            value={formData.startDate || undefined}
-                            onChange={(value) =>
-                              setFormData({ ...formData, startDate: value })
+                          value={formData.start_date || undefined}
+                          onChange={(value) =>
+                            setFormData({ ...formData, start_date: value })
                             }
                             placeholder="Select start date and time"
                           />
@@ -299,9 +250,9 @@ export default function MarketingBannerAddPage() {
                             End Date (Optional)
                           </Label>
                           <DateTimePicker
-                            value={formData.endDate || undefined}
-                            onChange={(value) =>
-                              setFormData({ ...formData, endDate: value })
+                          value={formData.end_date || undefined}
+                          onChange={(value) =>
+                            setFormData({ ...formData, end_date: value })
                             }
                             placeholder="Select end date and time"
                           />
@@ -310,18 +261,18 @@ export default function MarketingBannerAddPage() {
 
                       {/* Sort Order */}
                       <div className="space-y-2">
-                        <Label htmlFor="sortOrder" className="flex items-center gap-2">
+                        <Label htmlFor="sort_order" className="flex items-center gap-2">
                           <ArrowUpDown className="h-4 w-4" />
                           Sort Order
                         </Label>
                         <Input
-                          id="sortOrder"
+                          id="sort_order"
                           type="number"
-                          value={formData.sortOrder}
+                          value={formData.sort_order}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              sortOrder: parseInt(e.target.value) || 0,
+                              sort_order: parseInt(e.target.value) || 0,
                             })
                           }
                           placeholder="0"
@@ -335,16 +286,16 @@ export default function MarketingBannerAddPage() {
                       {/* Active Status */}
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          id="isActive"
-                          checked={formData.isActive}
+                          id="is_active"
+                          checked={formData.is_active}
                           onCheckedChange={(checked) =>
                             setFormData({
                               ...formData,
-                              isActive: !!checked,
+                              is_active: !!checked,
                             })
                           }
                         />
-                        <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
+                        <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4" />
                           Active (visible to users)
                         </Label>

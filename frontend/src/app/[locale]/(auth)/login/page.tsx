@@ -46,23 +46,20 @@ export default function LoginPage() {
   // Redirect if already logged in and check role
   useEffect(() => {
     const checkRoleAndRedirect = async () => {
-      if (session?.user) {
+      if (!isPending && session?.user) {
         // Check if user is admin
         try {
           const roleResponse = await fetch("/api/auth/check-role");
           const roleData = await roleResponse.json();
 
           if (roleData.success && roleData.role === "ADMIN") {
-            // Admin trying to access public login - sign out and show error
-            await signOut();
-            setError("Akses ditolak");
-            toast.error("Login Gagal", {
-              description: "Akun admin tidak dapat login melalui halaman ini. Silakan gunakan halaman admin login.",
-            });
+            // Admin trying to access public login - redirect to admin panel
+            toast.info("Redirecting to admin panel...");
+            router.replace('/admin');
             return;
           }
 
-          // Regular user - proceed with redirect
+          // Regular user - redirect to profile
           const locale = pathname?.split("/")[1] ?? "id";
           router.replace(`/${locale}/profile`);
         } catch (error) {
@@ -75,7 +72,7 @@ export default function LoginPage() {
     };
 
     checkRoleAndRedirect();
-  }, [session, router, pathname]);
+  }, [session, isPending, router, pathname]);
 
   // Check for OAuth errors and registration success message
   useEffect(() => {
@@ -278,14 +275,6 @@ export default function LoginPage() {
                       >
                         Lupa kata sandi mu?
                       </Link>
-                    </div>
-
-                    {/* Remember Me */}
-                    <div className="mt-3 flex items-center gap-3">
-                      <Checkbox id="terms" />
-                      <Label htmlFor="terms" className="text-sm text-white">
-                        Ingat akun ku
-                      </Label>
                     </div>
 
                     {/* Submit and Google Sign In - Same Row */}

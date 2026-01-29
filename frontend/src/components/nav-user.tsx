@@ -1,16 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react"
-import { toast } from "sonner"
-import { signOut } from "@/lib/auth-client"
+import { useAuth, useLogout } from "@/lib/auth"
 
 import {
   Avatar,
@@ -33,72 +31,25 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-type NavUserProps = {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}
-
-export function NavUser({ user }: NavUserProps) {
+export function NavUser() {
   const { isMobile } = useSidebar()
-  const router = useRouter()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [currentUser, setCurrentUser] = useState(user)
+  const { user } = useAuth()
+  const { logout, isLoading: isLoggingOut } = useLogout({
+    redirectTo: "/admin/login",
+  })
+  
+  // Compute user display data from session
+  const userData = useMemo(() => {
+    const email = user?.email || "admin@roxas.com";
+    const name = user?.full_name || user?.name || email.split('@')[0] || "Admin";
+    const avatar = user?.profile_picture_url || "/avatars/shadcn.jpg";
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    return { name, email, avatar, initials };
+  }, [user]);
 
-  // Keep local state in sync with prop
-  useEffect(() => {
-    setCurrentUser(user)
-  }, [user])
-
-  // Fetch real admin info so sidebar reflects updates
-  useEffect(() => {
-    const fetchMe = async () => {
-      try {
-        const res = await fetch("/api/admin/check", {
-          method: "GET",
-          credentials: "include",
-        })
-        const data = await res.json()
-
-        if (data?.authenticated && data.user) {
-          setCurrentUser((prev) => ({
-            ...prev,
-            name: data.user.name ?? prev.name,
-            email: data.user.email ?? prev.email,
-          }))
-        }
-      } catch (error) {
-        console.error("Failed to fetch admin user info", error)
-      }
-    }
-
-    fetchMe()
-  }, [])
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true)
-      
-      // Use BetterAuth signOut directly
-      await signOut()
-      
-      toast.success("Logged out successfully", {
-        description: "You have been logged out.",
-      })
-      
-      // Redirect to admin login page
-      setTimeout(() => {
-        window.location.href = "/admin/login"
-      }, 500)
-    } catch (error) {
-      console.error("Logout error:", error)
-      toast.error("Logout failed", {
-        description: "An error occurred. Please try again.",
-      })
-      setIsLoggingOut(false)
-    }
+  const handleLogout = () => {
+    logout()
   }
 
   return (
@@ -110,16 +61,16 @@ export function NavUser({ user }: NavUserProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                <AvatarFallback className="rounded-lg">AD</AvatarFallback>
+              <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={userData.avatar} alt={userData.name} />
+                <AvatarFallback className="rounded-lg">{userData.initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">
-                  {currentUser.name}
+                  {userData.name}
                 </span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {currentUser.email}
+                  {userData.email}
                 </span>
               </div>
               <IconDotsVertical className="ml-auto size-4" />
@@ -135,17 +86,17 @@ export function NavUser({ user }: NavUserProps) {
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
+                    src={userData.avatar}
+                    alt={userData.name}
                   />
-                  <AvatarFallback className="rounded-lg">AD</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">{userData.initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
-                    {currentUser.name}
+                    {userData.name}
                   </span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {currentUser.email}
+                    {userData.email}
                   </span>
                 </div>
               </div>

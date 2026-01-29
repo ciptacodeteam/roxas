@@ -55,39 +55,41 @@ class UserSerializer(serializers.ModelSerializer):
 
 class StaffProfileSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_data = UserSerializer(source="user", read_only=True)
 
     class Meta:
         model = StaffProfile
         fields = [
             "id",
             "user",
+            "user_data",
             "full_name",
             "contact_phone",
             "photo",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "user", "created_at", "updated_at"]
+        read_only_fields = ["id", "user", "user_data", "created_at", "updated_at"]
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
     """Serializer for customer profile CRUD operations."""
     user = serializers.PrimaryKeyRelatedField(read_only=True)
-    email = serializers.EmailField(source="user.email", read_only=True)
+    user_data = UserSerializer(source="user", read_only=True)
 
     class Meta:
         model = CustomerProfile
         fields = [
             "id",
             "user",
-            "email",
+            "user_data",
             "full_name",
             "contact_phone",
             "photo",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "user", "email", "created_at", "updated_at"]
+        read_only_fields = ["id", "user", "user_data", "created_at", "updated_at"]
 
 
 # ==================== ADMIN SERIALIZERS ====================
@@ -140,8 +142,8 @@ class AdminStaffProfileSerializer(BaseAdminProfileSerializer, StaffProfileSerial
     )
 
     class Meta(StaffProfileSerializer.Meta):
-        fields = StaffProfileSerializer.Meta.fields + ["user_data", "password"]
-        read_only_fields = ["id", "user", "created_at", "updated_at"]
+        fields = StaffProfileSerializer.Meta.fields + ["email", "password"]
+        read_only_fields = ["id", "user", "user_data", "created_at", "updated_at"]
 
 
 class AdminCustomerProfileSerializer(BaseAdminProfileSerializer, CustomerProfileSerializer):
@@ -152,10 +154,7 @@ class AdminCustomerProfileSerializer(BaseAdminProfileSerializer, CustomerProfile
         required=False,
         allow_null=True,
     )
-    # Override email field from BaseAdminProfileSerializer to make it read-only in responses
-    # while still allowing it to be used for user creation/updates
-    email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta(CustomerProfileSerializer.Meta):
-        fields = CustomerProfileSerializer.Meta.fields + ["user_data", "password"]
-        read_only_fields = ["id", "user", "email", "created_at", "updated_at"]
+        fields = CustomerProfileSerializer.Meta.fields + ["email", "password"]
+        read_only_fields = ["id", "user", "user_data", "created_at", "updated_at"]

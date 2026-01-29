@@ -7,10 +7,9 @@
 /**
  * Optimistic redirect after login
  * Redirects immediately without waiting for role validation
- * The middleware will handle role-based redirects if needed
  */
 export function optimisticRedirect(url: string) {
-  // Use window.location for full page reload to ensure middleware runs
+  // Use window.location for full page reload
   window.location.href = url;
 }
 
@@ -20,16 +19,19 @@ export function optimisticRedirect(url: string) {
  */
 export async function backgroundRoleCheck(): Promise<void> {
   try {
-    const response = await fetch("/api/auth/check-role");
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const response = await fetch(`${API_BASE_URL}/api/v1/token/me/`, {
+      credentials: "include",
+    });
     const data = await response.json();
     
-    if (!data.success) {
+    if (!response.ok) {
       console.warn("Background role check failed:", data);
     }
     
     return data;
   } catch (error) {
-    // Silently fail - middleware will handle authentication
+    // Silently fail
     console.error("Background role check error:", error);
   }
 }

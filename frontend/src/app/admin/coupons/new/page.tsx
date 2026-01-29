@@ -28,8 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateCoupon, queryKeys } from "@/lib/queries";
-import { DiscountType } from "@/lib/types";
+import { useCreateCoupon, DiscountType } from "@/lib/coupons";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 export default function CouponAddPage() {
@@ -39,20 +38,19 @@ export default function CouponAddPage() {
   const [formData, setFormData] = useState({
     code: "",
     description: "",
-    discountType: DiscountType.PERCENTAGE as DiscountType,
-    discountValue: 0,
-    minPurchase: 0,
-    maxDiscount: null as number | null,
-    usageLimit: null as number | null,
-    userLimit: 1,
-    isActive: true,
-    startDate: null as string | null,
-    endDate: null as string | null,
+    discount_type: DiscountType.PERCENTAGE as DiscountType,
+    discount_value: 0,
+    min_purchase: 0,
+    max_discount: null as number | null,
+    usage_limit: null as number | null,
+    user_limit: 1,
+    is_active: true,
+    start_date: null as string | null,
+    end_date: null as string | null,
   });
 
   const createCouponMutation = useCreateCoupon({
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.coupons.all });
+    onSuccess: () => {
       toast.success("Coupon created successfully");
       router.push("/admin/coupons");
     },
@@ -67,19 +65,19 @@ export default function CouponAddPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.code || !formData.discountType || !formData.discountValue) {
+    if (!formData.code || !formData.discount_type || !formData.discount_value) {
       toast.error("Code, discount type, and discount value are required");
       return;
     }
 
-    if (formData.discountValue <= 0) {
+    if (formData.discount_value <= 0) {
       toast.error("Discount value must be greater than 0");
       return;
     }
 
     if (
-      formData.discountType === DiscountType.PERCENTAGE &&
-      formData.discountValue > 100
+      formData.discount_type === DiscountType.PERCENTAGE &&
+      formData.discount_value > 100
     ) {
       toast.error("Percentage discount cannot exceed 100%");
       return;
@@ -89,12 +87,12 @@ export default function CouponAddPage() {
     const submitData = {
       ...formData,
       code: formData.code.toUpperCase().trim(),
-      description: formData.description || null,
-      minPurchase: formData.minPurchase || 0,
-      maxDiscount: formData.maxDiscount || null,
-      usageLimit: formData.usageLimit || null,
-      startDate: formData.startDate || null,
-      endDate: formData.endDate || null,
+      description: formData.description || undefined,
+      min_purchase: formData.min_purchase || 0,
+      max_discount: formData.max_discount || undefined,
+      usage_limit: formData.usage_limit || undefined,
+      start_date: formData.start_date || undefined,
+      end_date: formData.end_date || undefined,
     };
 
     createCouponMutation.mutate(submitData, {
@@ -209,11 +207,11 @@ export default function CouponAddPage() {
                                 <span className="text-red-400">*</span>
                               </Label>
                               <Select
-                                value={formData.discountType}
+                                value={formData.discount_type}
                                 onValueChange={(value) =>
                                   setFormData({
                                     ...formData,
-                                    discountType: value as DiscountType,
+                                    discount_type: value as DiscountType,
                                   })
                                 }
                               >
@@ -245,16 +243,16 @@ export default function CouponAddPage() {
                                 id="discountValue"
                                 type="number"
                                 step="0.01"
-                                value={formData.discountValue}
+                                value={formData.discount_value}
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    discountValue:
+                                    discount_value:
                                       parseFloat(e.target.value) || 0,
                                   })
                                 }
                                 placeholder={
-                                  formData.discountType ===
+                                  formData.discount_type ===
                                   DiscountType.PERCENTAGE
                                     ? "10 (for 10%)"
                                     : "50000"
@@ -263,7 +261,7 @@ export default function CouponAddPage() {
                               />
                             </div>
                           </div>
-                          {formData.discountType ===
+                          {formData.discount_type ===
                             DiscountType.PERCENTAGE && (
                             <div className="space-y-2">
                               <Label htmlFor="maxDiscount">
@@ -272,11 +270,11 @@ export default function CouponAddPage() {
                               <Input
                                 id="maxDiscount"
                                 type="number"
-                                value={formData.maxDiscount || ""}
+                                value={formData.max_discount || ""}
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    maxDiscount: e.target.value
+                                    max_discount: e.target.value
                                       ? parseFloat(e.target.value)
                                       : null,
                                   })
@@ -307,11 +305,11 @@ export default function CouponAddPage() {
                               <Input
                                 id="minPurchase"
                                 type="number"
-                                value={formData.minPurchase}
+                                value={formData.min_purchase}
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    minPurchase:
+                                    min_purchase:
                                       parseFloat(e.target.value) || 0,
                                   })
                                 }
@@ -327,11 +325,11 @@ export default function CouponAddPage() {
                               <Input
                                 id="userLimit"
                                 type="number"
-                                value={formData.userLimit}
+                                value={formData.user_limit}
                                 onChange={(e) =>
                                   setFormData({
                                     ...formData,
-                                    userLimit: parseInt(e.target.value) || 1,
+                                    user_limit: parseInt(e.target.value) || 1,
                                   })
                                 }
                                 placeholder="1"
@@ -349,11 +347,11 @@ export default function CouponAddPage() {
                             <Input
                               id="usageLimit"
                               type="number"
-                              value={formData.usageLimit || ""}
+                              value={formData.usage_limit || ""}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  usageLimit: e.target.value
+                                  usage_limit: e.target.value
                                     ? parseInt(e.target.value)
                                     : null,
                                 })
@@ -380,11 +378,11 @@ export default function CouponAddPage() {
                             <div className="space-y-2">
                               <Label htmlFor="startDate">Start Date</Label>
                               <DateTimePicker
-                                value={formData.startDate || undefined}
+                                value={formData.start_date || undefined}
                                 onChange={(value) =>
                                   setFormData({
                                     ...formData,
-                                    startDate: value || null,
+                                    start_date: value || null,
                                   })
                                 }
                                 placeholder="Select start date and time"
@@ -393,11 +391,11 @@ export default function CouponAddPage() {
                             <div className="space-y-2">
                               <Label htmlFor="endDate">End Date</Label>
                               <DateTimePicker
-                                value={formData.endDate || undefined}
+                                value={formData.end_date || undefined}
                                 onChange={(value) =>
                                   setFormData({
                                     ...formData,
-                                    endDate: value || null,
+                                    end_date: value || null,
                                   })
                                 }
                                 placeholder="Select end date and time"
@@ -410,11 +408,11 @@ export default function CouponAddPage() {
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="isActive"
-                            checked={formData.isActive}
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
                               setFormData({
                                 ...formData,
-                                isActive: checked === true,
+                                is_active: checked === true,
                               })
                             }
                             className="border-gray-700"

@@ -4,6 +4,8 @@ import { type Metadata } from "next";
 import { IBM_Plex_Sans_Condensed } from "next/font/google";
 
 import { SessionProvider } from "@/components/auth/session-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Roxas Games Store | Top Up Game Teraman",
@@ -24,9 +26,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={ibmPlex.variable}>
       <body className="font-ibm">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <SessionProvider>
+              {children}
+            </SessionProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

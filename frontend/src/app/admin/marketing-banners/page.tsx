@@ -31,7 +31,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminMarketingBanners, useDeleteMarketingBanner } from "@/lib/queries";
+import { useMarketingBanners, useDeleteMarketingBanner, type MarketingBanner } from "@/lib/marketing-banners";
 import {
   Dialog,
   DialogContent,
@@ -45,20 +45,6 @@ import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
 import { ImageIcon } from "lucide-react";
 
-interface MarketingBanner {
-  id: string;
-  title: string | null;
-  image: string;
-  link: string | null;
-  description: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export default function MarketingBannersPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -67,7 +53,7 @@ export default function MarketingBannersPage() {
   const [bannerToDelete, setBannerToDelete] = useState<MarketingBanner | null>(null);
 
   // Use TanStack Query hooks
-  const { data: banners = [], isLoading: loading, refetch } = useAdminMarketingBanners({
+  const { data: banners = [], isLoading: loading, refetch } = useMarketingBanners(undefined, {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -162,7 +148,7 @@ export default function MarketingBannersPage() {
         },
       },
       {
-        accessorKey: "isActive",
+        accessorKey: "is_active",
         header: ({ column }) => {
           return (
             <Button
@@ -182,7 +168,7 @@ export default function MarketingBannersPage() {
           );
         },
         cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.getValue("is_active") as boolean;
           return (
             <span
               className={`rounded px-2 py-1 text-xs font-semibold ${
@@ -197,7 +183,7 @@ export default function MarketingBannersPage() {
         },
       },
       {
-        accessorKey: "sortOrder",
+        accessorKey: "sort_order",
         header: ({ column }) => {
           return (
             <Button
@@ -218,18 +204,18 @@ export default function MarketingBannersPage() {
         },
       },
       {
-        accessorKey: "startDate",
+        accessorKey: "start_date",
         header: "Start Date",
         cell: ({ row }) => {
-          const date = row.getValue("startDate") as string | null;
+          const date = row.getValue("start_date") as string | null;
           return date ? formatDateTime(date) : "-";
         },
       },
       {
-        accessorKey: "endDate",
+        accessorKey: "end_date",
         header: "End Date",
         cell: ({ row }) => {
-          const date = row.getValue("endDate") as string | null;
+          const date = row.getValue("end_date") as string | null;
           return date ? formatDateTime(date) : "-";
         },
       },

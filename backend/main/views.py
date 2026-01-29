@@ -118,7 +118,7 @@ class AdminPaymentMethodViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOnly]
     filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
     search_fields = ['name', 'midtrans_code']
-    filterset_fields = ['type', 'is_active', 'bank']
+    filterset_fields = ['type', 'is_active']
     ordering_fields = ['name', 'created_at', 'type']
 
 

@@ -31,9 +31,16 @@ import {
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
 import {
-  useAdminPaymentMethods,
+  usePaymentMethods,
   useDeletePaymentMethod,
-} from "@/lib/queries";
+  PaymentMethodType,
+  FeeType,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
+import { formatDateTime } from "@/lib/date-utils";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
+import { EmptyState } from "@/components/admin/empty-state";
+import { CreditCard } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -42,28 +49,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PaymentMethodType, FeeType } from "@/lib/types";
-import { formatDateTime } from "@/lib/date-utils";
-import { TableSkeleton } from "@/components/admin/table-skeleton";
-import { EmptyState } from "@/components/admin/empty-state";
-import { CreditCard } from "lucide-react";
-
-interface PaymentMethod {
-  id: string;
-  type: PaymentMethodType;
-  bank: string | null;
-  name: string;
-  description: string | null;
-  icon: string | null;
-  feeType: FeeType;
-  feeValue: number;
-  vatType: FeeType;
-  vatValue: number;
-  isActive: boolean;
-  midtransCode: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export default function PaymentMethodsPage() {
   const router = useRouter();
@@ -73,15 +58,14 @@ export default function PaymentMethodsPage() {
   const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<PaymentMethod | null>(null);
 
   // Use TanStack Query hooks
-  const { data: paymentMethodsData = [], isLoading: loading, refetch } = useAdminPaymentMethods(
-    undefined,
+  const { data: paymentMethods = [], isLoading: loading, refetch } = usePaymentMethods(
+    { page_size: 100 },
     {
       refetchOnMount: 'always',
       refetchOnWindowFocus: true,
       staleTime: 0,
     }
   );
-  const paymentMethods: PaymentMethod[] = paymentMethodsData;
 
   const deletePaymentMethodMutation = useDeletePaymentMethod({
     onSuccess: async () => {
@@ -120,8 +104,7 @@ export default function PaymentMethodsPage() {
       (pm) =>
         pm.name.toLowerCase().includes(searchLower) ||
         pm.type.toLowerCase().includes(searchLower) ||
-        pm.midtransCode.toLowerCase().includes(searchLower) ||
-        (pm.bank && pm.bank.toLowerCase().includes(searchLower))
+        pm.midtrans_code.toLowerCase().includes(searchLower)
     );
   }, [paymentMethods, search]);
 
@@ -176,48 +159,47 @@ export default function PaymentMethodsPage() {
           return (
             <div className="text-sm">
               {type.replace(/_/g, " ")}
-              {row.original.bank && ` - ${row.original.bank}`}
             </div>
           );
         },
       },
       {
-        accessorKey: "midtransCode",
+        accessorKey: "midtrans_code",
         header: "Midtrans Code",
         cell: ({ row }) => (
-          <div className="text-gray-400 text-sm">{row.getValue("midtransCode")}</div>
+          <div className="text-gray-400 text-sm">{row.getValue("midtrans_code")}</div>
         ),
       },
       {
-        accessorKey: "feeValue",
+        accessorKey: "fee_value",
         header: "Fee",
         cell: ({ row }) => {
           const pm = row.original;
           return (
             <div className="text-sm">
-              {pm.feeType === FeeType.PERCENTAGE
-                ? `${pm.feeValue}%`
-                : `Rp ${pm.feeValue.toLocaleString("id-ID")}`}
+              {pm.fee_type === FeeType.PERCENTAGE
+                ? `${pm.fee_value}%`
+                : `Rp ${pm.fee_value.toLocaleString("id-ID")}`}
             </div>
           );
         },
       },
       {
-        accessorKey: "vatValue",
+        accessorKey: "vat_value",
         header: "VAT",
         cell: ({ row }) => {
           const pm = row.original;
           return (
             <div className="text-sm">
-              {pm.vatType === FeeType.PERCENTAGE
-                ? `${pm.vatValue}%`
-                : `Rp ${pm.vatValue.toLocaleString("id-ID")}`}
+              {pm.vat_type === FeeType.PERCENTAGE
+                ? `${pm.vat_value}%`
+                : `Rp ${pm.vat_value.toLocaleString("id-ID")}`}
             </div>
           );
         },
       },
       {
-        accessorKey: "isActive",
+        accessorKey: "is_active",
         header: ({ column }) => {
           return (
             <Button
@@ -237,7 +219,7 @@ export default function PaymentMethodsPage() {
           );
         },
         cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.getValue("is_active") as boolean;
           return (
             <span
               className={`rounded px-2 py-1 text-xs font-semibold ${isActive
@@ -302,8 +284,7 @@ export default function PaymentMethodsPage() {
       return !!(
         pm.name.toLowerCase().includes(searchLower) ||
         pm.type.toLowerCase().includes(searchLower) ||
-        pm.midtransCode.toLowerCase().includes(searchLower) ||
-        (pm.bank && pm.bank.toLowerCase().includes(searchLower))
+        pm.midtransCode.toLowerCase().includes(searchLower)
       );
     },
   });

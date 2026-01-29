@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Toaster as Sonner } from "sonner";
 import {
   CircleCheckIcon,
@@ -9,12 +10,57 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
+
+  // Check if current page is the login page
+  const isLoginPage = pathname === '/admin/login';
+
+  // Debug logging
+  useEffect(() => {
+    if (!isLoginPage) {
+      console.log('Admin Layout Auth State:', {
+        isAuthenticated,
+        isAdmin,
+        isLoading,
+        role: user?.role,
+        is_staff: user?.is_staff,
+        is_superuser: user?.is_superuser,
+        pathname
+      });
+    }
+  }, [isAuthenticated, isAdmin, isLoading, user, isLoginPage, pathname]);
+
+  // Redirect if not authenticated or not admin (except for login page)
+  useEffect(() => {
+    // Skip authentication check for login page
+    if (isLoginPage) {
+      return;
+    }
+
+    if (!isLoading) {
+      // Check if user is not authenticated at all
+      if (!isAuthenticated) {
+        router.replace('/admin/login');
+        return;
+      }
+
+      // Check if user is authenticated but not an admin
+      if (!isAdmin) {
+        router.replace('/admin/login');
+        return;
+      }
+    }
+  }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname]);
+
   useEffect(() => {
     // Ensure dark theme is applied for gaming aesthetic
     document.documentElement.classList.add('dark');
@@ -27,6 +73,24 @@ export default function AdminLayout({
       }
     };
   }, []);
+
+  // Show loading screen while checking authentication (except on login page)
+  if (isLoading && !isLoginPage) {
+    return (
+      <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2Icon className="h-8 w-8 animate-spin text-white" />
+          <p className="text-white text-sm">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated or not admin
+  // (useEffect will redirect them) - EXCEPT for login page
+  if (!isLoginPage && (!isAuthenticated || !isAdmin)) {
+    return null;
+  }
 
   return (
     <div 

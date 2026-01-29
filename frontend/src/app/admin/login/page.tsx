@@ -7,6 +7,7 @@ import logo from "public/img/logo.webp";
 import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -16,68 +17,42 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { signIn, useSession } from "@/lib/auth-client";
-
-// ⚡ Validation Schema
-const LoginSchema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+import { useAuth, useLogin, adminLoginSchema, type AdminLoginFormData } from "@/lib/auth";
 
 export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { data: session, isPending } = useSession();
+  const { user, isLoading: authLoading, isAdmin } = useAuth();
+  const [hasCheckedInitialAuth, setHasCheckedInitialAuth] = useState(false);
+  const { login, isLoading: loginLoading } = useLogin({
+    isAdmin: true,
+    redirectTo: "/admin",
+  });
 
-  // ⚡ Connect form + validation (must be called before any early returns)
+  // Form validation
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(LoginSchema),
+    formState: { errors },
+  } = useForm<AdminLoginFormData>({
+    resolver: zodResolver(adminLoginSchema),
   });
 
-  // Check if user is already logged in and verify role
+  // Check authentication only once on initial load
   useEffect(() => {
-    const checkRoleAndRedirect = async () => {
-      if (session?.user) {
-        try {
-          const roleResponse = await fetch("/api/auth/check-role");
-          const roleData = await roleResponse.json();
-
-          if (roleData.success && roleData.role === "ADMIN") {
-            // Admin user - redirect to admin dashboard
-            window.location.href = '/admin';
-            return;
-          } else if (roleData.success && roleData.role !== "ADMIN") {
-            // Regular user trying to access admin login - sign out and redirect
-            const { signOut } = await import("@/lib/auth-client");
-            await signOut();
-            setError("Access denied");
-            toast.error("Access Denied", {
-              description: "Only admin accounts can access this page. Please use the public login page.",
-            });
-            // Redirect to home after a delay
-            setTimeout(() => {
-              router.push('/');
-            }, 2000);
-          }
-        } catch (error) {
-          console.error("Role check failed:", error);
-        }
+    if (!authLoading && !hasCheckedInitialAuth) {
+      setHasCheckedInitialAuth(true);
+      
+      // Redirect already logged-in admin users to dashboard
+      if (user && isAdmin) {
+        router.push('/admin');
       }
-    };
-
-    checkRoleAndRedirect();
-  }, [session, router]);
+    }
+  }, [authLoading, user, isAdmin, router, hasCheckedInitialAuth]);
 
   // Show loading while checking session
-  if (isPending) {
+  if (authLoading) {
     return (
       <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat flex items-center justify-center">
         <div className="text-white text-lg">Loading...</div>
@@ -85,69 +60,18 @@ export default function AdminLoginPage() {
     );
   }
 
-  // Don't render login form if already authenticated (will redirect)
-  if (session?.user && (session.user as any).role === "ADMIN") {
+  // Don't render login form if admin user is already logged in
+  // (useLogin will redirect them to /admin on successful login)
+  if (user && isAdmin) {
     return null;
   }
 
-  // ⚡ Submit Form
-  const onSubmit = async (data: any) => {
-    setError(null);
-    const loadingToast = toast.loading("Processing login...", {
-      description: "Please wait...",
+  // Submit Form
+  const onSubmit = (data: AdminLoginFormData) => {
+    login({
+      email: data.email,
+      password: data.password,
     });
-
-    try {
-      console.log('🔐 Attempting login for:', data.email);
-      const result = await signIn.email({
-        email: data.email,
-        password: data.password,
-      });
-
-      console.log('📊 Login result:', result);
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      if (result.error) {
-        console.error('❌ Login error:', result.error);
-        setError("Invalid email or password");
-        toast.error("Login Failed", {
-          description: result.error.message || "Invalid email or password. Please try again.",
-        });
-      } else {
-        console.log('✅ Login successful');
-        // Success! Show toast and redirect immediately
-        toast.success("Login Successful", {
-          description: "Redirecting to admin dashboard...",
-        });
-        
-        // Optimistic redirect - redirect immediately
-        // Middleware will validate admin role and redirect back if not admin
-        window.location.href = '/admin';
-        
-        // Background validation for extra security (won't block redirect)
-        fetch("/api/auth/check-role")
-          .then(res => res.json())
-          .then(roleData => {
-            if (!roleData.success || roleData.role !== "ADMIN") {
-              // Non-admin detected - middleware will handle redirect
-              console.log("Non-admin detected on admin login - middleware will redirect");
-            }
-          })
-          .catch(err => {
-            // Middleware will handle authentication
-            console.error("Background role check failed:", err);
-          });
-      }
-    } catch (err) {
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      setError("An error occurred. Please try again.");
-      toast.error("Login Failed", {
-        description: "An error occurred during login. Please try again.",
-      });
-    }
   };
 
   return (
@@ -210,9 +134,6 @@ export default function AdminLoginPage() {
                           {errors.email.message as string}
                         </p>
                       )}
-                      {error && !errors.email && (
-                        <p className="text-red-400 text-sm mt-1">{error}</p>
-                      )}
                     </div>
 
                     {/* PASSWORD */}
@@ -256,34 +177,26 @@ export default function AdminLoginPage() {
                       </Link>
                     </div>
 
-                    {/* Remember Me */}
-                    <div className="mt-3 flex items-center gap-3">
-                      <Checkbox id="terms" />
-                      <Label htmlFor="terms" className="text-sm text-white">
-                        Remember me
-                      </Label>
-                    </div>
-
                     {/* Submit */}
                     <Button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={loginLoading}
                       className="mt-6 w-full cursor-pointer text-white"
                       style={{
                         backgroundColor: '#ff6b6b',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSubmitting) {
+                        if (!loginLoading) {
                           e.currentTarget.style.backgroundColor = '#ff5252';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSubmitting) {
+                        if (!loginLoading) {
                           e.currentTarget.style.backgroundColor = '#ff6b6b';
                         }
                       }}
                     >
-                      {isSubmitting ? "Processing..." : "Sign In"}
+                      {loginLoading ? "Processing..." : "Sign In"}
                     </Button>
                   </form>
 

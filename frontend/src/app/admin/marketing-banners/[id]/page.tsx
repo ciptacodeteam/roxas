@@ -21,22 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { useAdminMarketingBanner, useUpdateMarketingBanner } from "@/lib/queries";
+import { useMarketingBanner, useUpdateMarketingBanner, type MarketingBanner } from "@/lib/marketing-banners";
 import { formatDateTime } from "@/lib/date-utils";
-
-interface MarketingBannerDetail {
-  id: string;
-  title: string | null;
-  image: string;
-  link: string | null;
-  description: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  startDate: string | null;
-  endDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export default function MarketingBannerEditPage() {
   const router = useRouter();
@@ -44,59 +30,55 @@ export default function MarketingBannerEditPage() {
   const bannerId = params?.id as string;
 
   const [saving, setSaving] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<{
     title: string;
-    image: string;
     link: string;
     description: string;
-    isActive: boolean;
-    sortOrder: number;
-    startDate: string;
-    endDate: string;
+    is_active: boolean;
+    sort_order: number;
+    start_date: string;
+    end_date: string;
   }>({
     title: "",
-    image: "",
     link: "",
     description: "",
-    isActive: true,
-    sortOrder: 0,
-    startDate: "",
-    endDate: "",
+    is_active: true,
+    sort_order: 0,
+    start_date: "",
+    end_date: "",
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Use React Query to fetch banner data
-  const { data: bannerData, isLoading: loading, error } = useAdminMarketingBanner(bannerId, {
+  const { data: bannerData, isLoading: loading, error } = useMarketingBanner(bannerId, {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
-  const typedBannerData = bannerData as MarketingBannerDetail | null | undefined;
+  const typedBannerData = bannerData as MarketingBanner | null | undefined;
 
   // Update form data when banner data changes
   useEffect(() => {
     if (typedBannerData) {
       setFormData({
         title: typedBannerData.title || "",
-        image: typedBannerData.image,
         link: typedBannerData.link || "",
         description: typedBannerData.description || "",
-        isActive: typedBannerData.isActive,
-        sortOrder: typedBannerData.sortOrder,
-        startDate: typedBannerData.startDate ? new Date(typedBannerData.startDate).toISOString().slice(0, 16) : "",
-        endDate: typedBannerData.endDate ? new Date(typedBannerData.endDate).toISOString().slice(0, 16) : "",
+        is_active: typedBannerData.is_active,
+        sort_order: typedBannerData.sort_order,
+        start_date: typedBannerData.start_date ? new Date(typedBannerData.start_date).toISOString().slice(0, 16) : "",
+        end_date: typedBannerData.end_date ? new Date(typedBannerData.end_date).toISOString().slice(0, 16) : "",
       });
       setImagePreview(typedBannerData.image);
+      setImageFile(null);
     }
   }, [typedBannerData, bannerId]);
 
-  const updateBannerMutation = useUpdateMarketingBanner({
+  const updateMarketingBannerMutation = useUpdateMarketingBanner({
     onSuccess: () => {
       toast.success("Marketing banner updated successfully");
-      setTimeout(() => {
-        router.push("/admin/marketing-banners");
-      }, 100);
+      router.push("/admin/marketing-banners");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update marketing banner");
@@ -104,58 +86,40 @@ export default function MarketingBannerEditPage() {
     },
   });
 
-  const handleImageUpload = async (file: File) => {
-    try {
-      setUploadingImage(true);
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=banners`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      setFormData((prev) => ({ ...prev, image: data.data.url }));
-      setImagePreview(data.data.url);
-
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      setUploadingImage(false);
-    }
+  const handleImageChange = (file: File) => {
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.image) {
+    if (!imagePreview && !imageFile) {
       toast.error("Image is required");
       return;
     }
 
     setSaving(true);
-    const submitData = {
-      title: formData.title || null,
-      image: formData.image,
-      link: formData.link || null,
-      description: formData.description || null,
-      isActive: formData.isActive,
-      sortOrder: formData.sortOrder,
-      startDate: formData.startDate || null,
-      endDate: formData.endDate || null,
+    const submitData: any = {
+      title: formData.title || undefined,
+      link: formData.link || undefined,
+      description: formData.description || undefined,
+      is_active: formData.is_active,
+      sort_order: formData.sort_order,
+      start_date: formData.start_date || null,
+      end_date: formData.end_date || null,
     };
 
-    updateBannerMutation.mutate(
+    // Add image file if selected
+    if (imageFile) {
+      submitData.image = imageFile;
+    }
+
+    updateMarketingBannerMutation.mutate(
       { id: bannerId, data: submitData },
       {
         onSettled: () => {
@@ -290,20 +254,19 @@ export default function MarketingBannerEditPage() {
                                     alt="Preview"
                                     fill
                                     className="object-contain"
-                                    onError={() => setImagePreview(null)}
                                   />
                                 </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="absolute right-2 top-2"
+                                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
                                   onClick={() => {
                                     setImagePreview(null);
-                                    setFormData((prev) => ({ ...prev, image: "" }));
+                                    setImageFile(null);
                                   }}
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="h-3 w-3 text-white" />
                                 </Button>
                               </div>
                             ) : (
@@ -315,29 +278,10 @@ export default function MarketingBannerEditPage() {
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                      handleImageUpload(file);
+                                      handleImageChange(file);
                                     }
                                   }}
-                                  className="hidden"
-                                />
-                                <Label
-                                  htmlFor="image-file"
-                                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {uploadingImage ? "Uploading..." : "Upload Image"}
-                                  </span>
-                                </Label>
-                                <Input
-                                  id="image-url"
-                                  value={formData.image}
-                                  onChange={(e) => {
-                                    setFormData({ ...formData, image: e.target.value });
-                                    setImagePreview(e.target.value || null);
-                                  }}
-                                  placeholder="Or enter image URL"
-                                  className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                  className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                 />
                               </div>
                             )}
@@ -381,27 +325,27 @@ export default function MarketingBannerEditPage() {
                         {/* Date Range */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="startDate" className="flex items-center gap-2">
+                            <Label htmlFor="start_date" className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               Start Date (Optional)
                             </Label>
                             <DateTimePicker
-                              value={formData.startDate || undefined}
+                              value={formData.start_date || undefined}
                               onChange={(value) =>
-                                setFormData({ ...formData, startDate: value })
+                                setFormData({ ...formData, start_date: value })
                               }
                               placeholder="Select start date and time"
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="endDate" className="flex items-center gap-2">
+                            <Label htmlFor="end_date" className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               End Date (Optional)
                             </Label>
                             <DateTimePicker
-                              value={formData.endDate || undefined}
+                              value={formData.end_date || undefined}
                               onChange={(value) =>
-                                setFormData({ ...formData, endDate: value })
+                                setFormData({ ...formData, end_date: value })
                               }
                               placeholder="Select end date and time"
                             />
@@ -410,18 +354,18 @@ export default function MarketingBannerEditPage() {
 
                         {/* Sort Order */}
                         <div className="space-y-2">
-                          <Label htmlFor="sortOrder" className="flex items-center gap-2">
+                          <Label htmlFor="sort_order" className="flex items-center gap-2">
                             <ArrowUpDown className="h-4 w-4" />
                             Sort Order
                           </Label>
                           <Input
-                            id="sortOrder"
+                            id="sort_order"
                             type="number"
-                            value={formData.sortOrder}
+                            value={formData.sort_order}
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                sortOrder: parseInt(e.target.value) || 0,
+                                sort_order: parseInt(e.target.value) || 0,
                               })
                             }
                             className="bg-gray-800 text-gray-100 border-gray-700"
@@ -431,16 +375,16 @@ export default function MarketingBannerEditPage() {
                         {/* Active Status */}
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="isActive"
-                            checked={formData.isActive}
+                            id="is_active"
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
                               setFormData({
                                 ...formData,
-                                isActive: !!checked,
+                                is_active: !!checked,
                               })
                             }
                           />
-                          <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
+                          <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
                             <CheckCircle2 className="h-4 w-4" />
                             Active (visible to users)
                           </Label>
@@ -491,29 +435,29 @@ export default function MarketingBannerEditPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-400">Status</span>
                         <Badge
-                          variant={typedBannerData.isActive ? "default" : "secondary"}
+                          variant={typedBannerData?.is_active ? "default" : "secondary"}
                           className={
-                            typedBannerData.isActive
+                            typedBannerData?.is_active
                               ? "bg-green-600/20 text-green-400"
                               : "bg-gray-600/20 text-gray-400"
                           }
                         >
-                          {typedBannerData.isActive ? "Active" : "Inactive"}
+                          {typedBannerData?.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </div>
-                      {typedBannerData.startDate && (
+                      {typedBannerData?.start_date && (
                         <div>
                           <span className="text-xs text-gray-400">Start Date</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.startDate)}
+                            {formatDateTime(typedBannerData.start_date)}
                           </p>
                         </div>
                       )}
-                      {typedBannerData.endDate && (
+                      {typedBannerData?.end_date && (
                         <div>
                           <span className="text-xs text-gray-400">End Date</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.endDate)}
+                            {formatDateTime(typedBannerData.end_date)}
                           </p>
                         </div>
                       )}
@@ -529,18 +473,22 @@ export default function MarketingBannerEditPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <span className="text-xs text-gray-400">Created At</span>
-                        <p className="text-sm text-gray-200">
-                          {formatDateTime(typedBannerData.createdAt)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-gray-400">Updated At</span>
-                        <p className="text-sm text-gray-200">
-                          {formatDateTime(typedBannerData.updatedAt)}
-                        </p>
-                      </div>
+                      {typedBannerData?.created_at && (
+                        <div>
+                          <span className="text-xs text-gray-400">Created At</span>
+                          <p className="text-sm text-gray-200">
+                            {formatDateTime(typedBannerData.created_at)}
+                          </p>
+                        </div>
+                      )}
+                      {typedBannerData?.updated_at && (
+                        <div>
+                          <span className="text-xs text-gray-400">Updated At</span>
+                          <p className="text-sm text-gray-200">
+                            {formatDateTime(typedBannerData.updated_at)}
+                          </p>
+                        </div>
+                      )}
                       {typedBannerData.link && (
                         <div>
                           <span className="text-xs text-gray-400">Link</span>

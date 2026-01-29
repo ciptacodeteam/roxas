@@ -8,6 +8,7 @@ Usage:
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from account.models import UserRole
 from main.models import (
     PaymentMethod, PaymentMethodType, BankTransferBank, FeeType,
     Coupon, DiscountType
@@ -49,10 +50,11 @@ class Command(BaseCommand):
             admin_user = User.objects.create_superuser(
                 email=admin_email,
                 password=admin_password,
-                name='Admin User',
+                role=UserRole.STAFF,
             )
             self.stdout.write(self.style.SUCCESS('✅ Admin user created: {}'.format(admin_email)))
             self.stdout.write('   Password: {}'.format(admin_password))
+            self.stdout.write('   Role: STAFF')
         except Exception as e:
             self.stdout.write(self.style.ERROR('❌ Failed to create admin user: {}'.format(str(e))))
 

@@ -54,17 +54,6 @@ class PaymentMethodType(models.TextChoices):
     BANK_TRANSFER = "BANK_TRANSFER", _("Bank Transfer")
 
 
-class BankTransferBank(models.TextChoices):
-    BCA = "BCA", _("BCA")
-    BNI = "BNI", _("BNI")
-    PERMATA = "PERMATA", _("Permata")
-    MANDIRI = "MANDIRI", _("Mandiri")
-    BRI = "BRI", _("BRI")
-    BSI = "BSI", _("BSI")
-    DANAMON = "DANAMON", _("Danamon")
-    CIMB = "CIMB", _("CIMB")
-
-
 class OrderStatus(models.TextChoices):
     PENDING = "PENDING", _("Pending - Awaiting Payment")
     PAID = "PAID", _("Paid - Processing Top-up")
@@ -130,14 +119,6 @@ class PaymentMethod(UUIDModel):
         choices=PaymentMethodType.choices,
         verbose_name=_("Payment Type"),
     )
-    bank = models.CharField(
-        max_length=20,
-        choices=BankTransferBank.choices,
-        blank=True,
-        null=True,
-        verbose_name=_("Bank"),
-        help_text=_("Bank for bank_transfer (null for other methods)"),
-    )
     name = models.CharField(
         max_length=100,
         verbose_name=_("Display Name"),
@@ -147,10 +128,10 @@ class PaymentMethod(UUIDModel):
         blank=True,
         verbose_name=_("Description"),
     )
-    icon = models.CharField(
-        max_length=255,
+    icon = models.ImageField(
+        upload_to="payment_methods/icons/",
         blank=True,
-        verbose_name=_("Icon URL"),
+        verbose_name=_("Icon"),
     )
     
     # Fee configuration
@@ -206,12 +187,6 @@ class PaymentMethod(UUIDModel):
         verbose_name_plural = _("Payment Methods")
         ordering = ["type", "name"]
         db_table = "payment_methods"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["type", "bank"],
-                name="unique_payment_method_type_bank"
-            )
-        ]
         indexes = [
             models.Index(fields=["is_active"]),
             models.Index(fields=["type"]),

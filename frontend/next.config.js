@@ -19,6 +19,11 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: "http",
+        hostname: "localhost",
+        port: "8000",
+      },
+      {
         protocol: "https",
         // hostname: "*.public.blob.vercel-storage.com", // Removed - using local storage
         hostname: "localhost",
@@ -32,6 +37,8 @@ const nextConfig = {
         hostname: 'api.midtrans.com',
       },
     ],
+    // Allow unoptimized images from localhost in development
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   // Allow ngrok URLs in development
   allowedDevOrigins: process.env.WEBHOOK_BASE_URL

@@ -30,12 +30,8 @@ export function NavMain({
           {items.map((item) => {
             const isActive = pathname === item.url || (item.url !== "/admin" && pathname?.startsWith(item.url))
             return (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton 
-                  asChild
-                  tooltip={item.title}
-                  isActive={isActive}
-                >
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton asChild isActive={isActive}>
                   <Link href={item.url}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
