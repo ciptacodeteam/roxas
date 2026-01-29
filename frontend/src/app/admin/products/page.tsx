@@ -31,7 +31,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminProducts, useDeleteProduct } from "@/lib/queries";
+import { useProducts, useDeleteProduct } from "@/lib/products";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +69,7 @@ export default function ProductsPage() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Use TanStack Query hooks
-  const { data: products = [], isLoading: loading, refetch } = useAdminProducts({
+  const { data: products = [], isLoading: loading, refetch } = useProducts({
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -158,7 +158,7 @@ export default function ProductsPage() {
         },
       },
       {
-        accessorKey: "isActive",
+        accessorKey: "is_active",
         header: ({ column }) => {
           return (
             <Button
@@ -178,12 +178,12 @@ export default function ProductsPage() {
           );
         },
         cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.getValue("is_active") as boolean;
           return (
             <span
               className={`rounded px-2 py-1 text-xs font-semibold ${isActive
-                  ? "bg-green-600/20 text-green-400"
-                  : "bg-gray-600/20 text-gray-400"
+                ? "bg-green-600/20 text-green-400"
+                : "bg-gray-600/20 text-gray-400"
                 }`}
             >
               {isActive ? "Active" : "Inactive"}
@@ -192,7 +192,7 @@ export default function ProductsPage() {
         },
       },
       {
-        accessorKey: "createdAt",
+        accessorKey: "created_at",
         header: ({ column }) => {
           return (
             <Button
@@ -212,7 +212,7 @@ export default function ProductsPage() {
           );
         },
         cell: ({ row }) => {
-          const date = row.getValue("createdAt") as string;
+          const date = row.getValue("created_at") as string;
           return formatDateTime(date);
         },
       },

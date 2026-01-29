@@ -10,6 +10,7 @@ Tasks untuk async processing:
 import logging
 from celery import shared_task
 from django.utils import timezone
+from django.utils.text import slugify
 from decimal import Decimal
 
 from main.models import (
@@ -50,6 +51,19 @@ def sync_digiflazz_products(self, category_filter=None, brand_filter=None):
             brand=brand_filter
         )
         
+        # Validate response - check if it's an error
+        if not isinstance(products, list):
+            error_msg = "API returned error or invalid response"
+            if isinstance(products, dict):
+                error_msg = products.get('message', error_msg)
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'created': 0,
+                'updated': 0,
+                'errors': [error_msg]
+            }
+        
         logger.info(f"Syncing {len(products)} products from Digiflazz...")
         
         created_count = 0
@@ -58,49 +72,63 @@ def sync_digiflazz_products(self, category_filter=None, brand_filter=None):
         
         for df_product in products:
             try:
+                # Validate df_product is a dict
+                if not isinstance(df_product, dict):
+                    logger.warning(f"Skipping invalid product: {df_product}")
+                    continue
+                
                 # Skip inactive products
                 if not df_product.get('buyer_product_status') or \
                    not df_product.get('seller_product_status'):
                     continue
                 
-                # Get or create category
-                category_name = df_product.get('brand', 'Uncategorized')
-                category, _ = Category.objects.get_or_create(
-                    name=category_name,
-                    defaults={
-                        'description': f"Produk {category_name}",
-                        'is_active': True
-                    }
-                )
+                # Get or create category (from 'category' field, e.g., "Games")
+                category_name = df_product.get('category', 'Uncategorized')
+                category_slug = slugify(category_name)
                 
-                # Get or create product
+                # Try to get existing category by name first
+                try:
+                    category = Category.objects.get(name=category_name)
+                except Category.DoesNotExist:
+                    # Create new category with slug
+                    category = Category.objects.create(
+                        name=category_name,
+                        slug=category_slug,
+                        is_active=True
+                    )
+                
+                # Get or create product (from 'brand' field, e.g., "MOBILE LEGENDS")
+                product_brand = df_product.get('brand', 'Unknown')
+                product_slug = slugify(product_brand)
+                
                 product, created = Product.objects.get_or_create(
-                    digiflazz_sku=df_product['buyer_sku_code'],
+                    slug=product_slug,
                     defaults={
-                        'name': df_product['product_name'],
+                        'name': product_brand,
                         'category': category,
-                        'description': df_product.get('desc', ''),
+                        'description': f"{product_brand} products",
                         'is_active': True,
-                        'is_available': True
                     }
                 )
                 
-                # Update product if exists
+                # Update product if exists (ensure it's in the right category)
                 if not created:
-                    product.name = df_product['product_name']
-                    product.description = df_product.get('desc', '')
-                    product.save()
+                    if product.category != category:
+                        product.category = category
+                        product.save()
                 
-                # Create or update product item
+                # Create or update product item (from 'product_name' field, e.g., "Mobile Legends 100 Diamonds")
                 product_item, item_created = ProductItem.objects.update_or_create(
-                    product=product,
-                    digiflazz_sku=df_product['buyer_sku_code'],
+                    sku_code=df_product['buyer_sku_code'],
                     defaults={
-                        'name': df_product['product_name'],
-                        'price': df_product['price'],
-                        'stock': None if df_product.get('unlimited_stock') else df_product.get('stock', 0),
-                        'is_unlimited_stock': df_product.get('unlimited_stock', False),
-                        'is_active': True
+                        'product': product,
+                        'name': df_product['product_name'],  # Full item name
+                        'base_price': int(df_product['price']),
+                        'normal_price': int(df_product['price']),
+                        'sell_price': int(df_product['price']),
+                        'is_active': df_product.get('buyer_product_status', True) and df_product.get('seller_product_status', True),
+                        'last_synced_at': timezone.now(),
+                        'digiflazz_status': 'ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
                     }
                 )
                 
@@ -110,7 +138,8 @@ def sync_digiflazz_products(self, category_filter=None, brand_filter=None):
                     updated_count += 1
                     
             except Exception as e:
-                error_msg = f"Error syncing product {df_product.get('buyer_sku_code')}: {str(e)}"
+                sku = df_product.get('buyer_sku_code', 'unknown') if isinstance(df_product, dict) else 'unknown'
+                error_msg = f"Error syncing product {sku}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
         

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
-import { Loader2, Save, Package, Hash, ArrowUpDown, CheckCircle2, Upload, X, FileText, Calendar, ShoppingBag, Calculator } from "lucide-react";
+import { Loader2, Save, Package, Hash, ArrowUpDown, CheckCircle2, Upload, X, FileText, Calendar, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,34 +27,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { useAdminProduct, useUpdateProduct, useAdminCategories, useAdminProductItems } from "@/lib/queries";
+import { useProduct, useUpdateProduct, type ProductWithItems } from "@/lib/products";
+import { useCategories } from "@/lib/categories";
 import { formatDateTime } from "@/lib/date-utils";
-
-interface ProductDetail {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  image: string | null;
-  bannerImage: string | null;
-  category: {
-    id: string;
-    name: string;
-  };
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  items: Array<{
-    id: string;
-    name: string;
-    skuCode: string;
-    isActive: boolean;
-  }>;
-  _count: {
-    items: number;
-  };
-}
 
 export default function ProductEditPage() {
   const router = useRouter();
@@ -62,65 +37,50 @@ export default function ProductEditPage() {
   const productId = params?.id as string;
 
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<{
     name: string;
     slug: string;
     description: string;
-    categoryId: string;
-    image: string;
-    bannerImage: string;
-    isActive: boolean;
-    sortOrder: number;
+    category: string;
+    is_active: boolean;
+    sort_order: number;
   }>({
     name: "",
     slug: "",
     description: "",
-    categoryId: "",
-    image: "",
-    bannerImage: "",
-    isActive: true,
-    sortOrder: 0,
+    category: "",
+    is_active: true,
+    sort_order: 0,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
-
-  // Bulk price update state
-  const [marginPercentage, setMarginPercentage] = useState("5");
-  const [priceBase, setPriceBase] = useState<"basePrice" | "normalPrice">("basePrice");
-  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // Use React Query to fetch product data
-  const { data: productData, isLoading: loading, error } = useAdminProduct(productId, {
+  const { data: productData, isLoading: loading, error } = useProduct(productId, {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
-  const typedProductData = productData as ProductDetail | null | undefined;
-  const { data: categories = [] } = useAdminCategories();
-  const { data: productItemsData = [] } = useAdminProductItems();
+
+  const { data: categories = [] } = useCategories();
 
   // Update form data when product data changes
   useEffect(() => {
-    if (typedProductData) {
-      // Ensure categoryId is a string to match SelectItem values exactly
-      const categoryIdValue = typedProductData.category?.id ? String(typedProductData.category.id) : "";
-
+    if (productData) {
       setFormData({
-        name: typedProductData.name,
-        slug: typedProductData.slug,
-        description: typedProductData.description || "",
-        categoryId: categoryIdValue,
-        image: typedProductData.image || "",
-        bannerImage: typedProductData.bannerImage || "",
-        isActive: typedProductData.isActive,
-        sortOrder: typedProductData.sortOrder,
+        name: productData.name,
+        slug: productData.slug,
+        description: productData.description || "",
+        category: productData.category || "",
+        is_active: productData.is_active,
+        sort_order: productData.sort_order,
       });
-      setImagePreview(typedProductData.image || null);
-      setBannerPreview(typedProductData.bannerImage || null);
+      setImagePreview(productData.image || null);
+      setBannerPreview(productData.banner_image || null);
     }
-  }, [typedProductData, productId]);
+  }, [productData]);
 
   const updateProductMutation = useUpdateProduct({
     onSuccess: () => {
@@ -135,61 +95,42 @@ export default function ProductEditPage() {
     },
   });
 
-  const handleImageUpload = async (file: File, type: "image" | "banner") => {
-    try {
-      if (type === "image") {
-        setUploadingImage(true);
-      } else {
-        setUploadingBanner(true);
-      }
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=products`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      if (type === "image") {
-        setFormData((prev) => ({ ...prev, image: data.data.url }));
-        setImagePreview(data.data.url);
-      } else {
-        setFormData((prev) => ({ ...prev, bannerImage: data.data.url }));
-        setBannerPreview(data.data.url);
-      }
-
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      if (type === "image") {
-        setUploadingImage(false);
-      } else {
-        setUploadingBanner(false);
-      }
+  const handleImageChange = (file: File, type: "image" | "banner") => {
+    if (type === "image") {
+      setImageFile(file);
+    } else {
+      setBannerFile(file);
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (type === "image") {
+        setImagePreview(reader.result as string);
+      } else {
+        setBannerPreview(reader.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.slug || !formData.categoryId) {
+    if (!formData.name || !formData.slug || !formData.category) {
       toast.error("Name, slug, and category are required");
       return;
     }
 
     setSaving(true);
+    const submitData: any = {
+      ...formData,
+    };
+
+    // Only include files if they were changed
+    if (imageFile) submitData.image = imageFile;
+    if (bannerFile) submitData.banner_image = bannerFile;
+
     updateProductMutation.mutate(
-      { id: productId, data: formData },
+      { id: productId, data: submitData },
       {
         onSettled: () => {
           setSaving(false);
@@ -203,66 +144,6 @@ export default function ProductEditPage() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const handleBulkPriceUpdate = async () => {
-    if (!typedProductData || !marginPercentage) {
-      toast.error("Please enter a margin percentage");
-      return;
-    }
-
-    // Get all product items for this product
-    const itemsData = Array.isArray(productItemsData) ? productItemsData : [];
-    const itemsForProduct = itemsData.filter((item: any) => item.product?.id === productId);
-
-    if (itemsForProduct.length === 0) {
-      toast.error("No product items found for this product");
-      return;
-    }
-
-    const margin = parseFloat(marginPercentage) / 100;
-    setBulkUpdating(true);
-
-    try {
-      const updatePromises = itemsForProduct.map((item: any) => {
-        let baseForCalculation = item.basePrice;
-        if (priceBase === "normalPrice") {
-          baseForCalculation = item.normalPrice;
-        }
-        const newSellPrice = Math.ceil(baseForCalculation * (1 + margin));
-
-        return fetch(`/api/admin/product-items/${item.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sellPrice: newSellPrice,
-          }),
-        }).then((res) => {
-          if (!res.ok) throw new Error(`Failed to update item ${item.id}`);
-          return res.json();
-        });
-      });
-
-      await Promise.all(updatePromises);
-      toast.success(`Successfully updated prices for ${itemsForProduct.length} items with ${marginPercentage}% margin`);
-      setMarginPercentage("5");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update prices"
-      );
-    } finally {
-      setBulkUpdating(false);
-    }
   };
 
   if (loading) {
@@ -286,7 +167,7 @@ export default function ProductEditPage() {
     );
   }
 
-  if (error || !typedProductData) {
+  if (error || !productData) {
     return (
       <SidebarProvider
         style={
@@ -401,16 +282,15 @@ export default function ProductEditPage() {
 
                           {/* Category */}
                           <div className="space-y-2">
-                            <Label htmlFor="categoryId" className="flex items-center gap-2">
+                            <Label htmlFor="category" className="flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Category <span className="text-red-400">*</span>
                             </Label>
                             <Select
-                              value={formData.categoryId || undefined}
+                              value={formData.category || undefined}
                               onValueChange={(value) => {
-                                // Prevent empty values from being set
                                 if (!value?.trim()) return;
-                                setFormData({ ...formData, categoryId: value });
+                                setFormData({ ...formData, category: value });
                               }}
                               required
                             >
@@ -468,14 +348,14 @@ export default function ProductEditPage() {
                                     className="absolute right-2 top-2"
                                     onClick={() => {
                                       setImagePreview(null);
-                                      setFormData((prev) => ({ ...prev, image: "" }));
+                                      setImageFile(null);
                                     }}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-2">
+                                <div>
                                   <Input
                                     id="image-file"
                                     type="file"
@@ -483,29 +363,10 @@ export default function ProductEditPage() {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
-                                        handleImageUpload(file, "image");
+                                        handleImageChange(file, "image");
                                       }
                                     }}
-                                    className="hidden"
-                                  />
-                                  <Label
-                                    htmlFor="image-file"
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                    <span className="text-sm">
-                                      {uploadingImage ? "Uploading..." : "Upload Image"}
-                                    </span>
-                                  </Label>
-                                  <Input
-                                    id="image-url"
-                                    value={formData.image}
-                                    onChange={(e) => {
-                                      setFormData({ ...formData, image: e.target.value });
-                                      setImagePreview(e.target.value || null);
-                                    }}
-                                    placeholder="Or enter image URL"
-                                    className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                    className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                   />
                                 </div>
                               )}
@@ -514,7 +375,7 @@ export default function ProductEditPage() {
 
                           {/* Banner Image */}
                           <div className="space-y-2">
-                            <Label htmlFor="bannerImage" className="flex items-center gap-2">
+                            <Label htmlFor="banner_image" className="flex items-center gap-2">
                               <Upload className="h-4 w-4" />
                               Banner Image
                             </Label>
@@ -536,14 +397,14 @@ export default function ProductEditPage() {
                                     className="absolute right-2 top-2"
                                     onClick={() => {
                                       setBannerPreview(null);
-                                      setFormData((prev) => ({ ...prev, bannerImage: "" }));
+                                      setBannerFile(null);
                                     }}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-2">
+                                <div>
                                   <Input
                                     id="banner-file"
                                     type="file"
@@ -551,29 +412,10 @@ export default function ProductEditPage() {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
-                                        handleImageUpload(file, "banner");
+                                        handleImageChange(file, "banner");
                                       }
                                     }}
-                                    className="hidden"
-                                  />
-                                  <Label
-                                    htmlFor="banner-file"
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                    <span className="text-sm">
-                                      {uploadingBanner ? "Uploading..." : "Upload Banner"}
-                                    </span>
-                                  </Label>
-                                  <Input
-                                    id="banner-url"
-                                    value={formData.bannerImage}
-                                    onChange={(e) => {
-                                      setFormData({ ...formData, bannerImage: e.target.value });
-                                      setBannerPreview(e.target.value || null);
-                                    }}
-                                    placeholder="Or enter banner URL"
-                                    className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                    className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                   />
                                 </div>
                               )}
@@ -582,18 +424,18 @@ export default function ProductEditPage() {
 
                           {/* Sort Order */}
                           <div className="space-y-2">
-                            <Label htmlFor="sortOrder" className="flex items-center gap-2">
+                            <Label htmlFor="sort_order" className="flex items-center gap-2">
                               <ArrowUpDown className="h-4 w-4" />
                               Sort Order
                             </Label>
                             <Input
-                              id="sortOrder"
+                              id="sort_order"
                               type="number"
-                              value={formData.sortOrder}
+                              value={formData.sort_order}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  sortOrder: parseInt(e.target.value) || 0,
+                                  sort_order: parseInt(e.target.value) || 0,
                                 })
                               }
                               className="bg-gray-800 text-gray-100 border-gray-700"
@@ -603,16 +445,16 @@ export default function ProductEditPage() {
                           {/* Active Status */}
                           <div className="flex items-center space-x-2">
                             <Checkbox
-                              id="isActive"
-                              checked={formData.isActive}
+                              id="is_active"
+                              checked={formData.is_active}
                               onCheckedChange={(checked) =>
                                 setFormData({
                                   ...formData,
-                                  isActive: !!checked,
+                                  is_active: !!checked,
                                 })
                               }
                             />
-                            <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
+                            <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4" />
                               Active (visible to users)
                             </Label>
@@ -663,102 +505,28 @@ export default function ProductEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Product Items</span>
                           <Badge variant="outline" className="text-sm">
-                            {typedProductData._count.items}
+                            {productData.items?.length || 0}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Status</span>
                           <Badge
-                            variant={typedProductData.isActive ? "default" : "secondary"}
+                            variant={productData.is_active ? "default" : "secondary"}
                             className={
-                              typedProductData.isActive
+                              productData.is_active
                                 ? "bg-green-600/20 text-green-400"
                                 : "bg-gray-600/20 text-gray-400"
                             }
                           >
-                            {typedProductData.isActive ? "Active" : "Inactive"}
+                            {productData.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Category</span>
                           <Badge variant="outline" className="text-sm">
-                            {typedProductData.category.name}
+                            {productData.category_name}
                           </Badge>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Bulk Price Update */}
-                    <Card className="bg-gray-900 border-gray-800">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Calculator className="h-5 w-5" />
-                          Bulk Price Update
-                        </CardTitle>
-                        <CardDescription>
-                          Update all item prices with a fixed margin
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {typedProductData._count.items > 0 ? (
-                          <>
-                            {/* Price Base Selection */}
-                            <div className="space-y-2">
-                              <Label htmlFor="price-base" className="text-xs text-gray-400">
-                                Calculate From
-                              </Label>
-                              <Select
-                                value={priceBase}
-                                onValueChange={(value) =>
-                                  setPriceBase(value as "basePrice" | "normalPrice")
-                                }
-                              >
-                                <SelectTrigger id="price-base" className="bg-gray-800 border-gray-700 text-sm">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-800 border-gray-700">
-                                  <SelectItem value="basePrice">Base Price</SelectItem>
-                                  <SelectItem value="normalPrice">Normal Price</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            {/* Margin Input */}
-                            <div className="space-y-2">
-                              <Label htmlFor="bulk-margin" className="text-xs text-gray-400">
-                                Margin (%)
-                              </Label>
-                              <Input
-                                id="bulk-margin"
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={marginPercentage}
-                                onChange={(e) => setMarginPercentage(e.target.value)}
-                                placeholder="5"
-                                className="bg-gray-800 border-gray-700 text-sm"
-                              />
-                              <p className="text-xs text-gray-500">
-                                e.g., 5% multiplies price by 1.05
-                              </p>
-                            </div>
-
-                            <Button
-                              onClick={handleBulkPriceUpdate}
-                              disabled={bulkUpdating}
-                              className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-sm"
-                            >
-                              {bulkUpdating && <Loader2 className="h-4 w-4 animate-spin" />}
-                              Apply to {typedProductData._count.items} Items
-                            </Button>
-                          </>
-                        ) : (
-                          <div className="text-center py-4">
-                            <p className="text-sm text-gray-400">
-                              No items yet. Add items to use bulk pricing.
-                            </p>
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
 
@@ -774,19 +542,19 @@ export default function ProductEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedProductData.createdAt)}
+                            {formatDateTime(productData.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedProductData.updatedAt)}
+                            {formatDateTime(productData.updated_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Slug</span>
                           <p className="text-sm text-gray-200 font-mono">
-                            {typedProductData.slug}
+                            {productData.slug}
                           </p>
                         </div>
                       </CardContent>

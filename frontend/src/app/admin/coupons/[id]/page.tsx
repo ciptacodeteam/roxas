@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCoupon, useUpdateCoupon, DiscountType, type Coupon } from "@/lib/coupons";
-import { formatDateTime } from "@/lib/date-utils";
+import { formatDateTime, utcToLocal, localToUTC } from "@/lib/date-utils";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 export default function CouponEditPage() {
@@ -85,8 +85,8 @@ export default function CouponEditPage() {
         usage_limit: typedCouponData.usage_limit,
         user_limit: typedCouponData.user_limit,
         is_active: typedCouponData.is_active,
-        start_date: typedCouponData.start_date,
-        end_date: typedCouponData.end_date,
+        start_date: typedCouponData.start_date ? utcToLocal(typedCouponData.start_date) : null,
+        end_date: typedCouponData.end_date ? utcToLocal(typedCouponData.end_date) : null,
       });
     }
   }, [typedCouponData]);
@@ -128,8 +128,8 @@ export default function CouponEditPage() {
       min_purchase: formData.min_purchase || 0,
       max_discount: formData.max_discount || undefined,
       usage_limit: formData.usage_limit || undefined,
-      start_date: formData.start_date || undefined,
-      end_date: formData.end_date || undefined,
+      start_date: formData.start_date ? localToUTC(formData.start_date) : undefined,
+      end_date: formData.end_date ? localToUTC(formData.end_date) : undefined,
     };
 
     updateCouponMutation.mutate(

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Loader2, Save, Calendar, CheckCircle2, Plus, X, Tag } from "lucide-react";
+import { Loader2, Save, Zap, Calendar, Plus, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,48 +10,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { BackButton } from "@/components/admin/back-button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { useAdminFlashSale, useUpdateFlashSale, useAdminProductItemsSelect } from "@/lib/queries";
-import { ProductSelectCombobox } from "@/components/admin/product-select-combobox";
-import { formatDateTime } from "@/lib/date-utils";
-
-interface FlashSaleItem {
-  id: string;
-  productItemId: string;
-  salePrice: number;
-  stock: number;
-  soldCount: number;
-  productItem: {
-    id: string;
-    name: string;
-    sellPrice: number;
-    product: {
-      name: string;
-      category: {
-        name: string;
-      };
-    };
-  };
-}
-
-interface FlashSaleDetail {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  items: FlashSaleItem[];
-}
+import { useFlashSale, useUpdateFlashSale, useFlashSaleItems, useCreateFlashSaleItem, useDeleteFlashSaleItem } from "@/lib/flash-sales";
+import { formatDateTime, utcToLocal, localToUTC } from "@/lib/date-utils";
 
 export default function FlashSaleEditPage() {
   const router = useRouter();
@@ -59,44 +31,34 @@ export default function FlashSaleEditPage() {
   const flashSaleId = params?.id as string;
 
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<{
-    name: string;
-    startTime: string;
-    endTime: string;
-    isActive: boolean;
-  }>({
+  const [formData, setFormData] = useState({
     name: "",
-    startTime: "",
-    endTime: "",
-    isActive: true,
+    start_time: "" as string | null,
+    end_time: "" as string | null,
+    is_active: true,
   });
-  const [items, setItems] = useState<Array<{ productItemId: string; salePrice: number; stock: number }>>([]);
 
-  const { data: productItems = [] } = useAdminProductItemsSelect();
-  const { data: flashSaleData, isLoading: loading, error } = useAdminFlashSale(flashSaleId);
-  const typedFlashSaleData = flashSaleData as FlashSaleDetail | null | undefined;
+  const { data: flashSaleData, isLoading: loading, error, refetch } = useFlashSale(flashSaleId, {
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
 
   useEffect(() => {
-    if (typedFlashSaleData) {
+    if (flashSaleData) {
       setFormData({
-        name: typedFlashSaleData.name,
-        startTime: typedFlashSaleData.startTime ? new Date(typedFlashSaleData.startTime).toISOString().slice(0, 16) : "",
-        endTime: typedFlashSaleData.endTime ? new Date(typedFlashSaleData.endTime).toISOString().slice(0, 16) : "",
-        isActive: typedFlashSaleData.isActive,
+        name: flashSaleData.name,
+        start_time: utcToLocal(flashSaleData.start_time),
+        end_time: utcToLocal(flashSaleData.end_time),
+        is_active: flashSaleData.is_active,
       });
-      // Ensure productItemId is a string to match SelectItem values exactly
-      setItems(typedFlashSaleData.items.map(item => ({
-        productItemId: String(item.productItemId || ""),
-        salePrice: item.salePrice,
-        stock: item.stock,
-      })));
     }
-  }, [typedFlashSaleData]);
+  }, [flashSaleData]);
 
   const updateFlashSaleMutation = useUpdateFlashSale({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Flash sale updated successfully");
-      router.push("/admin/flash-sales");
+      await refetch();
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to update flash sale");
@@ -104,50 +66,25 @@ export default function FlashSaleEditPage() {
     },
   });
 
-  const addItem = () => {
-    setItems([...items, { productItemId: "", salePrice: 0, stock: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const updateItem = (index: number, field: "productItemId" | "salePrice" | "stock", value: string | number) => {
-    console.log('updateItem called:', { index, field, value });
-    setItems(prevItems => {
-      const newItems = [...prevItems];
-      const currentItem = newItems[index];
-      if (!currentItem) return prevItems;
-
-      const updatedItem: { productItemId: string; salePrice: number; stock: number } = {
-        productItemId: field === "productItemId" ? (value as string) : currentItem.productItemId,
-        salePrice: field === "salePrice" ? (value as number) : currentItem.salePrice,
-        stock: field === "stock" ? (value as number) : currentItem.stock,
-      };
-
-      newItems[index] = updatedItem;
-      console.log('Updated items:', newItems);
-      return newItems;
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.startTime || !formData.endTime) {
+    if (!formData.name || !formData.start_time || !formData.end_time) {
       toast.error("Name, start time, and end time are required");
       return;
     }
 
-    if (items.length === 0 || items.every(item => !item.productItemId)) {
-      toast.error("At least one item is required");
+    if (new Date(formData.end_time) <= new Date(formData.start_time)) {
+      toast.error("End time must be after start time");
       return;
     }
 
     setSaving(true);
     const submitData = {
-      ...formData,
-      items: items.filter(item => item.productItemId),
+      name: formData.name.trim(),
+      start_time: localToUTC(formData.start_time!),
+      end_time: localToUTC(formData.end_time!),
+      is_active: formData.is_active,
     };
 
     updateFlashSaleMutation.mutate(
@@ -174,14 +111,14 @@ export default function FlashSaleEditPage() {
         <SidebarInset>
           <AdminHeader />
           <div className="flex flex-1 flex-col items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
         </SidebarInset>
       </SidebarProvider>
     );
   }
 
-  if (error || !typedFlashSaleData) {
+  if (error || !flashSaleData) {
     return (
       <SidebarProvider
         style={
@@ -232,7 +169,7 @@ export default function FlashSaleEditPage() {
                   <div>
                     <h1 className="text-3xl font-bold">Edit Flash Sale</h1>
                     <p className="mt-2 text-gray-400">
-                      Manage flash sale information and view related data
+                      Manage flash sale information and items
                     </p>
                   </div>
                 </div>
@@ -244,7 +181,7 @@ export default function FlashSaleEditPage() {
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Tag className="h-5 w-5" />
+                          <Zap className="h-5 w-5" />
                           Flash Sale Information
                         </CardTitle>
                         <CardDescription>
@@ -256,7 +193,7 @@ export default function FlashSaleEditPage() {
                           {/* Name */}
                           <div className="space-y-2">
                             <Label htmlFor="name" className="flex items-center gap-2">
-                              <Tag className="h-4 w-4" />
+                              <Zap className="h-4 w-4" />
                               Name <span className="text-red-400">*</span>
                             </Label>
                             <Input
@@ -266,124 +203,54 @@ export default function FlashSaleEditPage() {
                               onChange={(e) =>
                                 setFormData({ ...formData, name: e.target.value })
                               }
-                              className="bg-gray-800 text-gray-100 border-gray-700"
-                              required
+                              maxLength={200}
                             />
+                            <p className="text-xs text-gray-400">{formData.name.length}/200</p>
                           </div>
 
                           {/* Date Range */}
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                              <Label htmlFor="startTime" className="flex items-center gap-2">
+                              <Label htmlFor="start_time" className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 Start Time <span className="text-red-400">*</span>
                               </Label>
                               <DateTimePicker
-                                value={formData.startTime || undefined}
+                                value={formData.start_time || undefined}
                                 onChange={(value) =>
-                                  setFormData({ ...formData, startTime: value })
+                                  setFormData({ ...formData, start_time: value })
                                 }
                                 placeholder="Select start date and time"
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="endTime" className="flex items-center gap-2">
+                              <Label htmlFor="end_time" className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 End Time <span className="text-red-400">*</span>
                               </Label>
                               <DateTimePicker
-                                value={formData.endTime || undefined}
+                                value={formData.end_time || undefined}
                                 onChange={(value) =>
-                                  setFormData({ ...formData, endTime: value })
+                                  setFormData({ ...formData, end_time: value })
                                 }
                                 placeholder="Select end date and time"
                               />
                             </div>
                           </div>
 
-                          {/* Items */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Label className="flex items-center gap-2">
-                                <Tag className="h-4 w-4" />
-                                Items <span className="text-red-400">*</span>
-                              </Label>
-                              <Button type="button" onClick={addItem} size="sm" variant="outline">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Item
-                              </Button>
-                            </div>
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                              {items.map((item, index) => {
-                                const selectedProduct = productItems.find(p => p.id === item.productItemId);
-                                return (
-                                  <div key={index} className="flex gap-2 items-end p-3 border border-gray-700 rounded-md">
-                                    <div className="flex-1">
-                                      <Label className="text-gray-200 text-xs mb-1 block">Product Item</Label>
-                                      <ProductSelectCombobox
-                                        items={productItems}
-                                        value={item.productItemId || ""}
-                                        onValueChange={(value) => {
-                                          if (!value?.trim()) return;
-                                          const product = productItems.find(p => String(p.id) === String(value));
-                                          updateItem(index, "productItemId", value);
-                                          if (product) {
-                                            updateItem(index, "salePrice", product.sellPrice);
-                                          }
-                                        }}
-                                        placeholder="Search product..."
-                                      />
-                                    </div>
-                                    <div className="w-32">
-                                      <Label className="text-gray-200 text-xs mb-1 block">Sale Price</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.salePrice}
-                                        onChange={(e) =>
-                                          updateItem(index, "salePrice", parseInt(e.target.value) || 0)
-                                        }
-                                        className="bg-gray-800 text-gray-100 border-gray-700"
-                                      />
-                                    </div>
-                                    <div className="w-32">
-                                      <Label className="text-gray-200 text-xs mb-1 block">Stock</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.stock}
-                                        onChange={(e) =>
-                                          updateItem(index, "stock", parseInt(e.target.value) || 0)
-                                        }
-                                        className="bg-gray-800 text-gray-100 border-gray-700"
-                                      />
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => removeItem(index)}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
                           {/* Active Status */}
                           <div className="flex items-center space-x-2">
                             <Checkbox
-                              id="isActive"
-                              checked={formData.isActive}
+                              id="is_active"
+                              checked={formData.is_active}
                               onCheckedChange={(checked) =>
                                 setFormData({
                                   ...formData,
-                                  isActive: !!checked,
+                                  is_active: !!checked,
                                 })
                               }
                             />
-                            <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4" />
+                            <Label htmlFor="is_active" className="cursor-pointer">
                               Active (visible to users)
                             </Label>
                           </div>
@@ -417,15 +284,17 @@ export default function FlashSaleEditPage() {
                         </form>
                       </CardContent>
                     </Card>
+
+                    {/* Flash Sale Items */}
+                    <FlashSaleItemsSection flashSaleId={flashSaleId} />
                   </div>
 
-                  {/* Right Column - Related Information */}
+                  {/* Right Column - Flash Sale Metadata */}
                   <div className="space-y-6">
-                    {/* Flash Sale Status */}
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Tag className="h-5 w-5" />
+                          <Zap className="h-5 w-5" />
                           Status
                         </CardTitle>
                       </CardHeader>
@@ -433,38 +302,32 @@ export default function FlashSaleEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Status</span>
                           <Badge
-                            variant={typedFlashSaleData.isActive ? "default" : "secondary"}
-                            className={
-                              typedFlashSaleData.isActive
-                                ? "bg-green-600/20 text-green-400"
-                                : "bg-gray-600/20 text-gray-400"
-                            }
+                            variant={flashSaleData.is_active_now ? "default" : "secondary"}
                           >
-                            {typedFlashSaleData.isActive ? "Active" : "Inactive"}
+                            {flashSaleData.is_active_now ? "Active Now" : flashSaleData.is_active ? "Scheduled" : "Inactive"}
                           </Badge>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Start Time</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedFlashSaleData.startTime)}
+                            {formatDateTime(flashSaleData.start_time)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">End Time</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedFlashSaleData.endTime)}
+                            {formatDateTime(flashSaleData.end_time)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Items Count</span>
                           <p className="text-sm text-gray-200">
-                            {typedFlashSaleData.items.length} items
+                            {flashSaleData.items.length} items
                           </p>
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Flash Sale Metadata */}
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -474,15 +337,15 @@ export default function FlashSaleEditPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <span className="text-xs text-gray-400">Created At</span>
+                          <span className="text-xs text-gray-400">Created</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedFlashSaleData.createdAt)}
+                            {formatDateTime(flashSaleData.created_at)}
                           </p>
                         </div>
                         <div>
-                          <span className="text-xs text-gray-400">Updated At</span>
+                          <span className="text-xs text-gray-400">Updated</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedFlashSaleData.updatedAt)}
+                            {formatDateTime(flashSaleData.updated_at)}
                           </p>
                         </div>
                       </CardContent>
@@ -495,6 +358,81 @@ export default function FlashSaleEditPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+// Flash Sale Items Section Component
+function FlashSaleItemsSection({ flashSaleId }: { flashSaleId: string }) {
+  const { data: items = [], isLoading, refetch } = useFlashSaleItems(flashSaleId);
+  const deleteItemMutation = useDeleteFlashSaleItem(flashSaleId, {
+    onSuccess: async () => {
+      toast.success("Item removed from flash sale");
+      await refetch();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to remove item");
+    },
+  });
+
+  const handleDelete = (itemId: string) => {
+    if (confirm("Are you sure you want to remove this item?")) {
+      deleteItemMutation.mutate(itemId);
+    }
+  };
+
+  return (
+    <Card className="bg-gray-900 border-gray-800 mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Flash Sale Items ({items.length})
+        </CardTitle>
+        <CardDescription>
+          Products included in this flash sale
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">
+            No items in this flash sale yet. Add items from the product management section.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 border border-gray-700 rounded-md"
+              >
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{item.product_item_name}</p>
+                  <p className="text-xs text-gray-400">{item.product_name}</p>
+                  <div className="flex gap-4 mt-2 text-xs">
+                    <span>Sale: Rp {item.sale_price.toLocaleString('id-ID')}</span>
+                    <span>Normal: Rp {item.normal_price.toLocaleString('id-ID')}</span>
+                    <span className="text-green-400">{item.discount_percentage}% off</span>
+                    <span>Stock: {item.stock}</span>
+                    <span>Sold: {item.sold_count}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600"
+                  onClick={() => handleDelete(item.id)}
+                  disabled={deleteItemMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -24,36 +24,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAdminRating, useUpdateRating, useAdminProducts } from "@/lib/queries";
+import { useRating, useUpdateRating } from "@/lib/ratings";
+import { useProducts } from "@/lib/products";
 
 export default function RatingEditPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const [saving, setSaving] = useState(false);
-  const { data: products = [] } = useAdminProducts();
-  const { data: ratingData, isLoading: loading } = useAdminRating(id);
+  const { data: products = [] } = useProducts();
+  const { data: ratingData, isLoading: loading } = useRating(id);
   const [formData, setFormData] = useState({
-    productId: "",
+    product_id: "",
     rating: 5,
     comment: "",
-    userName: "",
-    isActive: true,
-    sortOrder: 0,
+    user_name: "",
+    is_active: true,
+    sort_order: 0,
   });
 
   useEffect(() => {
     if (ratingData) {
-      // Ensure productId is a string to match SelectItem values exactly
-      const productIdValue = ratingData.productId ? String(ratingData.productId) : "";
-      
+      const productIdValue = ratingData.product_id ? String(ratingData.product_id) : "";
+
       setFormData({
-        productId: productIdValue,
+        product_id: productIdValue,
         rating: ratingData.rating || 5,
         comment: ratingData.comment || "",
-        userName: ratingData.userName || "",
-        isActive: ratingData.isActive ?? true,
-        sortOrder: ratingData.sortOrder || 0,
+        user_name: ratingData.user_name || "",
+        is_active: ratingData.is_active ?? true,
+        sort_order: ratingData.sort_order || 0,
       });
     }
   }, [ratingData]);
@@ -71,8 +71,8 @@ export default function RatingEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.productId || !formData.rating) {
+
+    if (!formData.product_id || !formData.rating) {
       toast.error("Product and rating are required");
       return;
     }
@@ -85,10 +85,10 @@ export default function RatingEditPage() {
     setSaving(true);
     const submitData = {
       ...formData,
-      comment: formData.comment || null,
-      userName: formData.userName || null,
+      comment: formData.comment || "",
+      user_name: formData.user_name || "",
       rating: parseInt(formData.rating.toString()),
-      sortOrder: parseInt(formData.sortOrder.toString()),
+      sort_order: parseInt(formData.sort_order.toString()),
     };
 
     updateRatingMutation.mutate(
@@ -143,14 +143,14 @@ export default function RatingEditPage() {
                     <CardContent>
                       <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
-                          <Label htmlFor="productId" className="flex items-center gap-2">
+                          <Label htmlFor="product_id" className="flex items-center gap-2">
                             Product <span className="text-red-400">*</span>
                           </Label>
                           <Select
-                            value={formData.productId || undefined}
+                            value={formData.product_id || undefined}
                             onValueChange={(value) => {
                               if (!value?.trim()) return;
-                              setFormData({ ...formData, productId: value });
+                              setFormData({ ...formData, product_id: value });
                             }}
                             required
                           >
@@ -193,12 +193,12 @@ export default function RatingEditPage() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="userName">Reviewer Name (Optional)</Label>
+                          <Label htmlFor="user_name">Reviewer Name (Optional)</Label>
                           <Input
-                            id="userName"
-                            value={formData.userName}
+                            id="user_name"
+                            value={formData.user_name}
                             onChange={(e) =>
-                              setFormData({ ...formData, userName: e.target.value })
+                              setFormData({ ...formData, user_name: e.target.value })
                             }
                             placeholder="John Doe"
                             className="bg-gray-800 text-gray-100 border-gray-700"
@@ -220,13 +220,13 @@ export default function RatingEditPage() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="sortOrder">Sort Order</Label>
+                          <Label htmlFor="sort_order">Sort Order</Label>
                           <Input
-                            id="sortOrder"
+                            id="sort_order"
                             type="number"
-                            value={formData.sortOrder}
+                            value={formData.sort_order}
                             onChange={(e) =>
-                              setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
+                              setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
                             }
                             className="bg-gray-800 text-gray-100 border-gray-700"
                           />
@@ -237,14 +237,14 @@ export default function RatingEditPage() {
 
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="isActive"
-                            checked={formData.isActive}
+                            id="is_active"
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
-                              setFormData({ ...formData, isActive: checked === true })
+                              setFormData({ ...formData, is_active: checked === true })
                             }
                             className="border-gray-700"
                           />
-                          <Label htmlFor="isActive" className="text-gray-200">
+                          <Label htmlFor="is_active" className="text-gray-200">
                             Active
                           </Label>
                         </div>

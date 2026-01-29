@@ -27,41 +27,37 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateProduct, useAdminCategories } from "@/lib/queries";
+import { useCreateProduct } from "@/lib/products";
+import { useCategories } from "@/lib/categories";
 
 export default function ProductAddPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
     description: "",
-    categoryId: "",
-    image: "",
-    bannerImage: "",
-    isActive: true,
-    sortOrder: 0,
-    inputFields: [] as any[],
+    category: "",
+    is_active: true,
+    sort_order: 0,
+    input_fields: [] as any[],
+    instructions: "",
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
 
-  const { data: categories = [] } = useAdminCategories();
+  const { data: categories = [] } = useCategories();
 
   useEffect(() => {
-    if (categories.length > 0 && !formData.categoryId) {
-      setFormData((prev) => ({ ...prev, categoryId: categories[0].id }));
+    if (categories.length > 0 && !formData.category) {
+      setFormData((prev) => ({ ...prev, category: categories[0].id }));
     }
-  }, [categories]);
+  }, [categories, formData.category]);
 
   const createProductMutation = useCreateProduct({
-    onSuccess: async () => {
-      // Ensure queries are invalidated and refetched
-      await queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-      await queryClient.refetchQueries({ queryKey: ["admin", "products"] });
+    onSuccess: () => {
       toast.success("Product created successfully");
       setTimeout(() => {
         router.push("/admin/products");
@@ -73,60 +69,39 @@ export default function ProductAddPage() {
     },
   });
 
-  const handleImageUpload = async (file: File, type: "image" | "banner") => {
-    try {
-      if (type === "image") {
-        setUploadingImage(true);
-      } else {
-        setUploadingBanner(true);
-      }
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=products`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      if (type === "image") {
-        setFormData((prev) => ({ ...prev, image: data.data.url }));
-        setImagePreview(data.data.url);
-      } else {
-        setFormData((prev) => ({ ...prev, bannerImage: data.data.url }));
-        setBannerPreview(data.data.url);
-      }
-
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      if (type === "image") {
-        setUploadingImage(false);
-      } else {
-        setUploadingBanner(false);
-      }
+  const handleImageChange = (file: File, type: "image" | "banner") => {
+    if (type === "image") {
+      setImageFile(file);
+    } else {
+      setBannerFile(file);
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (type === "image") {
+        setImagePreview(reader.result as string);
+      } else {
+        setBannerPreview(reader.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.slug || !formData.categoryId) {
+    if (!formData.name || !formData.slug || !formData.category) {
       toast.error("Name, slug, and category are required");
       return;
     }
 
     setSaving(true);
-    createProductMutation.mutate(formData, {
+    const submitData: any = {
+      ...formData,
+      image: imageFile || undefined,
+      banner_image: bannerFile || undefined,
+    };
+
+    createProductMutation.mutate(submitData, {
       onSettled: () => {
         setSaving(false);
       },
@@ -226,14 +201,14 @@ export default function ProductAddPage() {
 
                         {/* Category */}
                         <div className="space-y-2">
-                          <Label htmlFor="categoryId" className="flex items-center gap-2">
+                          <Label htmlFor="category" className="flex items-center gap-2">
                             <Package className="h-4 w-4" />
                             Category <span className="text-red-400">*</span>
                           </Label>
                           <Select
-                            value={formData.categoryId}
+                            value={formData.category}
                             onValueChange={(value) =>
-                              setFormData({ ...formData, categoryId: value })
+                              setFormData({ ...formData, category: value })
                             }
                             required
                           >
@@ -292,14 +267,14 @@ export default function ProductAddPage() {
                                   className="absolute right-2 top-2"
                                   onClick={() => {
                                     setImagePreview(null);
-                                    setFormData((prev) => ({ ...prev, image: "" }));
+                                    setImageFile(null);
                                   }}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <div>
                                 <Input
                                   id="image-file"
                                   type="file"
@@ -307,29 +282,10 @@ export default function ProductAddPage() {
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                      handleImageUpload(file, "image");
+                                      handleImageChange(file, "image");
                                     }
                                   }}
-                                  className="hidden"
-                                />
-                                <Label
-                                  htmlFor="image-file"
-                                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {uploadingImage ? "Uploading..." : "Upload Image"}
-                                  </span>
-                                </Label>
-                                <Input
-                                  id="image-url"
-                                  value={formData.image}
-                                  onChange={(e) => {
-                                    setFormData({ ...formData, image: e.target.value });
-                                    setImagePreview(e.target.value || null);
-                                  }}
-                                  placeholder="Or enter image URL"
-                                  className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                  className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                 />
                               </div>
                             )}
@@ -338,7 +294,7 @@ export default function ProductAddPage() {
 
                         {/* Banner Image */}
                         <div className="space-y-2">
-                          <Label htmlFor="bannerImage" className="flex items-center gap-2">
+                          <Label htmlFor="banner_image" className="flex items-center gap-2">
                             <Upload className="h-4 w-4" />
                             Banner Image
                           </Label>
@@ -360,14 +316,14 @@ export default function ProductAddPage() {
                                   className="absolute right-2 top-2"
                                   onClick={() => {
                                     setBannerPreview(null);
-                                    setFormData((prev) => ({ ...prev, bannerImage: "" }));
+                                    setBannerFile(null);
                                   }}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <div>
                                 <Input
                                   id="banner-file"
                                   type="file"
@@ -375,29 +331,10 @@ export default function ProductAddPage() {
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                      handleImageUpload(file, "banner");
+                                      handleImageChange(file, "banner");
                                     }
                                   }}
-                                  className="hidden"
-                                />
-                                <Label
-                                  htmlFor="banner-file"
-                                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 hover:bg-gray-800"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  <span className="text-sm">
-                                    {uploadingBanner ? "Uploading..." : "Upload Banner"}
-                                  </span>
-                                </Label>
-                                <Input
-                                  id="banner-url"
-                                  value={formData.bannerImage}
-                                  onChange={(e) => {
-                                    setFormData({ ...formData, bannerImage: e.target.value });
-                                    setBannerPreview(e.target.value || null);
-                                  }}
-                                  placeholder="Or enter banner URL"
-                                  className="flex-1 bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
+                                  className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                 />
                               </div>
                             )}
@@ -406,18 +343,18 @@ export default function ProductAddPage() {
 
                         {/* Sort Order */}
                         <div className="space-y-2">
-                          <Label htmlFor="sortOrder" className="flex items-center gap-2">
+                          <Label htmlFor="sort_order" className="flex items-center gap-2">
                             <ArrowUpDown className="h-4 w-4" />
                             Sort Order
                           </Label>
                           <Input
-                            id="sortOrder"
+                            id="sort_order"
                             type="number"
-                            value={formData.sortOrder}
+                            value={formData.sort_order}
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                sortOrder: parseInt(e.target.value) || 0,
+                                sort_order: parseInt(e.target.value) || 0,
                               })
                             }
                             placeholder="0"
@@ -431,16 +368,16 @@ export default function ProductAddPage() {
                         {/* Active Status */}
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="isActive"
-                            checked={formData.isActive}
+                            id="is_active"
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
                               setFormData({
                                 ...formData,
-                                isActive: !!checked,
+                                is_active: !!checked,
                               })
                             }
                           />
-                          <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
+                          <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
                             <CheckCircle2 className="h-4 w-4" />
                             Active (visible to users)
                           </Label>

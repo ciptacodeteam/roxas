@@ -30,7 +30,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminCategories, useDeleteCategory } from "@/lib/queries";
+import { useCategories, useDeleteCategory, type Category } from "@/lib/categories";
 import { formatDateTime } from "@/lib/date-utils";
 import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
@@ -47,10 +47,10 @@ interface Category {
   id: string;
   name: string;
   slug: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function CategoriesPage() {
@@ -61,7 +61,7 @@ export default function CategoriesPage() {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   // Use TanStack Query hooks
-  const { data: categories = [], isLoading: loading, refetch } = useAdminCategories({
+  const { data: categories = [], isLoading: loading, refetch } = useCategories({
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -144,7 +144,7 @@ export default function CategoriesPage() {
         ),
       },
       {
-        accessorKey: "isActive",
+        accessorKey: "is_active",
         header: ({ column }) => {
           return (
             <Button
@@ -164,12 +164,12 @@ export default function CategoriesPage() {
           );
         },
         cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.getValue("is_active") as boolean;
           return (
             <span
               className={`rounded px-2 py-1 text-xs font-semibold ${isActive
-                  ? "bg-green-600/20 text-green-400"
-                  : "bg-gray-600/20 text-gray-400"
+                ? "bg-green-600/20 text-green-400"
+                : "bg-gray-600/20 text-gray-400"
                 }`}
             >
               {isActive ? "Active" : "Inactive"}
@@ -178,7 +178,7 @@ export default function CategoriesPage() {
         },
       },
       {
-        accessorKey: "sortOrder",
+        accessorKey: "sort_order",
         header: ({ column }) => {
           return (
             <Button
@@ -199,7 +199,7 @@ export default function CategoriesPage() {
         },
       },
       {
-        accessorKey: "createdAt",
+        accessorKey: "created_at",
         header: ({ column }) => {
           return (
             <Button
@@ -219,7 +219,7 @@ export default function CategoriesPage() {
           );
         },
         cell: ({ row }) => {
-          const date = row.getValue("createdAt") as string;
+          const date = row.getValue("created_at") as string;
           return formatDateTime(date);
         },
       },

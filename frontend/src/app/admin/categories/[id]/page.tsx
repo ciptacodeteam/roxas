@@ -18,26 +18,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { useAdminCategory, useUpdateCategory } from "@/lib/queries";
+import { useCategory, useUpdateCategory, type CategoryWithCount } from "@/lib/categories";
 import { formatDateTime } from "@/lib/date-utils";
-
-interface CategoryDetail {
-  id: string;
-  name: string;
-  slug: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  instructionImages: Array<{
-    id: string;
-    url: string;
-    sortOrder: number;
-  }>;
-  _count: {
-    products: number;
-  };
-}
 
 export default function CategoryEditPage() {
   const router = useRouter();
@@ -48,22 +30,22 @@ export default function CategoryEditPage() {
   const [formData, setFormData] = useState<{
     name: string;
     slug: string;
-    isActive: boolean;
-    sortOrder: number;
+    is_active: boolean;
+    sort_order: number;
   }>({
     name: "",
     slug: "",
-    isActive: true,
-    sortOrder: 0,
+    is_active: true,
+    sort_order: 0,
   });
 
   // Use React Query to fetch category data
-  const { data: categoryData, isLoading: loading, error } = useAdminCategory(categoryId, {
+  const { data: categoryData, isLoading: loading, error } = useCategory(categoryId, {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
-  const typedCategoryData = categoryData as CategoryDetail | null | undefined;
+  const typedCategoryData = categoryData as CategoryWithCount | null | undefined;
 
   // Update form data when category data changes
   useEffect(() => {
@@ -71,8 +53,8 @@ export default function CategoryEditPage() {
       setFormData({
         name: typedCategoryData.name,
         slug: typedCategoryData.slug,
-        isActive: typedCategoryData.isActive,
-        sortOrder: typedCategoryData.sortOrder,
+        is_active: typedCategoryData.is_active,
+        sort_order: typedCategoryData.sort_order,
       });
     }
   }, [typedCategoryData, categoryId]);
@@ -259,11 +241,11 @@ export default function CategoryEditPage() {
                             <Input
                               id="sortOrder"
                               type="number"
-                              value={formData.sortOrder}
+                              value={formData.sort_order}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  sortOrder: parseInt(e.target.value) || 0,
+                                  sort_order: parseInt(e.target.value) || 0,
                                 })
                               }
                               className="bg-gray-800 text-gray-100 border-gray-700"
@@ -274,11 +256,11 @@ export default function CategoryEditPage() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id="isActive"
-                              checked={formData.isActive}
+                              checked={formData.is_active}
                               onCheckedChange={(checked) =>
                                 setFormData({
                                   ...formData,
-                                  isActive: !!checked,
+                                  is_active: !!checked,
                                 })
                               }
                             />
@@ -333,20 +315,20 @@ export default function CategoryEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Total Products</span>
                           <Badge variant="outline" className="text-sm">
-                            {typedCategoryData._count.products}
+                            {typedCategoryData.product_count}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Status</span>
                           <Badge
-                            variant={typedCategoryData.isActive ? "default" : "secondary"}
+                            variant={typedCategoryData.is_active ? "default" : "secondary"}
                             className={
-                              typedCategoryData.isActive
+                              typedCategoryData.is_active
                                 ? "bg-green-600/20 text-green-400"
                                 : "bg-gray-600/20 text-gray-400"
                             }
                           >
-                            {typedCategoryData.isActive ? "Active" : "Inactive"}
+                            {typedCategoryData.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                       </CardContent>
@@ -364,13 +346,13 @@ export default function CategoryEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedCategoryData.createdAt)}
+                            {formatDateTime(typedCategoryData.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedCategoryData.updatedAt)}
+                            {formatDateTime(typedCategoryData.updated_at)}
                           </p>
                         </div>
                         <div>

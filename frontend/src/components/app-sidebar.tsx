@@ -4,12 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import {
   IconDashboard,
-  IconShoppingCart,
-  IconPackage,
   IconUsers,
-  IconUsersGroup,
-  IconSettings,
-  IconHelp,
   IconCurrencyDollar,
   IconFolder,
   IconTags,
@@ -52,7 +47,7 @@ const navMainItems = [
   },
   {
     title: "Product Items",
-    url: "/admin/price-list",
+    url: "/admin/product-items",
     icon: IconTags,
   },
   {
@@ -69,11 +64,6 @@ const navMainItems = [
     title: "Marketing Banners",
     url: "/admin/marketing-banners",
     icon: IconPhoto,
-  },
-  {
-    title: "Transactions",
-    url: "/admin/transactions",
-    icon: IconShoppingCart,
   },
   {
     title: "Users",

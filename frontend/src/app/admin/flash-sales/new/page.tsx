@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, Calendar, CheckCircle2, Plus, X, Tag } from "lucide-react";
+import { Loader2, Save, Zap, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,88 +10,62 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { BackButton } from "@/components/admin/back-button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useCreateFlashSale } from "@/lib/flash-sales";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { useCreateFlashSale, useAdminProductItemsSelect, queryKeys } from "@/lib/queries";
-import { ProductSelectCombobox } from "@/components/admin/product-select-combobox";
+import { localToUTC } from "@/lib/date-utils";
 
-export default function FlashSaleAddPage() {
+export default function FlashSaleNewPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    startTime: "",
-    endTime: "",
-    isActive: true,
+    start_time: "" as string | null,
+    end_time: "" as string | null,
+    is_active: true,
   });
-  const [items, setItems] = useState<Array<{ productItemId: string; salePrice: number; stock: number }>>([]);
-
-  const { data: productItems = [] } = useAdminProductItemsSelect();
 
   const createFlashSaleMutation = useCreateFlashSale({
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.flashSales.lists() });
-      await queryClient.refetchQueries({ queryKey: queryKeys.flashSales.lists() });
+    onSuccess: () => {
       toast.success("Flash sale created successfully");
       router.push("/admin/flash-sales");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create flash sale");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create flash sale",
+      );
       setSaving(false);
     },
   });
 
-  const addItem = () => {
-    setItems([...items, { productItemId: "", salePrice: 0, stock: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const updateItem = (index: number, field: "productItemId" | "salePrice" | "stock", value: string | number) => {
-    console.log('updateItem called:', { index, field, value });
-    setItems(prevItems => {
-      const newItems = [...prevItems];
-      const currentItem = newItems[index];
-      if (!currentItem) return prevItems;
-
-      const updatedItem: { productItemId: string; salePrice: number; stock: number } = {
-        productItemId: field === "productItemId" ? (value as string) : currentItem.productItemId,
-        salePrice: field === "salePrice" ? (value as number) : currentItem.salePrice,
-        stock: field === "stock" ? (value as number) : currentItem.stock,
-      };
-
-      newItems[index] = updatedItem;
-      console.log('Updated items:', newItems);
-      return newItems;
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.startTime || !formData.endTime) {
+    if (!formData.name || !formData.start_time || !formData.end_time) {
       toast.error("Name, start time, and end time are required");
       return;
     }
 
-    if (items.length === 0 || items.every(item => !item.productItemId)) {
-      toast.error("At least one item is required");
+    if (new Date(formData.end_time) <= new Date(formData.start_time)) {
+      toast.error("End time must be after start time");
       return;
     }
 
     setSaving(true);
     const submitData = {
-      ...formData,
-      items: items.filter(item => item.productItemId),
+      name: formData.name.trim(),
+      start_time: localToUTC(formData.start_time!),
+      end_time: localToUTC(formData.end_time!),
+      is_active: formData.is_active,
     };
 
     createFlashSaleMutation.mutate(submitData, {
@@ -122,23 +95,23 @@ export default function FlashSaleAddPage() {
                 <div className="mb-6">
                   <BackButton href="/admin/flash-sales" label="Back to Flash Sales" />
                   <div>
-                    <h1 className="text-3xl font-bold">Tambah Flash Sale</h1>
+                    <h1 className="text-3xl font-bold">Create Flash Sale</h1>
                     <p className="mt-2 text-gray-400">
-                      Create a new flash sale for your store
+                      Create a new flash sale event for your products
                     </p>
                   </div>
                 </div>
 
                 {/* Main Content */}
-                <div className="max-w-3xl">
+                <div className="max-w-2xl">
                   <Card className="bg-gray-900 border-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Tag className="h-5 w-5" />
+                        <Zap className="h-5 w-5" />
                         Flash Sale Information
                       </CardTitle>
                       <CardDescription>
-                        Fill in the details to create a new flash sale
+                        Configure flash sale details and timing
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -146,8 +119,8 @@ export default function FlashSaleAddPage() {
                         {/* Name */}
                         <div className="space-y-2">
                           <Label htmlFor="name" className="flex items-center gap-2">
-                            <Tag className="h-4 w-4" />
-                            Name <span className="text-red-400">*</span>
+                            <Zap className="h-4 w-4" />
+                            Flash Sale Name <span className="text-red-400">*</span>
                           </Label>
                           <Input
                             id="name"
@@ -156,135 +129,64 @@ export default function FlashSaleAddPage() {
                             onChange={(e) =>
                               setFormData({ ...formData, name: e.target.value })
                             }
-                            placeholder="Flash Sale Name"
-                            className="bg-gray-800 text-gray-100 border-gray-700 placeholder:text-gray-500"
-                            required
+                            placeholder="e.g., Summer Sale, Weekend Flash"
+                            maxLength={200}
                           />
+                          <p className="text-xs text-gray-400">{formData.name.length}/200</p>
                         </div>
 
                         {/* Date Range */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div className="space-y-2">
-                            <Label htmlFor="startTime" className="flex items-center gap-2">
+                            <Label htmlFor="start_time" className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               Start Time <span className="text-red-400">*</span>
                             </Label>
                             <DateTimePicker
-                              value={formData.startTime || undefined}
+                              value={formData.start_time || undefined}
                               onChange={(value) =>
-                                setFormData({ ...formData, startTime: value })
+                                setFormData({ ...formData, start_time: value })
                               }
                               placeholder="Select start date and time"
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="endTime" className="flex items-center gap-2">
+                            <Label htmlFor="end_time" className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               End Time <span className="text-red-400">*</span>
                             </Label>
                             <DateTimePicker
-                              value={formData.endTime || undefined}
+                              value={formData.end_time || undefined}
                               onChange={(value) =>
-                                setFormData({ ...formData, endTime: value })
+                                setFormData({ ...formData, end_time: value })
                               }
                               placeholder="Select end date and time"
                             />
                           </div>
                         </div>
 
-                        {/* Items */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2">
-                              <Tag className="h-4 w-4" />
-                              Items <span className="text-red-400">*</span>
-                            </Label>
-                            <Button type="button" onClick={addItem} size="sm" variant="outline">
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Item
-                            </Button>
-                          </div>
-                          <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {items.map((item, index) => {
-                              const selectedProduct = productItems.find(p => p.id === item.productItemId);
-                              return (
-                                <div key={index} className="flex gap-2 items-end p-3 border border-gray-700 rounded-md">
-                                  <div className="flex-1">
-                                    <Label className="text-gray-200 text-xs mb-1 block">Product Item</Label>
-                                    <ProductSelectCombobox
-                                      items={productItems}
-                                      value={item.productItemId || ""}
-                                      onValueChange={(value) => {
-                                        if (!value?.trim()) return;
-                                        const product = productItems.find(p => String(p.id) === String(value));
-                                        updateItem(index, "productItemId", value);
-                                        if (product) {
-                                          updateItem(index, "salePrice", product.sellPrice);
-                                        }
-                                      }}
-                                      placeholder="Search product..."
-                                    />
-                                  </div>
-                                  <div className="w-32">
-                                    <Label className="text-gray-200 text-xs mb-1 block">Sale Price</Label>
-                                    <Input
-                                      type="number"
-                                      value={item.salePrice}
-                                      onChange={(e) =>
-                                        updateItem(index, "salePrice", parseInt(e.target.value) || 0)
-                                      }
-                                      className="bg-gray-800 text-gray-100 border-gray-700"
-                                    />
-                                  </div>
-                                  <div className="w-32">
-                                    <Label className="text-gray-200 text-xs mb-1 block">Stock</Label>
-                                    <Input
-                                      type="number"
-                                      value={item.stock}
-                                      onChange={(e) =>
-                                        updateItem(index, "stock", parseInt(e.target.value) || 0)
-                                      }
-                                      className="bg-gray-800 text-gray-100 border-gray-700"
-                                    />
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeItem(index)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                            {items.length === 0 && (
-                              <p className="text-sm text-gray-400 text-center py-4">
-                                No items added. Click "Add Item" to add products to this flash sale.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
                         {/* Active Status */}
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id="isActive"
-                            checked={formData.isActive}
+                            id="is_active"
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
                               setFormData({
                                 ...formData,
-                                isActive: !!checked,
+                                is_active: !!checked,
                               })
                             }
                           />
-                          <Label htmlFor="isActive" className="cursor-pointer flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
+                          <Label htmlFor="is_active" className="cursor-pointer">
                             Active (visible to users)
                           </Label>
                         </div>
 
                         <Separator className="bg-gray-700" />
+
+                        <p className="text-xs text-gray-400">
+                          Note: Add items to the flash sale from the edit page after creation
+                        </p>
 
                         {/* Submit Button */}
                         <div className="flex justify-end gap-3">

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Star } from "lucide-react";
+import { Loader2, Search, Eye, Trash2, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,12 +16,10 @@ import {
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
   getPaginationRowModel,
   getFilteredRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
 } from "@tanstack/react-table";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
@@ -30,10 +28,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import {
-  useAdminRatings,
-  useDeleteRating,
-} from "@/lib/queries";
+import { useRatings, useDeleteRating, type Rating } from "@/lib/ratings";
 import {
   Dialog,
   DialogContent,
@@ -46,32 +41,13 @@ import { formatDateTime } from "@/lib/date-utils";
 import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
 
-interface Rating {
-  id: string;
-  productId: string;
-  rating: number;
-  comment: string | null;
-  userName: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  product: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-}
-
 export default function RatingsPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [ratingToDelete, setRatingToDelete] = useState<Rating | null>(null);
 
-  const { data: ratingsData = [], isLoading: loading } = useAdminRatings({ search });
-  const ratings: Rating[] = ratingsData;
+  const { data: ratings = [], isLoading: loading } = useRatings();
 
   const deleteRatingMutation = useDeleteRating({
     onSuccess: () => {
@@ -84,7 +60,7 @@ export default function RatingsPage() {
     },
   });
 
-  const handleEdit = useCallback((rating: Rating) => {
+  const handleView = useCallback((rating: Rating) => {
     router.push(`/admin/ratings/${rating.id}`);
   }, [router]);
 
@@ -98,180 +74,108 @@ export default function RatingsPage() {
     deleteRatingMutation.mutate(ratingToDelete.id);
   }, [ratingToDelete, deleteRatingMutation]);
 
-  const filteredData = useMemo(() => {
-    if (search.trim() === "") {
-      return ratings;
-    }
-    const searchLower = search.toLowerCase();
-    return ratings.filter(
-      (rating) =>
-        rating.userName?.toLowerCase().includes(searchLower) ||
-        rating.comment?.toLowerCase().includes(searchLower) ||
-        rating.product.name.toLowerCase().includes(searchLower)
-    );
-  }, [ratings, search]);
-
-  const columns = useMemo<ColumnDef<Rating>[]>(
-    () => [
-      {
-        accessorKey: "product.name",
-        header: ({ column }) => {
-          return (
-            <Button
-              variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              className="h-8 px-2"
-            >
-              Product
-              {column.getIsSorted() === "asc" ? (
-                <ArrowUp className="ml-2 h-4 w-4" />
-              ) : column.getIsSorted() === "desc" ? (
-                <ArrowDown className="ml-2 h-4 w-4" />
-              ) : (
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              )}
-            </Button>
-          );
-        },
-        cell: ({ row }) => (
-          <div className="font-medium">{row.original.product.name}</div>
-        ),
-      },
-      {
-        accessorKey: "rating",
-        header: ({ column }) => {
-          return (
-            <Button
-              variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              className="h-8 px-2"
-            >
-              Rating
-              {column.getIsSorted() === "asc" ? (
-                <ArrowUp className="ml-2 h-4 w-4" />
-              ) : column.getIsSorted() === "desc" ? (
-                <ArrowDown className="ml-2 h-4 w-4" />
-              ) : (
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              )}
-            </Button>
-          );
-        },
-        cell: ({ row }) => {
-          const rating = row.getValue("rating") as number;
-          return (
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-4 w-4 ${
-                    i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-600"
+  const columns: ColumnDef<Rating>[] = [
+    {
+      accessorKey: "product.name",
+      header: "Product",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.original.product.name}</div>
+      ),
+    },
+    {
+      accessorKey: "rating",
+      header: "Rating",
+      cell: ({ row }) => {
+        const rating = row.getValue("rating") as number;
+        return (
+          <div className="flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-600"
                   }`}
-                />
-              ))}
-              <span className="ml-2 text-sm font-semibold">{rating}/5</span>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "userName",
-        header: "Reviewer",
-        cell: ({ row }) => (
-          <div className="text-sm">{row.getValue("userName") || "Anonymous"}</div>
-        ),
-      },
-      {
-        accessorKey: "comment",
-        header: "Comment",
-        cell: ({ row }) => (
-          <div className="max-w-md text-sm text-gray-400">
-            {row.getValue("comment") || "-"}
+              />
+            ))}
+            <span className="ml-2 text-sm font-semibold">{rating}/5</span>
           </div>
-        ),
+        );
       },
-      {
-        accessorKey: "isActive",
-        header: ({ column }) => {
-          return (
+    },
+    {
+      accessorKey: "user_name",
+      header: "Reviewer",
+      cell: ({ row }) => (
+        <div className="text-sm">{row.getValue("user_name") || "Anonymous"}</div>
+      ),
+    },
+    {
+      accessorKey: "comment",
+      header: "Comment",
+      cell: ({ row }) => (
+        <div className="max-w-md text-sm text-gray-400">
+          {row.getValue("comment") || "-"}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.getValue("is_active") as boolean;
+        return (
+          <span
+            className={`rounded px-2 py-1 text-xs font-semibold ${isActive
+                ? "bg-green-600/20 text-green-400"
+                : "bg-gray-600/20 text-gray-400"
+              }`}
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      cell: ({ row }) => {
+        const date = row.getValue("created_at") as string;
+        return formatDateTime(date);
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const rating = row.original;
+        return (
+          <div className="flex justify-end gap-2">
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              className="h-8 px-2"
+              size="icon"
+              onClick={() => handleView(rating)}
             >
-              Status
-              {column.getIsSorted() === "asc" ? (
-                <ArrowUp className="ml-2 h-4 w-4" />
-              ) : column.getIsSorted() === "desc" ? (
-                <ArrowDown className="ml-2 h-4 w-4" />
-              ) : (
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              )}
+              <Eye className="h-4 w-4" />
             </Button>
-          );
-        },
-        cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
-          return (
-            <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                isActive
-                  ? "bg-green-600/20 text-green-400"
-                  : "bg-gray-600/20 text-gray-400"
-              }`}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDeleteClick(rating)}
             >
-              {isActive ? "Active" : "Inactive"}
-            </span>
-          );
-        },
+              <Trash2 className="h-4 w-4 text-red-400" />
+            </Button>
+          </div>
+        );
       },
-      {
-        accessorKey: "createdAt",
-        header: "Created",
-        cell: ({ row }) => {
-          const date = row.getValue("createdAt") as string;
-          return formatDateTime(date);
-        },
-      },
-      {
-        id: "actions",
-        header: "Aksi",
-        cell: ({ row }) => {
-          const rating = row.original;
-          return (
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleEdit(rating)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDeleteClick(rating)}
-              >
-                <Trash2 className="h-4 w-4 text-red-400" />
-              </Button>
-            </div>
-          );
-        },
-      },
-    ],
-    [handleEdit, handleDeleteClick]
-  );
+    },
+  ];
 
   const table = useReactTable({
-    data: filteredData,
+    data: ratings,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
     state: {
-      sorting,
       globalFilter: search,
     },
     initialState: {
@@ -279,11 +183,11 @@ export default function RatingsPage() {
         pageSize: 20,
       },
     },
-    globalFilterFn: (row, columnId, filterValue) => {
+    globalFilterFn: (row) => {
       const rating = row.original;
-      const searchLower = filterValue.toLowerCase();
+      const searchLower = search.toLowerCase();
       return (
-        rating.userName?.toLowerCase().includes(searchLower) ||
+        rating.user_name?.toLowerCase().includes(searchLower) ||
         rating.comment?.toLowerCase().includes(searchLower) ||
         rating.product.name.toLowerCase().includes(searchLower)
       );
@@ -306,21 +210,21 @@ export default function RatingsPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
-                <div className="mb-6">
+                <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold">Kelola Ratings</h1>
+                    <h1 className="text-3xl font-bold">Ratings</h1>
                     <p className="mt-2 text-gray-400">
-                      Atur dan pantau rating produk Anda di sini.
+                      View and manage product ratings.
                     </p>
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <div className="relative">
+                <div className="mb-4 flex gap-4">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       type="text"
-                      placeholder="Search by reviewer, comment, or product..."
+                      placeholder="Search..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="pl-10"
@@ -329,7 +233,7 @@ export default function RatingsPage() {
                 </div>
 
                 {loading ? (
-                  <TableSkeleton columns={7} rows={10} />
+                  <TableSkeleton columns={8} rows={10} />
                 ) : table.getFilteredRowModel().rows.length === 0 ? (
                   <EmptyState
                     icon={Star}
@@ -337,14 +241,14 @@ export default function RatingsPage() {
                     description={
                       search
                         ? "Try adjusting your search criteria to find what you're looking for."
-                        : "No ratings have been added yet. Ratings can only be managed through the edit page."
+                        : "No ratings have been added yet."
                     }
                     action={
                       search
                         ? {
-                            label: "Clear search",
-                            onClick: () => setSearch(""),
-                          }
+                          label: "Clear search",
+                          onClick: () => setSearch(""),
+                        }
                         : undefined
                     }
                   />
@@ -360,9 +264,9 @@ export default function RatingsPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -392,7 +296,7 @@ export default function RatingsPage() {
                         Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
+                          table.getState().pagination.pageSize,
                           table.getFilteredRowModel().rows.length
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} ratings
@@ -470,4 +374,3 @@ export default function RatingsPage() {
     </SidebarProvider>
   );
 }
-

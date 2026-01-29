@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from account.models import UserRole
 from main.models import (
-    PaymentMethod, PaymentMethodType, BankTransferBank, FeeType,
+    PaymentMethod, PaymentMethodType, FeeType,
     Coupon, DiscountType
 )
 import os
@@ -67,7 +67,6 @@ class Command(BaseCommand):
             # QRIS - 0.7% (VAT included in fee)
             {
                 'type': PaymentMethodType.QRIS,
-                'bank': None,
                 'name': 'QRIS (Semua Pembayaran)',
                 'description': 'Bayar dengan QRIS melalui semua aplikasi pembayaran',
                 'icon': '/svg/QRIS_Logo.svg',
@@ -81,7 +80,6 @@ class Command(BaseCommand):
             # E-Wallet - GoPay - 2% (VAT included)
             {
                 'type': PaymentMethodType.E_WALLET,
-                'bank': None,
                 'name': 'GoPay',
                 'description': 'Bayar dengan GoPay melalui aplikasi Gojek',
                 'icon': '',
@@ -95,7 +93,6 @@ class Command(BaseCommand):
             # E-Wallet - ShopeePay - 2% (VAT included)
             {
                 'type': PaymentMethodType.E_WALLET,
-                'bank': None,
                 'name': 'ShopeePay',
                 'description': 'Bayar dengan ShopeePay melalui aplikasi Shopee',
                 'icon': '',
@@ -109,7 +106,6 @@ class Command(BaseCommand):
             # Credit Card - 2.9% + IDR 2,000 (VAT applies)
             {
                 'type': PaymentMethodType.CREDIT_CARD,
-                'bank': None,
                 'name': 'Kartu Kredit',
                 'description': 'Bayar dengan kartu kredit Visa, Mastercard, JCB, atau American Express',
                 'icon': '',
@@ -123,7 +119,6 @@ class Command(BaseCommand):
             # Mobile Banking - BCA - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.BCA,
                 'name': 'BCA Virtual Account',
                 'description': 'Transfer melalui BCA Virtual Account',
                 'icon': '',
@@ -137,7 +132,6 @@ class Command(BaseCommand):
             # Mobile Banking - BNI - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.BNI,
                 'name': 'BNI Virtual Account',
                 'description': 'Transfer melalui BNI Virtual Account',
                 'icon': '',
@@ -151,7 +145,6 @@ class Command(BaseCommand):
             # Mobile Banking - Mandiri - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.MANDIRI,
                 'name': 'Mandiri Virtual Account',
                 'description': 'Transfer melalui Mandiri Virtual Account',
                 'icon': '',
@@ -165,7 +158,6 @@ class Command(BaseCommand):
             # Mobile Banking - Permata - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.PERMATA,
                 'name': 'Permata Virtual Account',
                 'description': 'Transfer melalui Permata Virtual Account',
                 'icon': '',
@@ -179,7 +171,6 @@ class Command(BaseCommand):
             # Mobile Banking - BRI - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.BRI,
                 'name': 'BRI Virtual Account',
                 'description': 'Transfer melalui BRI Virtual Account',
                 'icon': '',
@@ -193,7 +184,6 @@ class Command(BaseCommand):
             # Mobile Banking - BSI - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.BSI,
                 'name': 'BSI Virtual Account',
                 'description': 'Transfer melalui BSI Virtual Account',
                 'icon': '',
@@ -207,7 +197,6 @@ class Command(BaseCommand):
             # Mobile Banking - Danamon - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.DANAMON,
                 'name': 'Danamon Virtual Account',
                 'description': 'Transfer melalui Danamon Virtual Account',
                 'icon': '',
@@ -221,7 +210,6 @@ class Command(BaseCommand):
             # Mobile Banking - CIMB - IDR 4,000 (VAT applies)
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
-                'bank': BankTransferBank.CIMB,
                 'name': 'CIMB Virtual Account',
                 'description': 'Transfer melalui CIMB Virtual Account',
                 'icon': '',
@@ -239,7 +227,6 @@ class Command(BaseCommand):
                 # Check if payment method exists
                 existing = PaymentMethod.objects.filter(
                     type=pm_data['type'],
-                    bank=pm_data['bank']
                 ).first()
 
                 if existing:

@@ -434,7 +434,7 @@ export function useUpdateProfile(
       // Invalidate and refetch the profile data
       await queryClient.invalidateQueries({ queryKey: queryKeys.profile.current() });
       await queryClient.refetchQueries({ queryKey: queryKeys.profile.current(), exact: true });
-      
+
       // Call the original onSuccess if provided
       if (options?.onSuccess) {
         await Promise.resolve(options.onSuccess(data, variables, context, undefined as any));
@@ -454,6 +454,7 @@ export function useUpdateProfile(
 // ============================================
 
 // Admin Products
+// @deprecated Use useProducts from @/lib/products instead
 export function useAdminProducts(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: ["admin", "products"],
@@ -465,6 +466,7 @@ export function useAdminProducts(options?: Omit<UseQueryOptions<any[]>, "queryKe
 }
 
 // Admin Product Detail
+// @deprecated Use useProduct from @/lib/products instead
 export function useAdminProduct(
   productId: string,
   options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">
@@ -568,11 +570,12 @@ export function useAdminProductItemsSelect(options?: Omit<UseQueryOptions<any[]>
   });
 }
 
-// Admin Flash Sales
+// Admin Flash Sales - DEPRECATED: Use @/lib/flash-sales instead
+// Kept for backward compatibility during migration
 export function useAdminFlashSales(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.flashSales.lists(),
-    queryFn: () => fetchJSON<any[]>("/api/admin/flash-sales"),
+    queryFn: () => fetchJSON<any[]>("/api/v1/admin/flash-sales"),
     ...options,
   });
 }
@@ -580,7 +583,7 @@ export function useAdminFlashSales(options?: Omit<UseQueryOptions<any[]>, "query
 export function useAdminFlashSale(id: string, options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.flashSales.detail(id),
-    queryFn: () => fetchJSON<any>(`/api/admin/flash-sales/${id}`),
+    queryFn: () => fetchJSON<any>(`/api/v1/admin/flash-sales/${id}`),
     enabled: !!id,
     ...options,
   });
@@ -590,7 +593,7 @@ export function useAdminFlashSale(id: string, options?: Omit<UseQueryOptions<any
 export function useActiveFlashSales(options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.flashSales.active(),
-    queryFn: () => fetchJSON<any>("/api/flash-sales/active"),
+    queryFn: () => fetchJSON<any>("/api/v1/flash-sales/active"),
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 1000 * 60, // Refetch every 1 minute
     ...options,
@@ -680,6 +683,7 @@ export function useSyncStatus(options?: Omit<UseQueryOptions<any>, "queryKey" | 
 // ============================================
 
 // Products Mutations
+// @deprecated Use useCreateProduct from @/lib/products instead
 export function useCreateProduct(
   options?: Omit<UseMutationOptions<any, Error, any>, "mutationFn">
 ) {
@@ -700,6 +704,7 @@ export function useCreateProduct(
   });
 }
 
+// @deprecated Use useUpdateProduct from @/lib/products instead
 export function useUpdateProduct(
   options?: Omit<UseMutationOptions<any, Error, { id: string; data: any }>, "mutationFn">
 ) {
@@ -720,6 +725,7 @@ export function useUpdateProduct(
   });
 }
 
+// @deprecated Use useDeleteProduct from @/lib/products instead
 export function useDeleteProduct(
   options?: Omit<UseMutationOptions<any, Error, string>, "mutationFn">
 ) {
@@ -858,7 +864,8 @@ export function useDeleteUser(
   });
 }
 
-// Flash Sales Mutations
+// Flash Sales Mutations - DEPRECATED: Use @/lib/flash-sales instead
+// Kept for backward compatibility during migration
 export function useCreateFlashSale(
   options?: Omit<UseMutationOptions<any, Error, any>, "mutationFn">
 ) {
@@ -866,7 +873,7 @@ export function useCreateFlashSale(
 
   return useMutation({
     mutationFn: async (data: any) => {
-      return fetchJSON<any>("/api/admin/flash-sales", {
+      return fetchJSON<any>("/api/v1/admin/flash-sales/", {
         method: "POST",
         body: JSON.stringify(data),
       });
@@ -885,8 +892,8 @@ export function useUpdateFlashSale(
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return fetchJSON<any>(`/api/admin/flash-sales/${id}`, {
-        method: "PUT",
+      return fetchJSON<any>(`/api/v1/admin/flash-sales/${id}/`, {
+        method: "PATCH",
         body: JSON.stringify(data),
       });
     },
@@ -904,7 +911,7 @@ export function useDeleteFlashSale(
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return fetchJSON<any>(`/api/admin/flash-sales/${id}`, {
+      return fetchJSON<any>(`/api/v1/admin/flash-sales/${id}/`, {
         method: "DELETE",
       });
     },

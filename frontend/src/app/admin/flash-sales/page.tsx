@@ -2,7 +2,17 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Zap,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,12 +35,8 @@ import {
 } from "@tanstack/react-table";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { toast } from "sonner";
-import { useAdminFlashSales, useDeleteFlashSale } from "@/lib/queries";
 import {
   Dialog,
   DialogContent,
@@ -39,51 +45,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/date-utils";
 import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
-import { Zap } from "lucide-react";
-
-interface FlashSaleItem {
-  id: string;
-  productItemId: string;
-  salePrice: number;
-  stock: number;
-  soldCount: number;
-  productItem: {
-    id: string;
-    name: string;
-    sellPrice: number;
-    product: {
-      name: string;
-      category: {
-        name: string;
-      };
-    };
-  };
-}
-
-interface FlashSale {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  isActive: boolean;
-  createdAt: string;
-  items: FlashSaleItem[];
-}
-
-interface ProductItem {
-  id: string;
-  name: string;
-  sellPrice: number;
-  product: {
-    name: string;
-    category: {
-      name: string;
-    };
-  };
-}
+import {
+  useFlashSales,
+  useDeleteFlashSale,
+  type FlashSale,
+} from "@/lib/flash-sales";
 
 export default function FlashSalesPage() {
   const router = useRouter();
@@ -93,22 +63,36 @@ export default function FlashSalesPage() {
   const [flashSaleToDelete, setFlashSaleToDelete] = useState<FlashSale | null>(null);
 
   // Use TanStack Query hooks
-  const { data: flashSales = [], isLoading: loading } = useAdminFlashSales();
+  const { data: flashSales = [], isLoading: loading, refetch } = useFlashSales(
+    { search, page_size: 100 },
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
 
   const deleteFlashSaleMutation = useDeleteFlashSale({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Flash sale deleted successfully");
       setIsDeleteDialogOpen(false);
       setFlashSaleToDelete(null);
+      // Explicitly refetch to ensure fresh data
+      await refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to delete flash sale");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete flash sale",
+      );
     },
   });
 
-  const handleEdit = useCallback((flashSale: FlashSale) => {
-    router.push(`/admin/flash-sales/${flashSale.id}`);
-  }, [router]);
+  const handleEdit = useCallback(
+    (flashSale: FlashSale) => {
+      router.push(`/admin/flash-sales/${flashSale.id}`);
+    },
+    [router],
+  );
 
   const handleDeleteClick = useCallback((flashSale: FlashSale) => {
     setFlashSaleToDelete(flashSale);
@@ -120,15 +104,30 @@ export default function FlashSalesPage() {
     deleteFlashSaleMutation.mutate(flashSaleToDelete.id);
   }, [flashSaleToDelete, deleteFlashSaleMutation]);
 
+  const filteredData = useMemo(() => {
+    if (search.trim() === "") {
+      return flashSales;
+    }
+
+    const searchLower = search.toLowerCase();
+    return flashSales.filter(
+      (sale) =>
+        sale.name.toLowerCase().includes(searchLower),
+    );
+  }, [flashSales, search]);
+
   const columns = useMemo<ColumnDef<FlashSale>[]>(
     () => [
       {
+        id: "name",
         accessorKey: "name",
         header: ({ column }) => {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2"
             >
               Name
@@ -147,41 +146,36 @@ export default function FlashSalesPage() {
         ),
       },
       {
-        accessorKey: "startTime",
-        header: "Start Time",
-        cell: ({ row }) => {
-          const date = row.getValue("startTime") as string;
-          return date ? formatDateTime(date) : "-";
+        id: "status",
+        accessorKey: "is_active",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2"
+            >
+              Status
+              {column.getIsSorted() === "asc" ? (
+                <ArrowUp className="ml-2 h-4 w-4" />
+              ) : column.getIsSorted() === "desc" ? (
+                <ArrowDown className="ml-2 h-4 w-4" />
+              ) : (
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              )}
+            </Button>
+          );
         },
-      },
-      {
-        accessorKey: "endTime",
-        header: "End Time",
         cell: ({ row }) => {
-          const date = row.getValue("endTime") as string;
-          return date ? formatDateTime(date) : "-";
-        },
-      },
-      {
-        accessorKey: "items",
-        header: "Items",
-        cell: ({ row }) => {
-          const items = row.original.items;
-          return <div>{items.length} items</div>;
-        },
-      },
-      {
-        accessorKey: "isActive",
-        header: "Status",
-        cell: ({ row }) => {
-          const isActive = row.getValue("isActive") as boolean;
+          const isActive = row.original.is_active;
           return (
             <span
-              className={`rounded px-2 py-1 text-xs font-semibold ${
-                isActive
-                  ? "bg-green-600/20 text-green-400"
-                  : "bg-gray-600/20 text-gray-400"
-              }`}
+              className={`rounded px-2 py-1 text-xs font-semibold ${isActive
+                ? "bg-green-600/20 text-green-400"
+                : "bg-gray-600/20 text-gray-400"
+                }`}
             >
               {isActive ? "Active" : "Inactive"}
             </span>
@@ -189,55 +183,67 @@ export default function FlashSalesPage() {
         },
       },
       {
-        id: "actions",
-        header: "Aksi",
+        id: "items",
+        header: "Items",
         cell: ({ row }) => {
           const flashSale = row.original;
-          return (
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleEdit(flashSale)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDeleteClick(flashSale)}
-              >
-                <Trash2 className="h-4 w-4 text-red-400" />
-              </Button>
-            </div>
-          );
+          return `${flashSale.items.length} item(s)`;
         },
       },
+      {
+        id: "start_time",
+        accessorKey: "start_time",
+        header: "Start Time",
+        cell: ({ row }) => formatDateTime(row.getValue("start_time")),
+      },
+      {
+        id: "end_time",
+        accessorKey: "end_time",
+        header: "End Time",
+        cell: ({ row }) => formatDateTime(row.getValue("end_time")),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleEdit(row.original)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-600"
+              onClick={() => handleDeleteClick(row.original)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
     ],
-    [handleEdit, handleDeleteClick]
+    [handleEdit, handleDeleteClick],
   );
 
   const table = useReactTable({
-    data: flashSales,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
     state: {
       sorting,
-      globalFilter: search,
     },
+    onSortingChange: setSorting,
     initialState: {
       pagination: {
-        pageSize: 20,
+        pageSize: 10,
       },
-    },
-    globalFilterFn: (row, columnId, filterValue) => {
-      const flashSale = row.original;
-      const searchLower = filterValue.toLowerCase();
-      return flashSale.name.toLowerCase().includes(searchLower);
     },
   });
 
@@ -261,7 +267,7 @@ export default function FlashSalesPage() {
                   <div>
                     <h1 className="text-3xl font-bold">Kelola Flash Sales</h1>
                     <p className="mt-2 text-gray-400">
-                      Atur dan pantau flash sales Anda di sini.
+                      Atur dan pantau flash sale Anda di sini.
                     </p>
                   </div>
                   <Button onClick={() => router.push("/admin/flash-sales/new")}>
@@ -272,10 +278,10 @@ export default function FlashSalesPage() {
 
                 <div className="mb-4">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       type="text"
-                      placeholder="Search..."
+                      placeholder="Search flash sales by name..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="pl-10"
@@ -284,26 +290,23 @@ export default function FlashSalesPage() {
                 </div>
 
                 {loading ? (
-                  <TableSkeleton columns={6} rows={10} />
-                ) : table.getFilteredRowModel().rows.length === 0 ? (
+                  <TableSkeleton />
+                ) : filteredData.length === 0 ? (
                   <EmptyState
                     icon={Zap}
-                    title={search ? "No flash sales found" : "No flash sales yet"}
+                    title="No flash sales found"
                     description={
-                      search
-                        ? "Try adjusting your search criteria to find what you're looking for."
-                        : "Create flash sales to offer limited-time discounts on products. Flash sales can boost sales and attract customers."
+                      search.trim() !== ""
+                        ? "Try adjusting your search filters"
+                        : "Create your first flash sale to get started"
                     }
                     action={
-                      search
+                      search.trim() === ""
                         ? {
-                            label: "Clear search",
-                            onClick: () => setSearch(""),
-                          }
-                        : {
-                            label: "Create flash sale",
-                            onClick: () => router.push("/admin/flash-sales/new"),
-                          }
+                          label: "Create flash sale",
+                          onClick: () => router.push("/admin/flash-sales/new"),
+                        }
+                        : undefined
                     }
                   />
                 ) : (
@@ -318,9 +321,9 @@ export default function FlashSalesPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -336,7 +339,7 @@ export default function FlashSalesPage() {
                                 <TableCell key={cell.id}>
                                   {flexRender(
                                     cell.column.columnDef.cell,
-                                    cell.getContext()
+                                    cell.getContext(),
                                   )}
                                 </TableCell>
                               ))}
@@ -345,17 +348,13 @@ export default function FlashSalesPage() {
                         </TableBody>
                       </Table>
                     </div>
-                    <div className="flex items-center justify-between px-2 py-4">
-                      <div className="text-sm text-gray-400">
-                        Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-                        {Math.min(
-                          (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
-                          table.getFilteredRowModel().rows.length
-                        )}{" "}
-                        of {table.getFilteredRowModel().rows.length} flash sales
-                      </div>
-                      <div className="flex items-center gap-2">
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="text-sm text-gray-400">
+                        Page {table.getState().pagination.pageIndex + 1} of{" "}
+                        {table.getPageCount()}
+                      </p>
+                      <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -364,10 +363,6 @@ export default function FlashSalesPage() {
                         >
                           Previous
                         </Button>
-                        <div className="text-sm text-gray-400">
-                          Page {table.getState().pagination.pageIndex + 1} of{" "}
-                          {table.getPageCount()}
-                        </div>
                         <Button
                           variant="outline"
                           size="sm"
@@ -385,41 +380,35 @@ export default function FlashSalesPage() {
           </div>
         </div>
 
-        {/* Delete Confirmation Dialog */}
+        {/* Delete Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                    <DialogContent className="bg-gray-900 text-gray-100">
-                      <DialogHeader>
-                        <DialogTitle className="text-gray-100">
-                          Hapus Flash Sale
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400">
-                          Apakah Anda yakin ingin menghapus flash sale{" "}
-                          <span className="font-semibold text-gray-200">
-                            {flashSaleToDelete?.name}
-                          </span>
-                          ? Tindakan ini tidak dapat dibatalkan.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setIsDeleteDialogOpen(false);
-                            setFlashSaleToDelete(null);
-                          }}
-                          className="bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
-                        >
-                          Batal
-                        </Button>
-                        <Button
-                          onClick={handleDeleteConfirm}
-                          className="bg-red-600 text-white hover:bg-red-700"
-                        >
-                          Hapus
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Flash Sale</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{flashSaleToDelete?.name}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+                disabled={deleteFlashSaleMutation.isPending}
+              >
+                {deleteFlashSaleMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

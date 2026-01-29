@@ -91,8 +91,8 @@ export default function CouponAddPage() {
       min_purchase: formData.min_purchase || 0,
       max_discount: formData.max_discount || undefined,
       usage_limit: formData.usage_limit || undefined,
-      start_date: formData.start_date || undefined,
-      end_date: formData.end_date || undefined,
+      start_date: formData.start_date ? localToUTC(formData.start_date) : undefined,
+      end_date: formData.end_date ? localToUTC(formData.end_date) : undefined,
     };
 
     createCouponMutation.mutate(submitData, {
@@ -253,7 +253,7 @@ export default function CouponAddPage() {
                                 }
                                 placeholder={
                                   formData.discount_type ===
-                                  DiscountType.PERCENTAGE
+                                    DiscountType.PERCENTAGE
                                     ? "10 (for 10%)"
                                     : "50000"
                                 }
@@ -263,30 +263,30 @@ export default function CouponAddPage() {
                           </div>
                           {formData.discount_type ===
                             DiscountType.PERCENTAGE && (
-                            <div className="space-y-2">
-                              <Label htmlFor="maxDiscount">
-                                Max Discount (Optional)
-                              </Label>
-                              <Input
-                                id="maxDiscount"
-                                type="number"
-                                value={formData.max_discount || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    max_discount: e.target.value
-                                      ? parseFloat(e.target.value)
-                                      : null,
-                                  })
-                                }
-                                placeholder="50000"
-                                className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
-                              />
-                              <p className="text-xs text-gray-400">
-                                Maximum discount amount in IDR (e.g., 50000)
-                              </p>
-                            </div>
-                          )}
+                              <div className="space-y-2">
+                                <Label htmlFor="maxDiscount">
+                                  Max Discount (Optional)
+                                </Label>
+                                <Input
+                                  id="maxDiscount"
+                                  type="number"
+                                  value={formData.max_discount || ""}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      max_discount: e.target.value
+                                        ? parseFloat(e.target.value)
+                                        : null,
+                                    })
+                                  }
+                                  placeholder="50000"
+                                  className="border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500"
+                                />
+                                <p className="text-xs text-gray-400">
+                                  Maximum discount amount in IDR (e.g., 50000)
+                                </p>
+                              </div>
+                            )}
                         </div>
 
                         <Separator className="bg-gray-700" />

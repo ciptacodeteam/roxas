@@ -19,108 +19,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAdminProductItem, useUpdateProductItem } from "@/lib/queries";
+import { useProductItem, useUpdateProductItem } from "@/lib/product-items";
 import { formatDateTime } from "@/lib/date-utils";
 
-interface ProductItemDetail {
-  id: string;
-  name: string;
-  skuCode: string;
-  iconImage: string | null;
-  group: string | null;
-  basePrice: number;
-  normalPrice: number;
-  discountedPrice: number | null;
-  sellPrice: number;
-  isActive: boolean;
-  digiflazzStatus: string | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncedAt: string | null;
-  product: {
-    id: string;
-    name: string;
-    category: {
-      id: string;
-      name: string;
-    };
-  };
-}
-
 export default function ProductItemEditPage() {
-  const router = useRouter();
   const params = useParams();
-  const itemId = params?.id as string;
+  const router = useRouter();
+  const itemId = params.id as string;
 
-  const [saving, setSaving] = useState(false);
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [iconImage, setIconImage] = useState<string | null>(null);
-  const [group, setGroup] = useState<string>("");
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const { data: productItem, isLoading, isError } = useProductItem(itemId);
+  const updateItemMutation = useUpdateProductItem();
+
+  const [isActive, setIsActive] = useState(false);
+  const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
-  const [normalPrice, setNormalPrice] = useState<number>(0);
+  const [group, setGroup] = useState("");
+  const [basePrice, setBasePrice] = useState(0);
+  const [normalPrice, setNormalPrice] = useState(0);
   const [discountedPrice, setDiscountedPrice] = useState<number | null>(null);
-  const [sellPrice, setSellPrice] = useState<number>(0);
-  const [basePrice, setBasePrice] = useState<number>(0);
-  const [sortOrder, setSortOrder] = useState<number>(0);
-
-  const { data: itemData, isLoading: loading, error } = useAdminProductItem(itemId);
-  const typedItemData = itemData as ProductItemDetail | null | undefined;
+  const [sellPrice, setSellPrice] = useState(0);
+  const [sortOrder, setSortOrder] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (typedItemData) {
-      setIsActive(typedItemData.isActive);
-      setIconImage(typedItemData.iconImage);
-      setGroup(typedItemData.group || "");
-      setIconPreview(typedItemData.iconImage);
-      setNormalPrice(typedItemData.normalPrice);
-      setDiscountedPrice(typedItemData.discountedPrice);
-      setSellPrice(typedItemData.sellPrice);
-      setBasePrice(typedItemData.basePrice);
-      setSortOrder(typedItemData.sortOrder);
+    if (productItem) {
+      setIsActive(productItem.is_active);
+      setIconPreview(productItem.icon_image || null);
+      setGroup(productItem.group || "");
+      setBasePrice(productItem.base_price);
+      setNormalPrice(productItem.normal_price);
+      setDiscountedPrice(productItem.discounted_price);
+      setSellPrice(productItem.sell_price);
+      setSortOrder(productItem.sort_order);
     }
-  }, [typedItemData]);
+  }, [productItem]);
 
-  const updateItemMutation = useUpdateProductItem({
-    onSuccess: () => {
-      toast.success("Product item updated successfully");
-      router.push("/admin/price-list");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update product item");
-      setSaving(false);
-    },
-  });
+  const handleIconChange = (file: File) => {
+    setIconFile(file);
 
-  const handleImageUpload = async (file: File) => {
-    try {
-      setUploadingImage(true);
-
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch(`/api/admin/upload?type=product-items`, {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to upload image");
-      }
-
-      setIconImage(data.data.url);
-      setIconPreview(data.data.url);
-      toast.success("Image uploaded successfully");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
-      );
-    } finally {
-      setUploadingImage(false);
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setIconPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const formatPrice = (price: number) => {
@@ -135,21 +76,36 @@ export default function ProductItemEditPage() {
     e.preventDefault();
 
     setSaving(true);
+
+    const submitData: Record<string, unknown> = {
+      is_active: isActive,
+      group: group || null,
+      normal_price: normalPrice || 0,
+      discounted_price: discountedPrice || null,
+      sell_price: sellPrice || 0,
+      base_price: basePrice || 0,
+      sort_order: sortOrder || 0,
+    };
+
+    if (iconFile) {
+      submitData.icon_image = iconFile;
+    } else if (!iconPreview) {
+      submitData.icon_image = null;
+    }
+
     updateItemMutation.mutate(
       {
         id: itemId,
-        data: {
-          isActive,
-          iconImage: iconImage || null,
-          group: group || null,
-          normalPrice: normalPrice || 0,
-          discountedPrice: discountedPrice || null,
-          sellPrice: sellPrice || 0,
-          basePrice: basePrice || 0,
-          sortOrder: sortOrder || 0,
-        }
+        data: submitData,
       },
       {
+        onSuccess: () => {
+          toast.success("Product item updated successfully");
+          router.push("/admin/product-items");
+        },
+        onError: (error) => {
+          toast.error(error.message || "Failed to update product item");
+        },
         onSettled: () => {
           setSaving(false);
         },
@@ -157,7 +113,7 @@ export default function ProductItemEditPage() {
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <SidebarProvider
         style={
@@ -178,7 +134,7 @@ export default function ProductItemEditPage() {
     );
   }
 
-  if (error || !typedItemData) {
+  if (isError || !productItem) {
     return (
       <SidebarProvider
         style={
@@ -192,9 +148,7 @@ export default function ProductItemEditPage() {
         <SidebarInset>
           <AdminHeader />
           <div className="flex flex-1 flex-col items-center justify-center">
-            <p className="text-red-400">
-              {error instanceof Error ? error.message : "Product item not found"}
-            </p>
+            <p className="text-red-400">Product item not found</p>
             <Button
               onClick={() => router.push("/admin/product-items")}
               className="mt-4"
@@ -257,7 +211,7 @@ export default function ProductItemEditPage() {
                               Name
                             </Label>
                             <div className="text-sm text-gray-200 bg-gray-800 px-3 py-2 rounded-md">
-                              {typedItemData.name}
+                              {productItem.name}
                             </div>
                           </div>
 
@@ -268,7 +222,7 @@ export default function ProductItemEditPage() {
                               SKU Code
                             </Label>
                             <div className="text-sm text-gray-200 font-mono bg-gray-800 px-3 py-2 rounded-md">
-                              {typedItemData.skuCode}
+                              {productItem.sku_code}
                             </div>
                           </div>
 
@@ -296,30 +250,24 @@ export default function ProductItemEditPage() {
                                   className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-600 hover:bg-red-700"
                                   onClick={() => {
                                     setIconPreview(null);
-                                    setIconImage(null);
+                                    setIconFile(null);
                                   }}
                                 >
                                   <X className="h-4 w-4 text-white" />
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleImageUpload(file);
-                                    }
-                                  }}
-                                  disabled={uploadingImage}
-                                  className="cursor-pointer"
-                                />
-                                {uploadingImage && (
-                                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                                )}
-                              </div>
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleIconChange(file);
+                                  }
+                                }}
+                                className="cursor-pointer"
+                              />
                             )}
                             <p className="text-xs text-gray-400">
                               Upload an icon/image for this product item
@@ -356,9 +304,9 @@ export default function ProductItemEditPage() {
 
                             {/* Base Price */}
                             <div className="space-y-2">
-                              <Label htmlFor="basePrice">Base Price (Cost from Digiflazz)</Label>
+                              <Label htmlFor="base_price">Base Price (Cost from Digiflazz)</Label>
                               <Input
-                                id="basePrice"
+                                id="base_price"
                                 type="number"
                                 min="0"
                                 value={basePrice}
@@ -372,9 +320,9 @@ export default function ProductItemEditPage() {
 
                             {/* Normal Price */}
                             <div className="space-y-2">
-                              <Label htmlFor="normalPrice">Normal Price</Label>
+                              <Label htmlFor="normal_price">Normal Price</Label>
                               <Input
-                                id="normalPrice"
+                                id="normal_price"
                                 type="number"
                                 min="0"
                                 value={normalPrice}
@@ -388,9 +336,9 @@ export default function ProductItemEditPage() {
 
                             {/* Discounted Price */}
                             <div className="space-y-2">
-                              <Label htmlFor="discountedPrice">Discounted Price (Optional)</Label>
+                              <Label htmlFor="discounted_price">Discounted Price (Optional)</Label>
                               <Input
-                                id="discountedPrice"
+                                id="discounted_price"
                                 type="number"
                                 min="0"
                                 value={discountedPrice || ""}
@@ -405,9 +353,9 @@ export default function ProductItemEditPage() {
 
                             {/* Sell Price */}
                             <div className="space-y-2">
-                              <Label htmlFor="sellPrice">Sell Price (Current Effective Price)</Label>
+                              <Label htmlFor="sell_price">Sell Price (Current Effective Price)</Label>
                               <Input
-                                id="sellPrice"
+                                id="sell_price"
                                 type="number"
                                 min="0"
                                 value={sellPrice}
@@ -424,9 +372,9 @@ export default function ProductItemEditPage() {
 
                           {/* Sort Order */}
                           <div className="space-y-2">
-                            <Label htmlFor="sortOrder">Sort Order</Label>
+                            <Label htmlFor="sort_order">Sort Order</Label>
                             <Input
-                              id="sortOrder"
+                              id="sort_order"
                               type="number"
                               value={sortOrder}
                               onChange={(e) => setSortOrder(Number(e.target.value) || 0)}
@@ -441,19 +389,19 @@ export default function ProductItemEditPage() {
 
                           {/* Status Update */}
                           <div className="space-y-2">
-                            <Label htmlFor="isActive" className="flex items-center gap-2">
+                            <Label htmlFor="is_active" className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4" />
                               Status
                             </Label>
                             <div className="flex items-center space-x-2">
                               <Checkbox
-                                id="isActive"
+                                id="is_active"
                                 checked={isActive}
                                 onCheckedChange={(checked) => setIsActive(checked === true)}
                                 className="border-gray-700"
                               />
                               <label
-                                htmlFor="isActive"
+                                htmlFor="is_active"
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                               >
                                 Active
@@ -485,7 +433,7 @@ export default function ProductItemEditPage() {
                               ) : (
                                 <>
                                   <Save className="mr-2 h-4 w-4" />
-                                  Update Status
+                                  Update Product Item
                                 </>
                               )}
                             </Button>
@@ -509,17 +457,17 @@ export default function ProductItemEditPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-400">Current Status</span>
                           <Badge
-                            variant={typedItemData.isActive ? "default" : "secondary"}
-                            className={typedItemData.isActive ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
+                            variant={productItem.is_active ? "default" : "secondary"}
+                            className={productItem.is_active ? "bg-green-600/20 text-green-400" : "bg-gray-600/20 text-gray-400"}
                           >
-                            {typedItemData.isActive ? "Active" : "Inactive"}
+                            {productItem.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
-                        {typedItemData.digiflazzStatus && (
+                        {productItem.digiflazz_status && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-400">Digiflazz Status</span>
                             <Badge variant="secondary" className="bg-blue-600/20 text-blue-400">
-                              {typedItemData.digiflazzStatus}
+                              {productItem.digiflazz_status}
                             </Badge>
                           </div>
                         )}
@@ -537,19 +485,19 @@ export default function ProductItemEditPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <span className="text-xs text-gray-400">Product</span>
-                          <p className="text-sm text-gray-200">{typedItemData.product.name}</p>
+                          <p className="text-sm text-gray-200">{productItem.product_details?.name || 'N/A'}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Category</span>
-                          <p className="text-sm text-gray-200">{typedItemData.product.category.name}</p>
+                          <p className="text-sm text-gray-200">{productItem.product_details?.category_name || 'N/A'}</p>
                         </div>
-                        {typedItemData.iconImage && (
+                        {productItem.icon_image && (
                           <div>
                             <span className="text-xs text-gray-400">Icon</span>
                             <div className="mt-2 h-24 w-24 overflow-hidden rounded-md">
                               <Image
-                                src={typedItemData.iconImage}
-                                alt={typedItemData.name}
+                                src={productItem.icon_image}
+                                alt={productItem.name}
                                 width={96}
                                 height={96}
                                 className="h-full w-full object-cover"
@@ -572,27 +520,27 @@ export default function ProductItemEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Base Price</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {formatPrice(typedItemData.basePrice)}
+                            {formatPrice(productItem.base_price)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Normal Price</span>
                           <p className="text-sm text-gray-200">
-                            {formatPrice(typedItemData.normalPrice)}
+                            {formatPrice(productItem.normal_price)}
                           </p>
                         </div>
-                        {typedItemData.discountedPrice && (
+                        {productItem.discounted_price && (
                           <div>
                             <span className="text-xs text-gray-400">Discounted Price</span>
                             <p className="text-sm text-gray-200">
-                              {formatPrice(typedItemData.discountedPrice)}
+                              {formatPrice(productItem.discounted_price)}
                             </p>
                           </div>
                         )}
                         <div>
                           <span className="text-xs text-gray-400">Sell Price</span>
-                          <p className="text-sm text-gray-200 font-semibold text-green-400">
-                            {formatPrice(typedItemData.sellPrice)}
+                          <p className="text-sm font-semibold text-green-400">
+                            {formatPrice(productItem.sell_price)}
                           </p>
                         </div>
                       </CardContent>
@@ -609,25 +557,25 @@ export default function ProductItemEditPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <span className="text-xs text-gray-400">Sort Order</span>
-                          <p className="text-sm text-gray-200">{typedItemData.sortOrder}</p>
+                          <p className="text-sm text-gray-200">{productItem.sort_order}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedItemData.createdAt)}
+                            {formatDateTime(productItem.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedItemData.updatedAt)}
+                            {formatDateTime(productItem.updated_at)}
                           </p>
                         </div>
-                        {typedItemData.lastSyncedAt && (
+                        {productItem.last_synced_at && (
                           <div>
                             <span className="text-xs text-gray-400">Last Synced At</span>
                             <p className="text-sm text-gray-200">
-                              {formatDateTime(typedItemData.lastSyncedAt)}
+                              {formatDateTime(productItem.last_synced_at)}
                             </p>
                           </div>
                         )}
@@ -643,4 +591,3 @@ export default function ProductItemEditPage() {
     </SidebarProvider>
   );
 }
-

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save, Tag, Hash, ArrowUpDown, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,24 +17,20 @@ import {
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useCreateCategory } from "@/lib/queries";
+import { useCreateCategory, categoriesQueryKeys } from "@/lib/categories";
 
 export default function CategoryAddPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
-    isActive: true,
-    sortOrder: 0,
+    is_active: true,
+    sort_order: 0,
   });
 
   const createCategoryMutation = useCreateCategory({
     onSuccess: async () => {
-      // Ensure queries are invalidated and refetched
-      await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
-      await queryClient.refetchQueries({ queryKey: ["admin", "categories"] });
       toast.success("Category created successfully");
       setTimeout(() => {
         router.push("/admin/categories");
@@ -166,11 +161,11 @@ export default function CategoryAddPage() {
                           <Input
                             id="sortOrder"
                             type="number"
-                            value={formData.sortOrder}
+                            value={formData.sort_order}
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                sortOrder: parseInt(e.target.value) || 0,
+                                sort_order: parseInt(e.target.value) || 0,
                               })
                             }
                             placeholder="0"
@@ -185,11 +180,11 @@ export default function CategoryAddPage() {
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="isActive"
-                            checked={formData.isActive}
+                            checked={formData.is_active}
                             onCheckedChange={(checked) =>
                               setFormData({
                                 ...formData,
-                                isActive: !!checked,
+                                is_active: !!checked,
                               })
                             }
                           />

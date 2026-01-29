@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Pencil, ArrowUpDown, ArrowUp, ArrowDown, Download, FileDown } from "lucide-react";
+import { Loader2, Search, Eye, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,8 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { useAdminOrders } from "@/lib/queries";
+import { useOrders } from "@/lib/orders";
+import type { Order } from "@/lib/orders";
 import {
   Select,
   SelectContent,
@@ -37,71 +38,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { formatDateTime } from "@/lib/date-utils";
-import { exportToCSV, formatOrderForExport } from "@/lib/export-utils";
 import { toast } from "sonner";
 import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { EmptyState } from "@/components/admin/empty-state";
-import { PackageSearch, RefreshCw } from "lucide-react";
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  userId: string;
-  productItemId: string;
-  customerData: Record<string, unknown>;
-  originalPrice: number;
-  finalPrice: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  paidAt: string | null;
-  completedAt: string | null;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-  };
-  productItem: {
-    id: string;
-    name: string;
-    product: {
-      id: string;
-      name: string;
-      category: {
-        id: string;
-        name: string;
-      };
-    };
-  };
-  payment: {
-    id: string;
-    transactionId: string | null;
-    paymentMethodId: string | null;
-    paymentMethod: {
-      id: string;
-      name: string;
-      type: string;
-      bank: string | null;
-    } | null;
-    status: string | null;
-    amount: number;
-    paidAt: string | null;
-  } | null;
-  digiflazzTx: {
-    id: string;
-    refId: string;
-    trxId: string | null;
-    status: string;
-    message: string | null;
-  } | null;
-}
+import { PackageSearch } from "lucide-react";
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -109,14 +50,17 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // Use TanStack Query hook with filters
-  const { data: ordersData, isLoading: loading } = useAdminOrders({
-    status: statusFilter !== "all" ? statusFilter : undefined,
-  });
+  // Use TanStack Query hooks
+  const { data: orders = [], isLoading: loading, refetch } = useOrders(
+    { status: statusFilter !== "all" ? statusFilter : undefined },
+    {
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    }
+  );
 
-  const orders: Order[] = ordersData || [];
-
-  const handleEdit = useCallback((order: Order) => {
+  const handleView = useCallback((order: Order) => {
     router.push(`/admin/orders/${order.id}`);
   }, [router]);
 
@@ -144,7 +88,7 @@ export default function OrdersPage() {
   const columns = useMemo<ColumnDef<Order>[]>(
     () => [
       {
-        accessorKey: "orderNumber",
+        accessorKey: "order_number",
         header: ({ column }) => {
           return (
             <Button
@@ -164,12 +108,12 @@ export default function OrdersPage() {
           );
         },
         cell: ({ row }) => (
-          <div className="font-medium">{row.getValue("orderNumber")}</div>
+          <div className="font-medium">{row.getValue("order_number")}</div>
         ),
       },
       {
-        accessorKey: "user.email",
-        header: "User",
+        accessorKey: "user",
+        header: "Customer",
         cell: ({ row }) => {
           const user = row.original.user;
           return (
@@ -183,10 +127,10 @@ export default function OrdersPage() {
         },
       },
       {
-        accessorKey: "productItem.product.name",
+        accessorKey: "product_item",
         header: "Product",
         cell: ({ row }) => {
-          const productItem = row.original.productItem;
+          const productItem = row.original.product_item;
           return (
             <div>
               <div className="font-medium">{productItem.product.name}</div>
@@ -196,7 +140,7 @@ export default function OrdersPage() {
         },
       },
       {
-        accessorKey: "finalPrice",
+        accessorKey: "total_amount",
         header: ({ column }) => {
           return (
             <Button
@@ -204,7 +148,7 @@ export default function OrdersPage() {
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
               className="h-8 px-2"
             >
-              Price
+              Total
               {column.getIsSorted() === "asc" ? (
                 <ArrowUp className="ml-2 h-4 w-4" />
               ) : column.getIsSorted() === "desc" ? (
@@ -216,17 +160,7 @@ export default function OrdersPage() {
           );
         },
         cell: ({ row }) => {
-          const order = row.original;
-          return (
-            <div>
-              <div className="font-medium">{formatPrice(order.finalPrice)}</div>
-              {order.originalPrice !== order.finalPrice && (
-                <div className="text-sm text-gray-400 line-through">
-                  {formatPrice(order.originalPrice)}
-                </div>
-              )}
-            </div>
-          );
+          return formatPrice(row.getValue("total_amount"));
         },
       },
       {
@@ -259,7 +193,7 @@ export default function OrdersPage() {
         },
       },
       {
-        accessorKey: "payment.status",
+        accessorKey: "payment",
         header: "Payment",
         cell: ({ row }) => {
           const payment = row.original.payment;
@@ -267,15 +201,15 @@ export default function OrdersPage() {
           return (
             <div>
               <div className="text-sm">{payment.status || "-"}</div>
-              {payment.paymentMethod && (
-                <div className="text-xs text-gray-400">{payment.paymentMethod.name}</div>
+              {payment.payment_method && (
+                <div className="text-xs text-gray-400">{payment.payment_method.name}</div>
               )}
             </div>
           );
         },
       },
       {
-        accessorKey: "createdAt",
+        accessorKey: "created_at",
         header: ({ column }) => {
           return (
             <Button
@@ -295,13 +229,13 @@ export default function OrdersPage() {
           );
         },
         cell: ({ row }) => {
-          const date = row.getValue("createdAt") as string;
+          const date = row.getValue("created_at") as string;
           return date ? formatDateTime(date) : "-";
         },
       },
       {
         id: "actions",
-        header: "Aksi",
+        header: "Actions",
         cell: ({ row }) => {
           const order = row.original;
           return (
@@ -309,16 +243,16 @@ export default function OrdersPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleEdit(order)}
+                onClick={() => handleView(order)}
               >
-                <Pencil className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
               </Button>
             </div>
           );
         },
       },
     ],
-    [handleEdit]
+    [handleView]
   );
 
   const table = useReactTable({
@@ -342,32 +276,14 @@ export default function OrdersPage() {
       const order = row.original;
       const searchLower = filterValue.toLowerCase();
       return (
-        order.orderNumber.toLowerCase().includes(searchLower) ||
+        order.order_number.toLowerCase().includes(searchLower) ||
         order.user.email.toLowerCase().includes(searchLower) ||
-        (order.user.name?.toLowerCase().includes(searchLower) || false) ||
-        order.productItem.product.name.toLowerCase().includes(searchLower) ||
-        order.productItem.name.toLowerCase().includes(searchLower)
+        (order.user.name && order.user.name.toLowerCase().includes(searchLower)) ||
+        order.product_item.product.name.toLowerCase().includes(searchLower) ||
+        order.product_item.name.toLowerCase().includes(searchLower)
       );
     },
   });
-
-  const handleExportCSV = useCallback(() => {
-    try {
-      const filteredOrders = table.getFilteredRowModel().rows.map((row) => row.original);
-      if (filteredOrders.length === 0) {
-        toast.error("No data to export");
-        return;
-      }
-
-      const exportData = filteredOrders.map(formatOrderForExport);
-      exportToCSV(exportData, "orders");
-      toast.success(`Exported ${filteredOrders.length} orders to CSV`);
-    } catch (error) {
-      toast.error("Failed to export orders", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    }
-  }, [table]);
 
   return (
     <SidebarProvider
@@ -387,28 +303,11 @@ export default function OrdersPage() {
               <div className="container mx-auto px-4 lg:px-6">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold">Kelola Orders</h1>
+                    <h1 className="text-3xl font-bold">Orders</h1>
                     <p className="mt-2 text-gray-400">
-                      Atur dan pantau pesanan Anda di sini.
+                      View and manage customer orders.
                     </p>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        disabled={loading || orders.length === 0}
-                      >
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Export
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleExportCSV}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Export as CSV
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
 
                 <div className="mb-4 flex gap-4">
@@ -440,25 +339,25 @@ export default function OrdersPage() {
                 </div>
 
                 {loading ? (
-                  <TableSkeleton columns={7} rows={10} />
+                  <TableSkeleton columns={8} rows={10} />
                 ) : table.getFilteredRowModel().rows.length === 0 ? (
                   <EmptyState
-                    icon={search || statusFilter !== "all" ? PackageSearch : PackageSearch}
+                    icon={PackageSearch}
                     title={search || statusFilter !== "all" ? "No orders found" : "No orders yet"}
                     description={
                       search || statusFilter !== "all"
                         ? "Try adjusting your search or filter criteria to find what you're looking for."
-                        : "Orders will appear here once customers start placing them. You can also sync products to get started."
+                        : "Orders will appear here once customers start placing them."
                     }
                     action={
                       search || statusFilter !== "all"
                         ? {
-                            label: "Clear filters",
-                            onClick: () => {
-                              setSearch("");
-                              setStatusFilter("all");
-                            },
-                          }
+                          label: "Clear filters",
+                          onClick: () => {
+                            setSearch("");
+                            setStatusFilter("all");
+                          },
+                        }
                         : undefined
                     }
                   />
@@ -474,9 +373,9 @@ export default function OrdersPage() {
                                   {header.isPlaceholder
                                     ? null
                                     : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
                                 </TableHead>
                               ))}
                             </TableRow>
@@ -506,7 +405,7 @@ export default function OrdersPage() {
                         Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
                         {Math.min(
                           (table.getState().pagination.pageIndex + 1) *
-                            table.getState().pagination.pageSize,
+                          table.getState().pagination.pageSize,
                           table.getFilteredRowModel().rows.length
                         )}{" "}
                         of {table.getFilteredRowModel().rows.length} orders
@@ -544,4 +443,3 @@ export default function OrdersPage() {
     </SidebarProvider>
   );
 }
-

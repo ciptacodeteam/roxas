@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "NODE_OPTIONS='--max-old-space-size=3072' NEXT_PRIVATE_DISABLE_TURBOPACK=1 next build",
+    "build": "next build --turbo",
     "check": "next lint && tsc --noEmit",
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",

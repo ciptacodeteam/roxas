@@ -75,7 +75,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
-            'id', 'name', 'slug', 'description', 'sort_order',
+            'id', 'name', 'slug', 'sort_order',
             'is_active', 'instruction_images', 'product_count',
             'created_at', 'updated_at'
         ]
@@ -105,6 +105,7 @@ class CategoryListSerializer(serializers.ModelSerializer):
 
 class ProductItemSerializer(serializers.ModelSerializer):
     """Serializer for ProductItem model."""
+    product_details = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductItem
@@ -112,9 +113,19 @@ class ProductItemSerializer(serializers.ModelSerializer):
             'id', 'product', 'name', 'sku_code', 'icon_image', 'group',
             'base_price', 'normal_price', 'discounted_price', 'sell_price',
             'is_active', 'sort_order', 'last_synced_at', 'digiflazz_status',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'product_details'
         ]
         read_only_fields = ['id', 'last_synced_at', 'digiflazz_status', 'created_at', 'updated_at']
+    
+    def get_product_details(self, obj):
+        """Get product name and category details."""
+        if obj.product:
+            return {
+                'id': str(obj.product.id),
+                'name': obj.product.name,
+                'category_name': obj.product.category.name if obj.product.category else '',
+            }
+        return None
 
 
 class ProductItemPublicSerializer(serializers.ModelSerializer):

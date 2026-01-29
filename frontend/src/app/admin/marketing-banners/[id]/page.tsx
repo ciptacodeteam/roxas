@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useMarketingBanner, useUpdateMarketingBanner, type MarketingBanner } from "@/lib/marketing-banners";
-import { formatDateTime } from "@/lib/date-utils";
+import { formatDateTime, utcToLocal, localToUTC } from "@/lib/date-utils";
 
 export default function MarketingBannerEditPage() {
   const router = useRouter();
@@ -67,8 +67,8 @@ export default function MarketingBannerEditPage() {
         description: typedBannerData.description || "",
         is_active: typedBannerData.is_active,
         sort_order: typedBannerData.sort_order,
-        start_date: typedBannerData.start_date ? new Date(typedBannerData.start_date).toISOString().slice(0, 16) : "",
-        end_date: typedBannerData.end_date ? new Date(typedBannerData.end_date).toISOString().slice(0, 16) : "",
+        start_date: typedBannerData.start_date ? utcToLocal(typedBannerData.start_date) : "",
+        end_date: typedBannerData.end_date ? utcToLocal(typedBannerData.end_date) : "",
       });
       setImagePreview(typedBannerData.image);
       setImageFile(null);
@@ -97,7 +97,7 @@ export default function MarketingBannerEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!imagePreview && !imageFile) {
       toast.error("Image is required");
       return;
@@ -110,8 +110,8 @@ export default function MarketingBannerEditPage() {
       description: formData.description || undefined,
       is_active: formData.is_active,
       sort_order: formData.sort_order,
-      start_date: formData.start_date || null,
-      end_date: formData.end_date || null,
+      start_date: formData.start_date ? localToUTC(formData.start_date) : null,
+      end_date: formData.end_date ? localToUTC(formData.end_date) : null,
     };
 
     // Add image file if selected
@@ -195,319 +195,319 @@ export default function MarketingBannerEditPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="container mx-auto px-4 lg:px-6">
-              {/* Header */}
-              <div className="mb-6">
-                <BackButton href="/admin/marketing-banners" label="Back to Marketing Banners" />
-                <div>
-                  <h1 className="text-3xl font-bold">Edit Marketing Banner</h1>
-                  <p className="mt-2 text-gray-400">
-                    Manage marketing banner information and view related data
-                  </p>
+                {/* Header */}
+                <div className="mb-6">
+                  <BackButton href="/admin/marketing-banners" label="Back to Marketing Banners" />
+                  <div>
+                    <h1 className="text-3xl font-bold">Edit Marketing Banner</h1>
+                    <p className="mt-2 text-gray-400">
+                      Manage marketing banner information and view related data
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Main Content - Two Column Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Edit Form */}
-                <div className="lg:col-span-2">
-                  <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <ImageIcon className="h-5 w-5" />
-                        Marketing Banner Information
-                      </CardTitle>
-                      <CardDescription>
-                        Update marketing banner details
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Title */}
-                        <div className="space-y-2">
-                          <Label htmlFor="title" className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            Title (Optional)
-                          </Label>
-                          <Input
-                            id="title"
-                            type="text"
-                            value={formData.title}
-                            onChange={(e) =>
-                              setFormData({ ...formData, title: e.target.value })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                          />
-                        </div>
-
-                        {/* Image */}
-                        <div className="space-y-2">
-                          <Label htmlFor="image" className="flex items-center gap-2">
-                            <ImageIcon className="h-4 w-4" />
-                            Image <span className="text-red-400">*</span>
-                          </Label>
+                {/* Main Content - Two Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column - Edit Form */}
+                  <div className="lg:col-span-2">
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <ImageIcon className="h-5 w-5" />
+                          Marketing Banner Information
+                        </CardTitle>
+                        <CardDescription>
+                          Update marketing banner details
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                          {/* Title */}
                           <div className="space-y-2">
-                            {imagePreview ? (
-                              <div className="relative">
-                                <div className="relative h-48 w-full overflow-hidden rounded-md border border-gray-700">
-                                  <Image
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    fill
-                                    className="object-contain"
+                            <Label htmlFor="title" className="flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Title (Optional)
+                            </Label>
+                            <Input
+                              id="title"
+                              type="text"
+                              value={formData.title}
+                              onChange={(e) =>
+                                setFormData({ ...formData, title: e.target.value })
+                              }
+                              className="bg-gray-800 text-gray-100 border-gray-700"
+                            />
+                          </div>
+
+                          {/* Image */}
+                          <div className="space-y-2">
+                            <Label htmlFor="image" className="flex items-center gap-2">
+                              <ImageIcon className="h-4 w-4" />
+                              Image <span className="text-red-400">*</span>
+                            </Label>
+                            <div className="space-y-2">
+                              {imagePreview ? (
+                                <div className="relative">
+                                  <div className="relative h-48 w-full overflow-hidden rounded-md border border-gray-700">
+                                    <Image
+                                      src={imagePreview}
+                                      alt="Preview"
+                                      fill
+                                      className="object-contain"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
+                                    onClick={() => {
+                                      setImagePreview(null);
+                                      setImageFile(null);
+                                    }}
+                                  >
+                                    <X className="h-3 w-3 text-white" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    id="image-file"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handleImageChange(file);
+                                      }
+                                    }}
+                                    className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                                   />
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 hover:bg-red-600"
-                                  onClick={() => {
-                                    setImagePreview(null);
-                                    setImageFile(null);
-                                  }}
-                                >
-                                  <X className="h-3 w-3 text-white" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  id="image-file"
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleImageChange(file);
-                                    }
-                                  }}
-                                  className="file:bg-primary hover:file:bg-primary/90 cursor-pointer border-gray-700 bg-gray-800 text-gray-100 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                                />
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Link */}
-                        <div className="space-y-2">
-                          <Label htmlFor="link" className="flex items-center gap-2">
-                            <LinkIcon className="h-4 w-4" />
-                            Link (Optional)
-                          </Label>
-                          <Input
-                            id="link"
-                            type="url"
-                            value={formData.link}
-                            onChange={(e) =>
-                              setFormData({ ...formData, link: e.target.value })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                          />
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-2">
-                          <Label htmlFor="description" className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            Description (Optional)
-                          </Label>
-                          <Textarea
-                            id="description"
-                            value={formData.description}
-                            onChange={(e) =>
-                              setFormData({ ...formData, description: e.target.value })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                            rows={3}
-                          />
-                        </div>
-
-                        {/* Date Range */}
-                        <div className="grid grid-cols-2 gap-4">
+                          {/* Link */}
                           <div className="space-y-2">
-                            <Label htmlFor="start_date" className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              Start Date (Optional)
+                            <Label htmlFor="link" className="flex items-center gap-2">
+                              <LinkIcon className="h-4 w-4" />
+                              Link (Optional)
                             </Label>
-                            <DateTimePicker
-                              value={formData.start_date || undefined}
-                              onChange={(value) =>
-                                setFormData({ ...formData, start_date: value })
+                            <Input
+                              id="link"
+                              type="url"
+                              value={formData.link}
+                              onChange={(e) =>
+                                setFormData({ ...formData, link: e.target.value })
                               }
-                              placeholder="Select start date and time"
+                              className="bg-gray-800 text-gray-100 border-gray-700"
                             />
                           </div>
+
+                          {/* Description */}
                           <div className="space-y-2">
-                            <Label htmlFor="end_date" className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              End Date (Optional)
+                            <Label htmlFor="description" className="flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Description (Optional)
                             </Label>
-                            <DateTimePicker
-                              value={formData.end_date || undefined}
-                              onChange={(value) =>
-                                setFormData({ ...formData, end_date: value })
+                            <Textarea
+                              id="description"
+                              value={formData.description}
+                              onChange={(e) =>
+                                setFormData({ ...formData, description: e.target.value })
                               }
-                              placeholder="Select end date and time"
+                              className="bg-gray-800 text-gray-100 border-gray-700"
+                              rows={3}
                             />
                           </div>
-                        </div>
 
-                        {/* Sort Order */}
-                        <div className="space-y-2">
-                          <Label htmlFor="sort_order" className="flex items-center gap-2">
-                            <ArrowUpDown className="h-4 w-4" />
-                            Sort Order
-                          </Label>
-                          <Input
-                            id="sort_order"
-                            type="number"
-                            value={formData.sort_order}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                sort_order: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="bg-gray-800 text-gray-100 border-gray-700"
-                          />
-                        </div>
+                          {/* Date Range */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="start_date" className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Start Date (Optional)
+                              </Label>
+                              <DateTimePicker
+                                value={formData.start_date || undefined}
+                                onChange={(value) =>
+                                  setFormData({ ...formData, start_date: value })
+                                }
+                                placeholder="Select start date and time"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="end_date" className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                End Date (Optional)
+                              </Label>
+                              <DateTimePicker
+                                value={formData.end_date || undefined}
+                                onChange={(value) =>
+                                  setFormData({ ...formData, end_date: value })
+                                }
+                                placeholder="Select end date and time"
+                              />
+                            </div>
+                          </div>
 
-                        {/* Active Status */}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="is_active"
-                            checked={formData.is_active}
-                            onCheckedChange={(checked) =>
-                              setFormData({
-                                ...formData,
-                                is_active: !!checked,
-                              })
-                            }
-                          />
-                          <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Active (visible to users)
-                          </Label>
-                        </div>
+                          {/* Sort Order */}
+                          <div className="space-y-2">
+                            <Label htmlFor="sort_order" className="flex items-center gap-2">
+                              <ArrowUpDown className="h-4 w-4" />
+                              Sort Order
+                            </Label>
+                            <Input
+                              id="sort_order"
+                              type="number"
+                              value={formData.sort_order}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  sort_order: parseInt(e.target.value) || 0,
+                                })
+                              }
+                              className="bg-gray-800 text-gray-100 border-gray-700"
+                            />
+                          </div>
 
-                        <Separator className="bg-gray-700" />
+                          {/* Active Status */}
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="is_active"
+                              checked={formData.is_active}
+                              onCheckedChange={(checked) =>
+                                setFormData({
+                                  ...formData,
+                                  is_active: !!checked,
+                                })
+                              }
+                            />
+                            <Label htmlFor="is_active" className="cursor-pointer flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Active (visible to users)
+                            </Label>
+                          </div>
 
-                        {/* Submit Button */}
-                        <div className="flex justify-end gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.push("/admin/marketing-banners")}
-                            disabled={saving}
-                          >
-                            Cancel
-                          </Button>
-                          <Button type="submit" disabled={saving}>
-                            {saving ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="mr-2 h-4 w-4" />
-                                Save Changes
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </div>
+                          <Separator className="bg-gray-700" />
 
-                {/* Right Column - Related Information */}
-                <div className="space-y-6">
-                  {/* Banner Status */}
-                  <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <ImageIcon className="h-5 w-5" />
-                        Status
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Status</span>
-                        <Badge
-                          variant={typedBannerData?.is_active ? "default" : "secondary"}
-                          className={
-                            typedBannerData?.is_active
-                              ? "bg-green-600/20 text-green-400"
-                              : "bg-gray-600/20 text-gray-400"
-                          }
-                        >
-                          {typedBannerData?.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                      {typedBannerData?.start_date && (
-                        <div>
-                          <span className="text-xs text-gray-400">Start Date</span>
-                          <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.start_date)}
-                          </p>
-                        </div>
-                      )}
-                      {typedBannerData?.end_date && (
-                        <div>
-                          <span className="text-xs text-gray-400">End Date</span>
-                          <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.end_date)}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Banner Metadata */}
-                  <Card className="bg-gray-900 border-gray-800">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        Metadata
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {typedBannerData?.created_at && (
-                        <div>
-                          <span className="text-xs text-gray-400">Created At</span>
-                          <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.created_at)}
-                          </p>
-                        </div>
-                      )}
-                      {typedBannerData?.updated_at && (
-                        <div>
-                          <span className="text-xs text-gray-400">Updated At</span>
-                          <p className="text-sm text-gray-200">
-                            {formatDateTime(typedBannerData.updated_at)}
-                          </p>
-                        </div>
-                      )}
-                      {typedBannerData.link && (
-                        <div>
-                          <span className="text-xs text-gray-400">Link</span>
-                          <p className="text-sm text-gray-200 break-all">
-                            <a
-                              href={typedBannerData.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline"
+                          {/* Submit Button */}
+                          <div className="flex justify-end gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => router.push("/admin/marketing-banners")}
+                              disabled={saving}
                             >
-                              {typedBannerData.link}
-                            </a>
-                          </p>
+                              Cancel
+                            </Button>
+                            <Button type="submit" disabled={saving}>
+                              {saving ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="mr-2 h-4 w-4" />
+                                  Save Changes
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Right Column - Related Information */}
+                  <div className="space-y-6">
+                    {/* Banner Status */}
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <ImageIcon className="h-5 w-5" />
+                          Status
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Status</span>
+                          <Badge
+                            variant={typedBannerData?.is_active ? "default" : "secondary"}
+                            className={
+                              typedBannerData?.is_active
+                                ? "bg-green-600/20 text-green-400"
+                                : "bg-gray-600/20 text-gray-400"
+                            }
+                          >
+                            {typedBannerData?.is_active ? "Active" : "Inactive"}
+                          </Badge>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        {typedBannerData?.start_date && (
+                          <div>
+                            <span className="text-xs text-gray-400">Start Date</span>
+                            <p className="text-sm text-gray-200">
+                              {formatDateTime(typedBannerData.start_date)}
+                            </p>
+                          </div>
+                        )}
+                        {typedBannerData?.end_date && (
+                          <div>
+                            <span className="text-xs text-gray-400">End Date</span>
+                            <p className="text-sm text-gray-200">
+                              {formatDateTime(typedBannerData.end_date)}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Banner Metadata */}
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5" />
+                          Metadata
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {typedBannerData?.created_at && (
+                          <div>
+                            <span className="text-xs text-gray-400">Created At</span>
+                            <p className="text-sm text-gray-200">
+                              {formatDateTime(typedBannerData.created_at)}
+                            </p>
+                          </div>
+                        )}
+                        {typedBannerData?.updated_at && (
+                          <div>
+                            <span className="text-xs text-gray-400">Updated At</span>
+                            <p className="text-sm text-gray-200">
+                              {formatDateTime(typedBannerData.updated_at)}
+                            </p>
+                          </div>
+                        )}
+                        {typedBannerData.link && (
+                          <div>
+                            <span className="text-xs text-gray-400">Link</span>
+                            <p className="text-sm text-gray-200 break-all">
+                              <a
+                                href={typedBannerData.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-400 hover:underline"
+                              >
+                                {typedBannerData.link}
+                              </a>
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
-              </div>
               </div>
             </div>
           </div>

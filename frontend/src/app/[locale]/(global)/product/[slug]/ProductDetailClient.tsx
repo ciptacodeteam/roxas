@@ -3,7 +3,6 @@
 
 import { productDetail } from "@/lib/data/productDetail";
 import { calculateTotalWithFees } from "@/lib/payment-fees";
-import { useActiveFlashSales } from "@/lib/queries";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
@@ -460,7 +459,7 @@ export default function ProductDetailClient({
         setIsVerified(false);
         setVerificationError(
           data.message ||
-            "Gagal memverifikasi akun. Pastikan User ID dan Server ID benar.",
+          "Gagal memverifikasi akun. Pastikan User ID dan Server ID benar.",
         );
       }
     } catch (error) {
@@ -707,7 +706,7 @@ export default function ProductDetailClient({
                           field.name === "userId"
                             ? userId
                             : field.name === "serverId" ||
-                                field.name === "zoneId"
+                              field.name === "zoneId"
                               ? field.name === "serverId"
                                 ? serverId
                                 : zoneId
@@ -846,12 +845,12 @@ export default function ProductDetailClient({
                                   // Calculate discount percentage
                                   const discount =
                                     originalPrice > itemPrice &&
-                                    originalPrice > 0
+                                      originalPrice > 0
                                       ? Math.round(
-                                          ((originalPrice - itemPrice) /
-                                            originalPrice) *
-                                            100,
-                                        )
+                                        ((originalPrice - itemPrice) /
+                                          originalPrice) *
+                                        100,
+                                      )
                                       : 0;
 
                                   const hasDiscount =
@@ -893,7 +892,7 @@ export default function ProductDetailClient({
                                       className={cn(
                                         "group relative cursor-pointer overflow-hidden border-0 bg-[#313C4C] bg-[url(/img/background.png)] bg-cover bg-no-repeat px-0 py-0 pt-4 transition-all hover:outline-2 hover:outline-rose-500",
                                         isSelected &&
-                                          "outline-2 outline-rose-500",
+                                        "outline-2 outline-rose-500",
                                       )}
                                     >
                                       {/* Flash Sale Badge */}
@@ -1020,10 +1019,10 @@ export default function ProductDetailClient({
                               const discount =
                                 originalPrice > itemPrice && originalPrice > 0
                                   ? Math.round(
-                                      ((originalPrice - itemPrice) /
-                                        originalPrice) *
-                                        100,
-                                    )
+                                    ((originalPrice - itemPrice) /
+                                      originalPrice) *
+                                    100,
+                                  )
                                   : 0;
 
                               const hasDiscount =
@@ -1218,34 +1217,459 @@ export default function ProductDetailClient({
                         (pm: any) =>
                           pm.type === "QRIS" || pm.type === "E_WALLET",
                       ).length > 0 && (
-                        <div className="overflow-hidden rounded-md bg-gray-800">
-                          <AccordionItem
-                            value="qris-ewallet"
-                            className="group border-none"
-                          >
-                            <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
-                              <span className="font-medium tracking-wide text-white uppercase">
-                                💳 E-Wallet & QRIS
-                              </span>
-                              <div className="flex items-center">
-                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="bg-[#313C4C] p-4">
-                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                {paymentMethods
-                                  .filter(
-                                    (pm: any) =>
-                                      pm.type === "QRIS" ||
-                                      pm.type === "E_WALLET",
-                                  )
-                                  .map((pm: any) => {
-                                    const isSelected =
-                                      selectedPaymentMethod === pm.id;
-                                    const isQRIS = pm.type === "QRIS";
-                                    return (
-                                      <div key={pm.id}>
+                          <div className="overflow-hidden rounded-md bg-gray-800">
+                            <AccordionItem
+                              value="qris-ewallet"
+                              className="group border-none"
+                            >
+                              <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
+                                <span className="font-medium tracking-wide text-white uppercase">
+                                  💳 E-Wallet & QRIS
+                                </span>
+                                <div className="flex items-center">
+                                  <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="bg-[#313C4C] p-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                  {paymentMethods
+                                    .filter(
+                                      (pm: any) =>
+                                        pm.type === "QRIS" ||
+                                        pm.type === "E_WALLET",
+                                    )
+                                    .map((pm: any) => {
+                                      const isSelected =
+                                        selectedPaymentMethod === pm.id;
+                                      const isQRIS = pm.type === "QRIS";
+                                      return (
+                                        <div key={pm.id}>
+                                          <div
+                                            onClick={() =>
+                                              setSelectedPaymentMethod(pm.id)
+                                            }
+                                            className={cn(
+                                              "flex cursor-pointer flex-col items-center gap-3 rounded-lg bg-[#2C3544] p-4 transition-all duration-200",
+                                              isSelected
+                                                ? "ring-primary ring-2"
+                                                : "hover:ring-primary hover:ring-2",
+                                            )}
+                                          >
+                                            {pm.icon && (
+                                              <Image
+                                                src={pm.icon}
+                                                alt={pm.name}
+                                                width={80}
+                                                height={48}
+                                                className="rounded-md bg-white object-contain p-2"
+                                              />
+                                            )}
+                                            {isQRIS && !pm.icon && (
+                                              <Image
+                                                src={qris}
+                                                alt="QRIS"
+                                                className="w-20 rounded-sm bg-white object-contain px-2 py-2"
+                                              />
+                                            )}
+                                            <h3 className="text-center text-sm font-medium text-white">
+                                              {pm.name}
+                                            </h3>
+                                            {pm.description && (
+                                              <p className="text-center text-xs text-gray-400">
+                                                {pm.description}
+                                              </p>
+                                            )}
+                                            {selectedItemData &&
+                                              (() => {
+                                                const baseAmount =
+                                                  baseAmountAfterCoupon;
+                                                const pmTotal =
+                                                  calculateTotalWithFees(
+                                                    baseAmount,
+                                                    pm,
+                                                  );
+                                                return (
+                                                  <div className="w-full border-t border-gray-600 pt-2 text-center">
+                                                    <p className="text-sm font-medium text-white">
+                                                      Rp{" "}
+                                                      {pmTotal.totalAmount.toLocaleString(
+                                                        "id-ID",
+                                                      )}
+                                                    </p>
+                                                    {(pmTotal.paymentFee > 0 ||
+                                                      pmTotal.vatAmount > 0) && (
+                                                        <p className="text-xs text-gray-400">
+                                                          Termasuk biaya & PPN
+                                                        </p>
+                                                      )}
+                                                  </div>
+                                                );
+                                              })()}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </div>
+                        )}
+
+                      {/* Credit Card Group */}
+                      {paymentMethods.filter(
+                        (pm: any) => pm.type === "CREDIT_CARD",
+                      ).length > 0 && (
+                          <div className="overflow-hidden rounded-md bg-gray-800">
+                            <AccordionItem
+                              value="credit-card"
+                              className="group border-none"
+                            >
+                              <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
+                                <span className="font-medium tracking-wide text-white uppercase">
+                                  💳 Kartu Kredit
+                                </span>
+                                <div className="flex items-center">
+                                  <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="bg-[#313C4C] p-4">
+                                <div className="space-y-4">
+                                  {paymentMethods
+                                    .filter(
+                                      (pm: any) => pm.type === "CREDIT_CARD",
+                                    )
+                                    .map((pm: any) => {
+                                      const isSelected =
+                                        selectedPaymentMethod === pm.id;
+                                      return (
+                                        <div key={pm.id}>
+                                          <div
+                                            onClick={() => {
+                                              setSelectedPaymentMethod(pm.id);
+                                              if (!isSelected) {
+                                                setCreditCardData({
+                                                  cardNumber: "",
+                                                  cardholderName: "",
+                                                  expiryDate: "",
+                                                  cvv: "",
+                                                });
+                                                setCreditCardErrors({});
+                                              }
+                                            }}
+                                            className={cn(
+                                              "flex cursor-pointer items-center justify-between rounded-md bg-[#2C3544] px-6 py-4 ring-2 transition-all duration-200",
+                                              isSelected
+                                                ? "ring-primary"
+                                                : "hover:ring-primary ring-transparent",
+                                            )}
+                                          >
+                                            <div className="flex items-center gap-4">
+                                              {pm.icon && (
+                                                <Image
+                                                  src={pm.icon}
+                                                  alt={pm.name}
+                                                  width={48}
+                                                  height={48}
+                                                  className="rounded-md bg-white object-contain p-2"
+                                                />
+                                              )}
+                                              <div className="flex flex-col gap-2">
+                                                <h2 className="text-sm font-medium text-white">
+                                                  {pm.name}
+                                                </h2>
+                                                {pm.description && (
+                                                  <p className="text-xs text-gray-400">
+                                                    {pm.description}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {selectedItemData &&
+                                              (() => {
+                                                const baseAmount =
+                                                  baseAmountAfterCoupon;
+                                                const pmTotal =
+                                                  calculateTotalWithFees(
+                                                    baseAmount,
+                                                    pm,
+                                                  );
+                                                return (
+                                                  <div className="text-right">
+                                                    <p className="font-medium text-white">
+                                                      Rp{" "}
+                                                      {pmTotal.totalAmount.toLocaleString(
+                                                        "id-ID",
+                                                      )}
+                                                    </p>
+                                                    {(pmTotal.paymentFee > 0 ||
+                                                      pmTotal.vatAmount > 0) && (
+                                                        <p className="text-xs text-gray-400">
+                                                          Termasuk biaya & PPN
+                                                        </p>
+                                                      )}
+                                                  </div>
+                                                );
+                                              })()}
+                                          </div>
+
+                                          {isSelected && (
+                                            <div className="border-primary/30 mt-4 rounded-lg border bg-[#2C3544] p-4">
+                                              <h4 className="mb-4 text-sm font-semibold text-white">
+                                                Informasi Kartu Kredit
+                                              </h4>
+                                              <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor="cardNumber"
+                                                    className="text-sm text-gray-300"
+                                                  >
+                                                    Nomor Kartu{" "}
+                                                    <span className="text-red-400">
+                                                      *
+                                                    </span>
+                                                  </Label>
+                                                  <Input
+                                                    id="cardNumber"
+                                                    type="text"
+                                                    placeholder="1234 5678 9012 3456"
+                                                    value={
+                                                      creditCardData.cardNumber
+                                                    }
+                                                    onChange={(e) =>
+                                                      handleCardNumberChange(
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    onBlur={() => {
+                                                      const error =
+                                                        validateCardNumber(
+                                                          creditCardData.cardNumber,
+                                                        );
+                                                      setCreditCardErrors({
+                                                        ...creditCardErrors,
+                                                        cardNumber: error,
+                                                      });
+                                                    }}
+                                                    maxLength={19}
+                                                    className={cn(
+                                                      "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
+                                                      creditCardErrors.cardNumber &&
+                                                      "border-red-500 focus-visible:ring-red-500",
+                                                    )}
+                                                  />
+                                                  {creditCardErrors.cardNumber && (
+                                                    <p className="text-xs text-red-400">
+                                                      {
+                                                        creditCardErrors.cardNumber
+                                                      }
+                                                    </p>
+                                                  )}
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor="cardholderName"
+                                                    className="text-sm text-gray-300"
+                                                  >
+                                                    Nama di Kartu{" "}
+                                                    <span className="text-red-400">
+                                                      *
+                                                    </span>
+                                                  </Label>
+                                                  <Input
+                                                    id="cardholderName"
+                                                    type="text"
+                                                    placeholder="JOHN DOE"
+                                                    value={
+                                                      creditCardData.cardholderName
+                                                    }
+                                                    onChange={(e) => {
+                                                      setCreditCardData({
+                                                        ...creditCardData,
+                                                        cardholderName:
+                                                          e.target.value.toUpperCase(),
+                                                      });
+                                                      if (
+                                                        creditCardErrors.cardholderName
+                                                      ) {
+                                                        setCreditCardErrors({
+                                                          ...creditCardErrors,
+                                                          cardholderName:
+                                                            undefined,
+                                                        });
+                                                      }
+                                                    }}
+                                                    onBlur={() => {
+                                                      const error =
+                                                        !creditCardData.cardholderName.trim()
+                                                          ? "Cardholder name is required"
+                                                          : undefined;
+                                                      setCreditCardErrors({
+                                                        ...creditCardErrors,
+                                                        cardholderName: error,
+                                                      });
+                                                    }}
+                                                    className={cn(
+                                                      "border-gray-700 bg-gray-800 text-white uppercase placeholder:text-gray-500",
+                                                      creditCardErrors.cardholderName &&
+                                                      "border-red-500 focus-visible:ring-red-500",
+                                                    )}
+                                                  />
+                                                  {creditCardErrors.cardholderName && (
+                                                    <p className="text-xs text-red-400">
+                                                      {
+                                                        creditCardErrors.cardholderName
+                                                      }
+                                                    </p>
+                                                  )}
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-4">
+                                                  <div className="space-y-2">
+                                                    <Label
+                                                      htmlFor="expiryDate"
+                                                      className="text-sm text-gray-300"
+                                                    >
+                                                      Tanggal Kadaluarsa{" "}
+                                                      <span className="text-red-400">
+                                                        *
+                                                      </span>
+                                                    </Label>
+                                                    <Input
+                                                      id="expiryDate"
+                                                      type="text"
+                                                      placeholder="MM/YY"
+                                                      value={
+                                                        creditCardData.expiryDate
+                                                      }
+                                                      onChange={(e) =>
+                                                        handleExpiryDateChange(
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      onBlur={() => {
+                                                        const error =
+                                                          validateExpiryDate(
+                                                            creditCardData.expiryDate,
+                                                          );
+                                                        setCreditCardErrors({
+                                                          ...creditCardErrors,
+                                                          expiryDate: error,
+                                                        });
+                                                      }}
+                                                      maxLength={5}
+                                                      className={cn(
+                                                        "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
+                                                        creditCardErrors.expiryDate &&
+                                                        "border-red-500 focus-visible:ring-red-500",
+                                                      )}
+                                                    />
+                                                    {creditCardErrors.expiryDate && (
+                                                      <p className="text-xs text-red-400">
+                                                        {
+                                                          creditCardErrors.expiryDate
+                                                        }
+                                                      </p>
+                                                    )}
+                                                  </div>
+
+                                                  <div className="space-y-2">
+                                                    <Label
+                                                      htmlFor="cvv"
+                                                      className="text-sm text-gray-300"
+                                                    >
+                                                      CVV{" "}
+                                                      <span className="text-red-400">
+                                                        *
+                                                      </span>
+                                                    </Label>
+                                                    <Input
+                                                      id="cvv"
+                                                      type="text"
+                                                      placeholder="123"
+                                                      value={creditCardData.cvv}
+                                                      onChange={(e) =>
+                                                        handleCVVChange(
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      onBlur={() => {
+                                                        const error = validateCVV(
+                                                          creditCardData.cvv,
+                                                        );
+                                                        setCreditCardErrors({
+                                                          ...creditCardErrors,
+                                                          cvv: error,
+                                                        });
+                                                      }}
+                                                      maxLength={4}
+                                                      className={cn(
+                                                        "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
+                                                        creditCardErrors.cvv &&
+                                                        "border-red-500 focus-visible:ring-red-500",
+                                                      )}
+                                                    />
+                                                    {creditCardErrors.cvv && (
+                                                      <p className="text-xs text-red-400">
+                                                        {creditCardErrors.cvv}
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                <div className="rounded-md bg-blue-500/10 p-3">
+                                                  <p className="flex items-start gap-2 text-xs text-blue-300">
+                                                    <Image
+                                                      alt=""
+                                                      src={secure}
+                                                      className="mt-0.5 h-4 w-4"
+                                                    />
+                                                    Informasi kartu Anda aman dan
+                                                    dienkripsi. Kami tidak
+                                                    menyimpan detail kartu Anda.
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </div>
+                        )}
+
+                      {/* Bank Transfer Group */}
+                      {paymentMethods.filter(
+                        (pm: any) => pm.type === "MOBILE_BANKING",
+                      ).length > 0 && (
+                          <div className="overflow-hidden rounded-md bg-gray-800">
+                            <AccordionItem
+                              value="bank-transfer"
+                              className="group border-none"
+                            >
+                              <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
+                                <span className="font-medium tracking-wide text-white uppercase">
+                                  🏦 Transfer Bank
+                                </span>
+                                <div className="flex items-center">
+                                  <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="bg-[#313C4C] p-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                  {paymentMethods
+                                    .filter(
+                                      (pm: any) => pm.type === "MOBILE_BANKING",
+                                    )
+                                    .map((pm: any) => {
+                                      const isSelected =
+                                        selectedPaymentMethod === pm.id;
+                                      return (
                                         <div
+                                          key={pm.id}
                                           onClick={() =>
                                             setSelectedPaymentMethod(pm.id)
                                           }
@@ -1263,13 +1687,6 @@ export default function ProductDetailClient({
                                               width={80}
                                               height={48}
                                               className="rounded-md bg-white object-contain p-2"
-                                            />
-                                          )}
-                                          {isQRIS && !pm.icon && (
-                                            <Image
-                                              src={qris}
-                                              alt="QRIS"
-                                              className="w-20 rounded-sm bg-white object-contain px-2 py-2"
                                             />
                                           )}
                                           <h3 className="text-center text-sm font-medium text-white">
@@ -1299,439 +1716,21 @@ export default function ProductDetailClient({
                                                   </p>
                                                   {(pmTotal.paymentFee > 0 ||
                                                     pmTotal.vatAmount > 0) && (
-                                                    <p className="text-xs text-gray-400">
-                                                      Termasuk biaya & PPN
-                                                    </p>
-                                                  )}
+                                                      <p className="text-xs text-gray-400">
+                                                        Termasuk biaya & PPN
+                                                      </p>
+                                                    )}
                                                 </div>
                                               );
                                             })()}
                                         </div>
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </div>
-                      )}
-
-                      {/* Credit Card Group */}
-                      {paymentMethods.filter(
-                        (pm: any) => pm.type === "CREDIT_CARD",
-                      ).length > 0 && (
-                        <div className="overflow-hidden rounded-md bg-gray-800">
-                          <AccordionItem
-                            value="credit-card"
-                            className="group border-none"
-                          >
-                            <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
-                              <span className="font-medium tracking-wide text-white uppercase">
-                                💳 Kartu Kredit
-                              </span>
-                              <div className="flex items-center">
-                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="bg-[#313C4C] p-4">
-                              <div className="space-y-4">
-                                {paymentMethods
-                                  .filter(
-                                    (pm: any) => pm.type === "CREDIT_CARD",
-                                  )
-                                  .map((pm: any) => {
-                                    const isSelected =
-                                      selectedPaymentMethod === pm.id;
-                                    return (
-                                      <div key={pm.id}>
-                                        <div
-                                          onClick={() => {
-                                            setSelectedPaymentMethod(pm.id);
-                                            if (!isSelected) {
-                                              setCreditCardData({
-                                                cardNumber: "",
-                                                cardholderName: "",
-                                                expiryDate: "",
-                                                cvv: "",
-                                              });
-                                              setCreditCardErrors({});
-                                            }
-                                          }}
-                                          className={cn(
-                                            "flex cursor-pointer items-center justify-between rounded-md bg-[#2C3544] px-6 py-4 ring-2 transition-all duration-200",
-                                            isSelected
-                                              ? "ring-primary"
-                                              : "hover:ring-primary ring-transparent",
-                                          )}
-                                        >
-                                          <div className="flex items-center gap-4">
-                                            {pm.icon && (
-                                              <Image
-                                                src={pm.icon}
-                                                alt={pm.name}
-                                                width={48}
-                                                height={48}
-                                                className="rounded-md bg-white object-contain p-2"
-                                              />
-                                            )}
-                                            <div className="flex flex-col gap-2">
-                                              <h2 className="text-sm font-medium text-white">
-                                                {pm.name}
-                                              </h2>
-                                              {pm.description && (
-                                                <p className="text-xs text-gray-400">
-                                                  {pm.description}
-                                                </p>
-                                              )}
-                                            </div>
-                                          </div>
-                                          {selectedItemData &&
-                                            (() => {
-                                              const baseAmount =
-                                                baseAmountAfterCoupon;
-                                              const pmTotal =
-                                                calculateTotalWithFees(
-                                                  baseAmount,
-                                                  pm,
-                                                );
-                                              return (
-                                                <div className="text-right">
-                                                  <p className="font-medium text-white">
-                                                    Rp{" "}
-                                                    {pmTotal.totalAmount.toLocaleString(
-                                                      "id-ID",
-                                                    )}
-                                                  </p>
-                                                  {(pmTotal.paymentFee > 0 ||
-                                                    pmTotal.vatAmount > 0) && (
-                                                    <p className="text-xs text-gray-400">
-                                                      Termasuk biaya & PPN
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              );
-                                            })()}
-                                        </div>
-
-                                        {isSelected && (
-                                          <div className="border-primary/30 mt-4 rounded-lg border bg-[#2C3544] p-4">
-                                            <h4 className="mb-4 text-sm font-semibold text-white">
-                                              Informasi Kartu Kredit
-                                            </h4>
-                                            <div className="space-y-4">
-                                              <div className="space-y-2">
-                                                <Label
-                                                  htmlFor="cardNumber"
-                                                  className="text-sm text-gray-300"
-                                                >
-                                                  Nomor Kartu{" "}
-                                                  <span className="text-red-400">
-                                                    *
-                                                  </span>
-                                                </Label>
-                                                <Input
-                                                  id="cardNumber"
-                                                  type="text"
-                                                  placeholder="1234 5678 9012 3456"
-                                                  value={
-                                                    creditCardData.cardNumber
-                                                  }
-                                                  onChange={(e) =>
-                                                    handleCardNumberChange(
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  onBlur={() => {
-                                                    const error =
-                                                      validateCardNumber(
-                                                        creditCardData.cardNumber,
-                                                      );
-                                                    setCreditCardErrors({
-                                                      ...creditCardErrors,
-                                                      cardNumber: error,
-                                                    });
-                                                  }}
-                                                  maxLength={19}
-                                                  className={cn(
-                                                    "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
-                                                    creditCardErrors.cardNumber &&
-                                                      "border-red-500 focus-visible:ring-red-500",
-                                                  )}
-                                                />
-                                                {creditCardErrors.cardNumber && (
-                                                  <p className="text-xs text-red-400">
-                                                    {
-                                                      creditCardErrors.cardNumber
-                                                    }
-                                                  </p>
-                                                )}
-                                              </div>
-
-                                              <div className="space-y-2">
-                                                <Label
-                                                  htmlFor="cardholderName"
-                                                  className="text-sm text-gray-300"
-                                                >
-                                                  Nama di Kartu{" "}
-                                                  <span className="text-red-400">
-                                                    *
-                                                  </span>
-                                                </Label>
-                                                <Input
-                                                  id="cardholderName"
-                                                  type="text"
-                                                  placeholder="JOHN DOE"
-                                                  value={
-                                                    creditCardData.cardholderName
-                                                  }
-                                                  onChange={(e) => {
-                                                    setCreditCardData({
-                                                      ...creditCardData,
-                                                      cardholderName:
-                                                        e.target.value.toUpperCase(),
-                                                    });
-                                                    if (
-                                                      creditCardErrors.cardholderName
-                                                    ) {
-                                                      setCreditCardErrors({
-                                                        ...creditCardErrors,
-                                                        cardholderName:
-                                                          undefined,
-                                                      });
-                                                    }
-                                                  }}
-                                                  onBlur={() => {
-                                                    const error =
-                                                      !creditCardData.cardholderName.trim()
-                                                        ? "Cardholder name is required"
-                                                        : undefined;
-                                                    setCreditCardErrors({
-                                                      ...creditCardErrors,
-                                                      cardholderName: error,
-                                                    });
-                                                  }}
-                                                  className={cn(
-                                                    "border-gray-700 bg-gray-800 text-white uppercase placeholder:text-gray-500",
-                                                    creditCardErrors.cardholderName &&
-                                                      "border-red-500 focus-visible:ring-red-500",
-                                                  )}
-                                                />
-                                                {creditCardErrors.cardholderName && (
-                                                  <p className="text-xs text-red-400">
-                                                    {
-                                                      creditCardErrors.cardholderName
-                                                    }
-                                                  </p>
-                                                )}
-                                              </div>
-
-                                              <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                  <Label
-                                                    htmlFor="expiryDate"
-                                                    className="text-sm text-gray-300"
-                                                  >
-                                                    Tanggal Kadaluarsa{" "}
-                                                    <span className="text-red-400">
-                                                      *
-                                                    </span>
-                                                  </Label>
-                                                  <Input
-                                                    id="expiryDate"
-                                                    type="text"
-                                                    placeholder="MM/YY"
-                                                    value={
-                                                      creditCardData.expiryDate
-                                                    }
-                                                    onChange={(e) =>
-                                                      handleExpiryDateChange(
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    onBlur={() => {
-                                                      const error =
-                                                        validateExpiryDate(
-                                                          creditCardData.expiryDate,
-                                                        );
-                                                      setCreditCardErrors({
-                                                        ...creditCardErrors,
-                                                        expiryDate: error,
-                                                      });
-                                                    }}
-                                                    maxLength={5}
-                                                    className={cn(
-                                                      "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
-                                                      creditCardErrors.expiryDate &&
-                                                        "border-red-500 focus-visible:ring-red-500",
-                                                    )}
-                                                  />
-                                                  {creditCardErrors.expiryDate && (
-                                                    <p className="text-xs text-red-400">
-                                                      {
-                                                        creditCardErrors.expiryDate
-                                                      }
-                                                    </p>
-                                                  )}
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                  <Label
-                                                    htmlFor="cvv"
-                                                    className="text-sm text-gray-300"
-                                                  >
-                                                    CVV{" "}
-                                                    <span className="text-red-400">
-                                                      *
-                                                    </span>
-                                                  </Label>
-                                                  <Input
-                                                    id="cvv"
-                                                    type="text"
-                                                    placeholder="123"
-                                                    value={creditCardData.cvv}
-                                                    onChange={(e) =>
-                                                      handleCVVChange(
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    onBlur={() => {
-                                                      const error = validateCVV(
-                                                        creditCardData.cvv,
-                                                      );
-                                                      setCreditCardErrors({
-                                                        ...creditCardErrors,
-                                                        cvv: error,
-                                                      });
-                                                    }}
-                                                    maxLength={4}
-                                                    className={cn(
-                                                      "border-gray-700 bg-gray-800 text-white placeholder:text-gray-500",
-                                                      creditCardErrors.cvv &&
-                                                        "border-red-500 focus-visible:ring-red-500",
-                                                    )}
-                                                  />
-                                                  {creditCardErrors.cvv && (
-                                                    <p className="text-xs text-red-400">
-                                                      {creditCardErrors.cvv}
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              </div>
-
-                                              <div className="rounded-md bg-blue-500/10 p-3">
-                                                <p className="flex items-start gap-2 text-xs text-blue-300">
-                                                  <Image
-                                                    alt=""
-                                                    src={secure}
-                                                    className="mt-0.5 h-4 w-4"
-                                                  />
-                                                  Informasi kartu Anda aman dan
-                                                  dienkripsi. Kami tidak
-                                                  menyimpan detail kartu Anda.
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </div>
-                      )}
-
-                      {/* Bank Transfer Group */}
-                      {paymentMethods.filter(
-                        (pm: any) => pm.type === "MOBILE_BANKING",
-                      ).length > 0 && (
-                        <div className="overflow-hidden rounded-md bg-gray-800">
-                          <AccordionItem
-                            value="bank-transfer"
-                            className="group border-none"
-                          >
-                            <AccordionTrigger className="group flex h-10 w-full items-center justify-between rounded-none border-none bg-black/40 px-6 py-4 hover:no-underline [&>svg]:hidden">
-                              <span className="font-medium tracking-wide text-white uppercase">
-                                🏦 Transfer Bank
-                              </span>
-                              <div className="flex items-center">
-                                <ChevronDown className="h-5 w-5 text-white transition-transform duration-300 ease-out group-data-[state=open]:rotate-180" />
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="bg-[#313C4C] p-4">
-                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                {paymentMethods
-                                  .filter(
-                                    (pm: any) => pm.type === "MOBILE_BANKING",
-                                  )
-                                  .map((pm: any) => {
-                                    const isSelected =
-                                      selectedPaymentMethod === pm.id;
-                                    return (
-                                      <div
-                                        key={pm.id}
-                                        onClick={() =>
-                                          setSelectedPaymentMethod(pm.id)
-                                        }
-                                        className={cn(
-                                          "flex cursor-pointer flex-col items-center gap-3 rounded-lg bg-[#2C3544] p-4 transition-all duration-200",
-                                          isSelected
-                                            ? "ring-primary ring-2"
-                                            : "hover:ring-primary hover:ring-2",
-                                        )}
-                                      >
-                                        {pm.icon && (
-                                          <Image
-                                            src={pm.icon}
-                                            alt={pm.name}
-                                            width={80}
-                                            height={48}
-                                            className="rounded-md bg-white object-contain p-2"
-                                          />
-                                        )}
-                                        <h3 className="text-center text-sm font-medium text-white">
-                                          {pm.name}
-                                        </h3>
-                                        {pm.description && (
-                                          <p className="text-center text-xs text-gray-400">
-                                            {pm.description}
-                                          </p>
-                                        )}
-                                        {selectedItemData &&
-                                          (() => {
-                                            const baseAmount =
-                                              baseAmountAfterCoupon;
-                                            const pmTotal =
-                                              calculateTotalWithFees(
-                                                baseAmount,
-                                                pm,
-                                              );
-                                            return (
-                                              <div className="w-full border-t border-gray-600 pt-2 text-center">
-                                                <p className="text-sm font-medium text-white">
-                                                  Rp{" "}
-                                                  {pmTotal.totalAmount.toLocaleString(
-                                                    "id-ID",
-                                                  )}
-                                                </p>
-                                                {(pmTotal.paymentFee > 0 ||
-                                                  pmTotal.vatAmount > 0) && (
-                                                  <p className="text-xs text-gray-400">
-                                                    Termasuk biaya & PPN
-                                                  </p>
-                                                )}
-                                              </div>
-                                            );
-                                          })()}
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </div>
-                      )}
+                                      );
+                                    })}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </div>
+                        )}
                     </Accordion>
                     {/* Convenience Store Methods */}
                     {false &&
@@ -1834,10 +1833,10 @@ export default function ProductDetailClient({
                                                   </p>
                                                   {(pmTotal.paymentFee > 0 ||
                                                     pmTotal.vatAmount > 0) && (
-                                                    <p className="text-xs text-gray-400">
-                                                      Termasuk biaya & PPN
-                                                    </p>
-                                                  )}
+                                                      <p className="text-xs text-gray-400">
+                                                        Termasuk biaya & PPN
+                                                      </p>
+                                                    )}
                                                 </div>
                                               );
                                             })()}
@@ -2108,7 +2107,7 @@ export default function ProductDetailClient({
                                       )}
                                       {coupon.maxDiscount &&
                                         coupon.discountType ===
-                                          "PERCENTAGE" && (
+                                        "PERCENTAGE" && (
                                           <p className="text-xs text-gray-500">
                                             Maks. diskon: Rp{" "}
                                             {coupon.maxDiscount.toLocaleString(
@@ -2123,7 +2122,7 @@ export default function ProductDetailClient({
                                   <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60">
                                     <p className="text-xs font-medium text-gray-300">
                                       {productPrice * quantity <
-                                      (coupon.minPurchase || 0)
+                                        (coupon.minPurchase || 0)
                                         ? `Min. belanja Rp ${coupon.minPurchase?.toLocaleString("id-ID")}`
                                         : "Tidak dapat digunakan"}
                                     </p>

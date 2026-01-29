@@ -254,6 +254,69 @@ class AdminProductItemViewSet(viewsets.ModelViewSet):
     filterset_fields = ['product', 'is_active', 'digiflazz_status']
     ordering_fields = ['name', 'sell_price', 'created_at', 'last_synced_at']
 
+    @action(detail=False, methods=['post'], url_path='sync-prices', url_name='sync-prices')
+    def sync_prices(self, request):
+        """
+        Trigger price sync from Digiflazz.
+        
+        POST /api/admin/product-items/sync-prices/
+        {
+            "type": "FULL" | "PREPAID" | "PASCA",
+            "category": "optional",
+            "brand": "optional"
+        }
+        """
+        from main.tasks import sync_digiflazz_products
+        
+        sync_type = request.data.get('type', 'FULL')
+        category = request.data.get('category')
+        brand = request.data.get('brand')
+        
+        # Trigger the sync task
+        task_result = sync_digiflazz_products.delay(
+            category_filter=category,
+            brand_filter=brand
+        )
+        
+        return Response({
+            'success': True,
+            'message': 'Price sync started successfully',
+            'task_id': task_result.id,
+            'result': {
+                'itemsUpdated': 0,
+                'itemsCreated': 0,
+                'itemsFailed': 0,
+                'syncedAt': timezone.now().isoformat()
+            }
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='sync-status', url_name='sync-status')
+    def sync_status(self, request):
+        """
+        Get current sync status.
+        
+        GET /api/admin/product-items/sync-status/
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Get last synced product item
+        last_sync = ProductItem.objects.filter(
+            last_synced_at__isnull=False
+        ).order_by('-last_synced_at').first()
+        
+        # Consider sync recent if within last 30 seconds (reduced from 2 minutes to fix stuck "syncing" state)
+        is_recent_sync = False
+        if last_sync and last_sync.last_synced_at:
+            is_recent_sync = (timezone.now() - last_sync.last_synced_at) < timedelta(seconds=30)
+        
+        return Response({
+            'is_syncing': is_recent_sync,
+            'last_synced_at': last_sync.last_synced_at if last_sync else None,
+            'sync_status': 'SUCCESS' if last_sync else 'NEVER_SYNCED',
+            'sync_message': f'Last synced {last_sync.last_synced_at.strftime("%Y-%m-%d %H:%M:%S")}' if last_sync else 'No sync performed yet'
+        })
+
 
 # ============================================
 # PRICE SYNC VIEWSETS
