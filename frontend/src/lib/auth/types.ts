@@ -12,6 +12,7 @@ export interface User {
   full_name?: string;
   profile_picture_url?: string;
   role?: string;
+  google_id?: string | null;
   is_staff: boolean;
   is_superuser: boolean;
   is_active: boolean;
@@ -43,8 +44,10 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  name?: string;
-  phone?: string;
+  full_name?: string; // Full name (Django backend uses full_name)
+  contact_phone?: string; // Phone number (Django backend uses contact_phone)
+  name?: string; // Deprecated: backward compatibility
+  phone?: string; // Deprecated: backward compatibility
 }
 
 export interface ChangePasswordRequest {

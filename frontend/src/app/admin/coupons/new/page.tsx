@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateCoupon, DiscountType } from "@/lib/coupons";
+import { localToUTC } from "@/lib/date-utils";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 export default function CouponAddPage() {

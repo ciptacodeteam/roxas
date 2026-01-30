@@ -164,7 +164,7 @@ export function PhoneInputWithCountry({
               aria-expanded={open}
               disabled={disabled}
               className={cn(
-                "w-[140px] justify-between bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-gray-100",
+                "w-35 justify-between bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-gray-100",
                 error && !isValid && "border-red-500"
               )}
             >
@@ -174,7 +174,7 @@ export function PhoneInputWithCountry({
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0 bg-gray-800 border-gray-700">
+          <PopoverContent className="w-50 p-0 bg-gray-800 border-gray-700">
             <Command className="bg-gray-800">
               <CommandInput 
                 placeholder="Search country..." 
@@ -222,7 +222,7 @@ export function PhoneInputWithCountry({
             placeholder={placeholder}
             disabled={disabled}
             className={cn(
-              "bg-gray-800 text-gray-100 border-gray-700",
+              "bg-gray-800 text-gray-100 border-gray-700 placeholder-white",
               error && !isValid && "border-red-500"
             )}
           />

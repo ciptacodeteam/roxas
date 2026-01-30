@@ -23,7 +23,7 @@ export class MarketingBannersApiError extends Error {
 }
 
 /**
- * Get all marketing banners with optional filters
+ * Get all marketing banners with optional filters (Admin)
  */
 export async function getMarketingBanners(
   params?: MarketingBannerListParams
@@ -56,6 +56,33 @@ export async function getMarketingBanners(
   
   // Handle non-paginated response (array)
   return data;
+}
+
+/**
+ * Get active marketing banners (Public)
+ */
+export async function getActiveMarketingBanners(): Promise<MarketingBanner[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/banners/`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  if (!response.ok) {
+    throw new MarketingBannersApiError("Failed to fetch active marketing banners");
+  }
+
+  const data = await response.json();
+  
+  // Handle paginated response from Django REST Framework
+  if (data && typeof data === 'object' && 'results' in data) {
+    return data.results;
+  }
+  
+  // Handle non-paginated response (array)
+  return Array.isArray(data) ? data : [];
 }
 
 /**

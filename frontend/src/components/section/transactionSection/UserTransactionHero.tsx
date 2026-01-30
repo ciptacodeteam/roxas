@@ -24,7 +24,7 @@ export default function UserTransactionHero() {
             <Image
               src={animation3}
               alt="Character"
-              className="pointer-events-none absolute right-20 bottom-0 w-[300px]"
+              className="pointer-events-none absolute right-20 bottom-0 w-75"
             />
           </div>
         </div>

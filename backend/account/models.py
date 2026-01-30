@@ -29,6 +29,14 @@ class CustomUser(AbstractUser):
         verbose_name="Email Verified At",
         help_text=_("Timestamp when email was verified."),
     )
+    google_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name="Google ID",
+        help_text=_("Google OAuth user ID for social login."),
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated At")
     
     # We use email as the unique identifier instead of username/first/last name.
@@ -83,6 +91,7 @@ class CustomUser(AbstractUser):
             models.Index(fields=["role", "is_active"]),
             models.Index(fields=["email_verified"]),
             models.Index(fields=["is_active", "role", "email_verified"]),
+            models.Index(fields=["google_id"]),
         ]
 
 

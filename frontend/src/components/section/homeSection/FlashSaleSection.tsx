@@ -66,7 +66,7 @@ const pad = (num: number): string => String(num).padStart(2, "0");
 export default function FlashSaleSection() {
   const { data, isLoading } = useActiveFlashSales();
   const flashSale = data?.[0];
-  const endTime = flashSale?.endTime || null;
+  const endTime = flashSale?.end_time || null;
   const { timeLeft, isClient } = useFlashSaleCountdown(endTime);
 
   if (!isClient || isLoading) {

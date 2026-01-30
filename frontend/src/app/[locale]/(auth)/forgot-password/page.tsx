@@ -1,172 +1,210 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import logo from "public/img/logo1.webp";
 import img4 from "public/img/img-4.webp";
-import logo from "public/img/logo.webp";
 
 import { useState } from "react";
-import Image from "next/image";
-import { Input } from "@/components/ui/input";
-import { Label } from "@radix-ui/react-label";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { usePathname, useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useRouter, usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Mail, Loader2 } from "lucide-react";
 
-// ⚡ Validation Schema
+import Image from "next/image";
+import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Label } from "@radix-ui/react-label";
+import { Button } from "@/components/ui/button";
+import { useRequestPasswordReset } from "@/lib/password-reset";
+
+// Validation Schema
 const ForgotPasswordSchema = z.object({
   email: z.string().email("Email tidak valid"),
 });
 
+type ForgotPasswordFormData = z.infer<typeof ForgotPasswordSchema>;
+
 export default function ForgotPasswordPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const locale = pathname?.split("/")[1] || "id";
+  const locale = pathname?.split("/")[1] ?? "id";
+  const [emailSent, setEmailSent] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<z.infer<typeof ForgotPasswordSchema>>({
+    getValues,
+  } = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(ForgotPasswordSchema),
   });
 
-  const onSubmit = async (data: z.infer<typeof ForgotPasswordSchema>) => {
-    setIsSubmitting(true);
-
-    const loadingToast = toast.loading("Mengirim email reset password...", {
-      description: "Mohon tunggu sebentar...",
-    });
-
-    try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: data.email }),
+  const { mutate: requestReset, isPending } = useRequestPasswordReset({
+    onSuccess: (data) => {
+      setEmailSent(true);
+      toast.success("Email Terkirim!", {
+        description: data.detail,
       });
-
-      const result = await response.json();
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      if (response.ok && result.success) {
-        toast.success("Email Terkirim", {
-          description: "Silakan cek inbox email Anda untuk reset password. Link berlaku selama 1 jam.",
-        });
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          router.push(`/${locale}/login`);
-        }, 2000);
-      } else {
-        toast.error("Gagal Mengirim Email", {
-          description: result.message || "Terjadi kesalahan. Silakan coba lagi.",
-        });
-      }
-    } catch (error) {
-      console.error("Forgot password error:", error);
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
+    },
+    onError: (error) => {
       toast.error("Gagal Mengirim Email", {
-        description: "Terjadi kesalahan. Silakan coba lagi.",
+        description: error.message,
       });
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+  });
+
+  const onSubmit = (data: ForgotPasswordFormData) => {
+    requestReset(data);
   };
 
-  return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src={img4}
-          alt="Background"
-          fill
-          className="object-cover opacity-20"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-      </div>
+  if (emailSent) {
+    return (
+      <section>
+        <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
+          <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-md px-4 py-8">
-        <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 p-8">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <Link href={`/${locale}`}>
-              <Image
-                src={logo}
-                alt="Roxas Store Logo"
-                width={120}
-                height={120}
-                className="object-contain"
-                priority
-              />
-            </Link>
+          <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
+            <div className="bg-card rounded-2xl p-8 max-w-md w-full">
+              <div className="flex flex-col items-center text-center">
+                {/* Logo */}
+                <div className="mb-6">
+                  <Image src={logo} alt="Logo" width={80} height={80} />
+                </div>
+
+                {/* Success Icon */}
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/20">
+                  <Mail className="h-10 w-10 text-green-500" />
+                </div>
+
+                {/* Title */}
+                <h1 className="mb-3 text-2xl font-bold text-white">
+                  Email Terkirim!
+                </h1>
+
+                {/* Description */}
+                <p className="mb-6 text-sm text-gray-300">
+                  Kami telah mengirim link reset password ke{" "}
+                  <span className="font-semibold text-white">
+                    {getValues("email")}
+                  </span>
+                  . Silakan cek inbox atau folder spam Anda.
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex w-full flex-col gap-3">
+                  <Button
+                    onClick={() => router.push(`/${locale}/login`)}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    Kembali ke Login
+                  </Button>
+
+                  <Button
+                    onClick={() => setEmailSent(false)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Kirim Ulang Email
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
+    );
+  }
 
-          {/* Title */}
-          <h1 className="text-2xl font-bold text-white text-center mb-2">
-            Lupa Kata Sandi?
-          </h1>
-          <p className="text-gray-400 text-center text-sm mb-6">
-            Masukkan email Anda dan kami akan mengirimkan link untuk reset password
-          </p>
+  return (
+    <section>
+      <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
+        <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Email Input */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-300">
-                Email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="nama@email.com"
-                  className="pl-10 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-rose-500 focus:ring-rose-500"
-                  {...register("email")}
+        <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
+          <div className="bg-card rounded-2xl p-6">
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Image Left - Hidden on mobile */}
+              <div className="hidden lg:block">
+                <Image
+                  src={img4}
+                  alt=""
+                  className="w-125 rounded-xl bg-cover bg-no-repeat"
                 />
               </div>
-              {errors.email && (
-                <p className="text-sm text-red-400">{errors.email.message}</p>
-              )}
+
+              {/* Form */}
+              <div className="flex w-full flex-col justify-center max-w-md">
+                {/* Logo */}
+                <div className="mb-6 flex justify-center">
+                  <Image src={logo} alt="Logo" width={80} height={80} />
+                </div>
+
+                {/* Title */}
+                <div className="mb-6 text-center">
+                  <h1 className="mb-2 text-2xl font-bold text-white">
+                    Lupa Password?
+                  </h1>
+                  <p className="text-sm text-gray-300">
+                    Masukkan email Anda dan kami akan mengirimkan link untuk
+                    reset password.
+                  </p>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  {/* Email Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm text-white">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="nama@email.com"
+                      className="bg-muted-foreground text-white placeholder-white"
+                      {...register("email")}
+                    />
+                    {errors.email && (
+                      <p className="text-xs text-red-500">
+                        {errors.email.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    disabled={isPending}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Mengirim Email...
+                      </>
+                    ) : (
+                      "Kirim Link Reset Password"
+                    )}
+                  </Button>
+
+                  {/* Back to Login */}
+                  <div className="text-center">
+                    <Link
+                      href={`/${locale}/login`}
+                      className="inline-flex items-center text-sm text-purple-400 hover:text-purple-300"
+                    >
+                      <ArrowLeft className="mr-1 h-4 w-4" />
+                      Kembali ke Login
+                    </Link>
+                  </div>
+                </form>
+              </div>
             </div>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-semibold py-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Mengirim..." : "Kirim Link Reset Password"}
-            </Button>
-          </form>
-
-          {/* Back to Login */}
-          <div className="mt-6 text-center">
-            <Link
-              href={`/${locale}/login`}
-              className="text-sm text-rose-400 hover:text-rose-300 transition-colors"
-            >
-              ← Kembali ke Login
-            </Link>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
-}
-
+} 

@@ -120,7 +120,7 @@ export default function HeroSection() {
                   const slideContent = (
                     <div className="relative aspect-16/6 w-full overflow-hidden lg:rounded-2xl rounded-md">
                       <Image
-                        src={banner.image}
+                        src={banner.image || "/img/img1.webp"}
                         alt={banner.title || banner.description || "Banner"}
                         fill
                         priority

@@ -135,7 +135,7 @@ class ProductItemPublicSerializer(serializers.ModelSerializer):
         model = ProductItem
         fields = [
             'id', 'name', 'sku_code', 'icon_image', 'group',
-            'sell_price', 'normal_price', 'discounted_price', 'sort_order'
+            'sell_price', 'normal_price', 'discounted_price', 'is_active', 'sort_order'
         ]
         read_only_fields = ['id']
 
@@ -144,16 +144,36 @@ class ProductSerializer(serializers.ModelSerializer):
     """Serializer for Product with items."""
     items = ProductItemPublicSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_details = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = [
-            'id', 'category', 'category_name', 'name', 'slug',
+            'id', 'category', 'category_name', 'category_details', 'name', 'slug',
             'description', 'image', 'banner_image', 'input_fields',
             'instructions', 'is_active', 'sort_order', 'items',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_category_details(self, obj):
+        """Get category details including instruction images."""
+        if obj.category:
+            return {
+                'id': str(obj.category.id),
+                'name': obj.category.name,
+                'slug': obj.category.slug,
+                'instruction_images': [
+                    {
+                        'id': str(img.id),
+                        'image': img.image.url if img.image else None,
+                        'alt_text': img.alt_text,
+                        'sort_order': img.sort_order
+                    }
+                    for img in obj.category.instruction_images.all().order_by('sort_order')
+                ]
+            }
+        return None
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -256,6 +276,8 @@ class FlashSaleItemSerializer(serializers.ModelSerializer):
     """Serializer for FlashSaleItem model."""
     product_item_name = serializers.CharField(source='product_item.name', read_only=True)
     product_name = serializers.CharField(source='product_item.product.name', read_only=True)
+    product_slug = serializers.CharField(source='product_item.product.slug', read_only=True)
+    icon_image = serializers.CharField(source='product_item.icon_image', read_only=True)
     normal_price = serializers.IntegerField(source='product_item.normal_price', read_only=True)
     discount_percentage = serializers.SerializerMethodField()
     
@@ -263,8 +285,8 @@ class FlashSaleItemSerializer(serializers.ModelSerializer):
         model = FlashSaleItem
         fields = [
             'id', 'flash_sale', 'product_item', 'product_item_name',
-            'product_name', 'sale_price', 'normal_price', 'discount_percentage',
-            'stock', 'sold_count'
+            'product_name', 'product_slug', 'icon_image', 'sale_price', 
+            'normal_price', 'discount_percentage', 'stock', 'sold_count'
         ]
         read_only_fields = ['id', 'sold_count']
     

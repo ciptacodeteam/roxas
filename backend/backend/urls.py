@@ -26,6 +26,7 @@ from account.views import (
     ResetPasswordConfirmView,
     ActivateDeactivateAccountView,
     RegisterCustomerView,
+    GoogleAuthView,
 )
 
 router = DefaultRouter()
@@ -52,6 +53,8 @@ api_v1_patterns = [
     path("token/me/", CurrentUserView.as_view(), name="token_me"),
     # Public registration endpoints
     path("register/customer/", RegisterCustomerView.as_view(), name="register-customer"),
+    # Google OAuth endpoint
+    path("auth/google/", GoogleAuthView.as_view(), name="google-auth"),
     # Password change endpoint (works for all user types)
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     # Email verification endpoints

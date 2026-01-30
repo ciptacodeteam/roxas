@@ -185,7 +185,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['name', 'sort_order', 'created_at']
     
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True).select_related('category')
+        queryset = Product.objects.filter(is_active=True).select_related('category').prefetch_related('items')
         
         # Filter by category if provided
         category_slug = self.request.query_params.get('category')

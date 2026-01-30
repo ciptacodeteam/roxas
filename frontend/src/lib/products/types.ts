@@ -1,8 +1,17 @@
 export interface Product {
     id: string;
-    category: {
+    category: string;
+    category_name: string;
+    category_details?: {
         id: string;
         name: string;
+        slug: string;
+        instruction_images: Array<{
+            id: string;
+            image: string | null;
+            alt_text: string;
+            sort_order: number;
+        }>;
     };
     name: string;
     slug: string;
@@ -26,12 +35,14 @@ export interface ProductItem {
     product: string;
     name: string;
     sku_code: string;
-    buy_price: number;
+    icon_image: string | null;
+    group: string;
+    base_price: number;
+    normal_price: number;
+    discounted_price: number;
     sell_price: number;
-    profit_margin: number;
     is_active: boolean;
     sort_order: number;
-    stock_status: 'available' | 'limited' | 'out_of_stock';
     created_at: string;
     updated_at: string;
 }

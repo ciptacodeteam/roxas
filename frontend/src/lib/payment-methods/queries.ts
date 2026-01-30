@@ -17,6 +17,7 @@ import {
   createPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
+  getActivePaymentMethods,
 } from "./api";
 import type {
   PaymentMethod,
@@ -77,16 +78,18 @@ export function useCreatePaymentMethod(
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const { onSuccess, ...otherOptions } = options || {};
+
+  return useMutation<PaymentMethod, Error, CreatePaymentMethodRequest, unknown>({
     mutationFn: createPaymentMethod,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, meta) => {
       // Invalidate all payment method lists
       queryClient.invalidateQueries({ queryKey: paymentMethodsKeys.lists() });
       
-      // Call the onSuccess callback if provided
-      options?.onSuccess?.(data, variables, context);
+      // Call the original onSuccess if provided
+      onSuccess?.(data, variables, context, meta);
     },
-    ...options,
+    ...otherOptions,
   });
 }
 
@@ -102,9 +105,11 @@ export function useUpdatePaymentMethod(
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const { onSuccess, ...otherOptions } = options || {};
+
+  return useMutation<PaymentMethod, Error, { id: string; data: UpdatePaymentMethodRequest }, unknown>({
     mutationFn: ({ id, data }) => updatePaymentMethod(id, data),
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, meta) => {
       // Invalidate all payment method lists
       queryClient.invalidateQueries({ queryKey: paymentMethodsKeys.lists() });
       
@@ -113,10 +118,10 @@ export function useUpdatePaymentMethod(
         queryKey: paymentMethodsKeys.detail(variables.id),
       });
       
-      // Call the onSuccess callback if provided
-      options?.onSuccess?.(data, variables, context);
+      // Call the original onSuccess if provided
+      onSuccess?.(data, variables, context, meta);
     },
-    ...options,
+    ...otherOptions,
   });
 }
 
@@ -128,9 +133,11 @@ export function useDeletePaymentMethod(
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const { onSuccess, ...otherOptions } = options || {};
+
+  return useMutation<void, Error, string, unknown>({
     mutationFn: deletePaymentMethod,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, meta) => {
       // Invalidate all payment method lists
       queryClient.invalidateQueries({ queryKey: paymentMethodsKeys.lists() });
       
@@ -139,9 +146,26 @@ export function useDeletePaymentMethod(
         queryKey: paymentMethodsKeys.detail(variables),
       });
       
-      // Call the onSuccess callback if provided
-      options?.onSuccess?.(data, variables, context);
+      // Call the original onSuccess if provided
+      onSuccess?.(data, variables, context, meta);
     },
+    ...otherOptions,
+  });
+}
+
+/**
+ * Query: Get active payment methods (Public)
+ */
+export function useActivePaymentMethods(
+  options?: Omit<
+    UseQueryOptions<PaymentMethod[], Error>,
+    "queryKey" | "queryFn"
+  >
+) {
+  return useQuery({
+    queryKey: [...paymentMethodsKeys.all, "active"] as const,
+    queryFn: () => getActivePaymentMethods(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
 }

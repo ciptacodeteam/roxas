@@ -1,28 +1,6 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import ProductDetailClient from "./ProductDetailClient";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-async function getProductBySlug(slug: string) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/products/${slug}/`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch product:", error);
-    return null;
-  }
-}
+import { getActiveProductBySlug } from "@/lib/products/api";
 
 export default async function ProductDetailPage({
   params,
@@ -31,7 +9,12 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
 
-  const product = await getProductBySlug(slug);
+  let product: any = null;
+  try {
+    product = await getActiveProductBySlug(slug);
+  } catch (error) {
+    console.error("Failed to fetch product:", error);
+  }
 
   // Transform API response to match expected format
   let productData: any = undefined;
@@ -42,9 +25,8 @@ export default async function ProductDetailPage({
       slug: product.slug,
       description: product.description,
       image: product.image || "/img/ffcover.webp",
-      bannerImage: product.banner_image,
-      canvas: product.banner_image || "/img/img-2.webp",
-      inputFields: Array.isArray(product.input_fields)
+      banner_image: product.banner_image,
+      input_fields: Array.isArray(product.input_fields)
         ? product.input_fields
           .filter((field): field is string => typeof field === "string")
           .map((field) => ({
@@ -68,22 +50,23 @@ export default async function ProductDetailPage({
           }))
         : [],
       items: (product.items || [])
+        .filter((item: any) => item.is_active)
         .map((item: any) => ({
           id: item.id,
           name: item.name,
-          iconImage: item.icon_image,
+          icon_image: item.icon_image,
           price: item.sell_price,
-          basePrice: item.base_price,
-          normalPrice: item.normal_price,
-          discountedPrice: item.discounted_price,
-          skuCode: item.sku_code,
+          base_price: item.base_price,
+          normal_price: item.normal_price,
+          discounted_price: item.discounted_price,
+          sku_code: item.sku_code,
           group: item.group,
         }))
         .sort((a: any, b: any) => a.price - b.price),
-      instructionImages: (product.category?.instruction_images || []).map((img: any) => ({
+      instruction_images: (product.category_details?.instruction_images || []).map((img: any) => ({
         id: img.id,
-        imageUrl: img.image_url,
-        altText: img.alt_text,
+        image: img.image,
+        alt_text: img.alt_text,
       })),
     };
   }

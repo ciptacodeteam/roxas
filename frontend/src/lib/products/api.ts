@@ -46,7 +46,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getProducts(): Promise<Product[]> {
-    const response = await fetch(`${API_BASE_URL}/api/admin/products/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/`, {
         credentials: "include",
         headers: {
             "Content-Type": "application/json",
@@ -63,8 +63,39 @@ export async function getProducts(): Promise<Product[]> {
     return data.results;
 }
 
+/**
+ * Get active products (Public)
+ */
+export async function getActiveProducts(params?: {
+    category?: string;
+    search?: string;
+}): Promise<Product[]> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.search) queryParams.append("search", params.search);
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/products/?${queryParams}`,
+        {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        }
+    );
+
+    const data = await handleResponse<PaginatedProductsResponse | Product[]>(response);
+
+    // Handle both paginated and non-paginated responses
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    return data.results;
+}
+
 export async function getProduct(id: string): Promise<ProductWithItems> {
-    const response = await fetch(`${API_BASE_URL}/api/admin/products/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/${id}/`, {
         credentials: "include",
         headers: {
             "Content-Type": "application/json",
@@ -74,8 +105,24 @@ export async function getProduct(id: string): Promise<ProductWithItems> {
     return handleResponse<ProductWithItems>(response);
 }
 
+/**
+ * Get active product by slug (Public)
+ */
+export async function getActiveProductBySlug(slug: string): Promise<ProductWithItems> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/products/${slug}/`, {
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    return handleResponse<ProductWithItems>(response);
+}
+
 export async function createProduct(data: CreateProductRequest): Promise<Product> {
-    const hasFile = data.image instanceof File || data.banner_image instanceof File;
+    // Check if we have File objects
+    const imageIsFile = data.image != null && typeof data.image === 'object' && 'name' in data.image;
+    const bannerIsFile = data.banner_image != null && typeof data.banner_image === 'object' && 'name' in data.banner_image;
+    const hasFile = imageIsFile || bannerIsFile;
 
     let body: BodyInit;
     let headers: HeadersInit = {};
@@ -119,7 +166,10 @@ export async function updateProduct(
     id: string,
     data: UpdateProductRequest
 ): Promise<Product> {
-    const hasFile = data.image instanceof File || data.banner_image instanceof File;
+    // Check if we have File objects
+    const imageIsFile = data.image != null && typeof data.image === 'object' && 'name' in data.image;
+    const bannerIsFile = data.banner_image != null && typeof data.banner_image === 'object' && 'name' in data.banner_image;
+    const hasFile = imageIsFile || bannerIsFile;
 
     let body: BodyInit;
     let headers: HeadersInit = {};

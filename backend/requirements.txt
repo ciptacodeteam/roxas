@@ -29,6 +29,8 @@ PyJWT==2.10.1
 requests==2.32.3
 python-dateutil==2.9.0.post0
 PyYAML==6.0.3
+google-auth==2.36.0
+google-auth-oauthlib==1.2.1
 redis==5.2.0
 referencing==0.37.0
 rpds-py==0.30.0

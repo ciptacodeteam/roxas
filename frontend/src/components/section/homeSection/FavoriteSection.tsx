@@ -22,11 +22,22 @@ interface Product {
 export default function FavoriteSection() {
   const locale = useLocale();
   const {
-    data: games = [],
+    data: productsData = [],
     isLoading,
     isError,
     error,
   } = useProducts({ limit: 6 });
+
+  // Transform products to match expected format (Django returns snake_case)
+  const games: Product[] = Array.isArray(productsData)
+    ? productsData.map((product: any) => ({
+        id: product.id,
+        title: product.name || "",
+        subtitle: product.category_name || "",
+        image: product.image || "/img/icon1.webp",
+        slug: product.slug || "",
+      }))
+    : [];
 
   // Show skeleton while loading
   if (isLoading) {
@@ -84,8 +95,8 @@ export default function FavoriteSection() {
 
                   <CardContent className="relative z-10 lg:flex items-center gap-4 lg:p-4 p-3">
                     <Image
-                      src={game.image}
-                      alt={game.title}
+                      src={game.image || "/img/icon1.webp"}
+                      alt={game.title || "Product"}
                       width={80}
                       height={80}
                       className="h-30 w-full lg:h-20 lg:w-20 rounded-lg object-cover object-top"

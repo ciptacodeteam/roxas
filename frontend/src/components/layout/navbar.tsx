@@ -6,7 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useSession, signOut } from "@/lib/auth-client";
+import { useAuth, useLogout } from "@/lib/auth";
+import { useProfile } from "@/lib/profile";
 import { toast } from "sonner";
 
 import {
@@ -56,17 +57,32 @@ const navItems: NavItem[] = [
 
 const Navigationbar = () => {
   const [open, setOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const { data: session, isPending } = useSession();
+  const pathname = usePathname();
+  const { session, isLoading: isPending, isAdmin } = useAuth();
+  const { logout } = useLogout({ redirectTo: `/${pathname.split("/")[1] || "id"}` });
+  
+  // Fetch profile data for avatar and name
+  const { data: profile } = useProfile({
+    enabled: !!session?.user && !isAdmin,
+  });
 
   const t = useTranslations("Navigation");
   const router = useRouter();
-  const pathname = usePathname();
 
   const locale = pathname.split("/")[1] ?? "id";
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  // Get display name and image from profile or session
+  const displayName = profile?.full_name || session?.user?.email?.split("@")[0] || "User";
+  const displayImage = profile?.photo || undefined;
+  const displayInitials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
@@ -77,43 +93,8 @@ const Navigationbar = () => {
     };
   }, [open]);
 
-  // Check if user is admin
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (session?.user) {
-        try {
-          const response = await fetch("/api/auth/check-role");
-          const data = await response.json();
-          setIsAdmin(data.success && data.role === "ADMIN");
-        } catch (error) {
-          console.error("Error checking user role:", error);
-          setIsAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-      }
-    };
-
-    checkUserRole();
-  }, [session]);
-
   const handleLogout = async () => {
-    const loadingToast = toast.loading("Memproses logout...", {
-      description: "Mohon tunggu sebentar...",
-    });
-    try {
-      await signOut();
-      toast.dismiss(loadingToast);
-      toast.success("Logout Berhasil", {
-        description: "Anda telah berhasil logout. Sampai jumpa!",
-      });
-      router.push(`/${locale}`);
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Logout Gagal", {
-        description: "Terjadi kesalahan saat logout. Silakan coba lagi.",
-      });
-    }
+    logout();
   };
 
   const toggleMenu = () => setOpen((s) => !s);
@@ -409,27 +390,20 @@ const Navigationbar = () => {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={session.user.image || undefined}
-                      alt={session.user.name || "User"}
+                      src={displayImage}
+                      alt={displayName}
                     />
                     <AvatarFallback className="bg-gray-700 text-white">
-                      {session.user.name
-                        ? session.user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)
-                        : session.user.email?.[0]?.toUpperCase() || "U"}
+                      {displayInitials}
                     </AvatarFallback>
                   </Avatar>
                   <p className="font-medium text-white">
-                    {session.user.name || session.user.email}
+                    {displayName}
                   </p>
                 </button>
 
                 {/* DROPDOWN */}
-                <div className="invisible absolute top-full right-0 z-50 mt-4 max-h-[600px] w-64 overflow-y-auto rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                <div className="invisible absolute top-full right-0 z-50 mt-4 max-h-150 w-64 overflow-y-auto rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
                   {/* ARROW */}
                   <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 bg-[#141414]" />
 
@@ -437,7 +411,7 @@ const Navigationbar = () => {
                     {/* USER INFO */}
                     <div className="flex flex-col space-y-1 border-b border-gray-800 pb-2">
                       <p className="text-sm font-semibold text-white">
-                        {session.user.name || "User"}
+                        {displayName}
                       </p>
                       <p className="text-xs leading-relaxed text-gray-400">
                         {session.user.email}

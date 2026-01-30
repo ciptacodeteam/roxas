@@ -213,3 +213,22 @@ export async function deletePaymentMethod(id: string): Promise<void> {
     );
   }
 }
+
+/**
+ * Get active payment methods (Public API)
+ */
+export async function getActivePaymentMethods(): Promise<PaymentMethod[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payment-methods/?is_active=true`,
+    {
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    throw new PaymentMethodsApiError("Failed to fetch active payment methods");
+  }
+
+  const data = await response.json();
+  return data.results || data;
+}

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from django.conf import settings
 
 from account.models import (
     CustomUser,
@@ -35,6 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "email",
             "role",
+            "google_id",
             "email_verified",
             "email_verified_at",
             "is_active",
@@ -46,6 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "is_staff",
             "is_superuser",
+            "google_id",
             "email_verified",
             "email_verified_at",
             "last_login",
@@ -158,3 +161,35 @@ class AdminCustomerProfileSerializer(BaseAdminProfileSerializer, CustomerProfile
     class Meta(CustomerProfileSerializer.Meta):
         fields = CustomerProfileSerializer.Meta.fields + ["email", "password"]
         read_only_fields = ["id", "user", "user_data", "created_at", "updated_at"]
+
+
+class GoogleAuthSerializer(serializers.Serializer):
+    """
+    Serializer for Google OAuth authentication.
+    Accepts Google user info from frontend.
+    Only creates/returns CUSTOMER role users (not for admin staff).
+    """
+    email = serializers.EmailField(required=True)
+    google_id = serializers.CharField(required=True)
+    full_name = serializers.CharField(required=False, allow_blank=True)
+    picture = serializers.URLField(required=False, allow_blank=True)
+    email_verified = serializers.BooleanField(required=False, default=True)
+
+    def validate_email(self, value):
+        """Validate email is provided."""
+        if not value:
+            raise serializers.ValidationError("Email is required.")
+        return value.lower()
+
+    def validate_email_verified(self, value):
+        """Ensure email is verified by Google."""
+        if not value:
+            raise serializers.ValidationError("Email must be verified by Google.")
+        return value
+
+    def create(self, validated_data):
+        """
+        This method is not used directly but required by serializer.
+        Actual user creation happens in the view.
+        """
+        return validated_data

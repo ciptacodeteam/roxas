@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions, type UseMutationOptions } from "@tanstack/react-query";
 import {
     getCategories,
+    getActiveCategories,
     getCategory,
     createCategory,
     updateCategory,
@@ -16,12 +17,13 @@ export const categoriesQueryKeys = {
     all: ["categories"] as const,
     lists: () => [...categoriesQueryKeys.all, "list"] as const,
     list: () => [...categoriesQueryKeys.lists()] as const,
+    active: () => [...categoriesQueryKeys.all, "active"] as const,
     details: () => [...categoriesQueryKeys.all, "detail"] as const,
     detail: (id: string) => [...categoriesQueryKeys.details(), id] as const,
 };
 
 /**
- * Get all categories
+ * Get all categories (Admin)
  */
 export function useCategories(
     options?: Omit<UseQueryOptions<Category[], CategoriesApiError>, "queryKey" | "queryFn">
@@ -29,6 +31,19 @@ export function useCategories(
     return useQuery({
         queryKey: categoriesQueryKeys.list(),
         queryFn: () => getCategories(),
+        ...options,
+    });
+}
+
+/**
+ * Get active categories (Public)
+ */
+export function useActiveCategories(
+    options?: Omit<UseQueryOptions<Category[], CategoriesApiError>, "queryKey" | "queryFn">
+) {
+    return useQuery({
+        queryKey: categoriesQueryKeys.active(),
+        queryFn: () => getActiveCategories(),
         ...options,
     });
 }

@@ -13,6 +13,7 @@ import {
 
 import {
   getMarketingBanners,
+  getActiveMarketingBanners,
   getMarketingBanner,
   createMarketingBanner,
   updateMarketingBanner,
@@ -32,12 +33,13 @@ export const marketingBannersKeys = {
   all: ["marketing-banners"] as const,
   lists: () => [...marketingBannersKeys.all, "list"] as const,
   list: (params?: MarketingBannerListParams) => [...marketingBannersKeys.lists(), params] as const,
+  active: () => [...marketingBannersKeys.all, "active"] as const,
   details: () => [...marketingBannersKeys.all, "detail"] as const,
   detail: (id: string) => [...marketingBannersKeys.details(), id] as const,
 };
 
 /**
- * Query: Get marketing banners list
+ * Query: Get marketing banners list (Admin)
  */
 export function useMarketingBanners(
   params?: MarketingBannerListParams,
@@ -49,6 +51,23 @@ export function useMarketingBanners(
   return useQuery({
     queryKey: marketingBannersKeys.list(params),
     queryFn: () => getMarketingBanners(params),
+    staleTime: 30 * 1000, // 30 seconds
+    ...options,
+  });
+}
+
+/**
+ * Query: Get active marketing banners (Public)
+ */
+export function useActiveMarketingBanners(
+  options?: Omit<
+    UseQueryOptions<MarketingBanner[], Error>,
+    "queryKey" | "queryFn"
+  >
+) {
+  return useQuery({
+    queryKey: marketingBannersKeys.active(),
+    queryFn: () => getActiveMarketingBanners(),
     staleTime: 30 * 1000, // 30 seconds
     ...options,
   });

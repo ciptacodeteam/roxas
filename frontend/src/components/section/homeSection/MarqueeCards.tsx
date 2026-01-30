@@ -22,20 +22,17 @@ interface ProductData {
 
 interface FlashSaleItem {
   id: string;
-  flashSaleId: string;
-  productItemId: string;
-  salePrice: number;
+  flash_sale: string;
+  product_item: string;
+  product_item_name: string;
+  product_name: string;
+  product_slug: string;
+  icon_image: string | null;
+  sale_price: number;
+  normal_price: number;
+  discount_percentage: number;
   stock: number;
-  soldCount: number;
-  productItem: {
-    id: string;
-    name: string;
-    iconImage: string | null;
-    basePrice: number;
-    normalPrice: number;
-    sellPrice: number;
-    product: ProductData;
-  };
+  sold_count: number;
 }
 
 export default function MarqueeCards() {
@@ -46,12 +43,16 @@ export default function MarqueeCards() {
   useEffect(() => {
     const fetchFlashSales = async () => {
       try {
-        const response = await fetch("/api/flash-sales/active");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const response = await fetch(`${apiUrl}/api/v1/flash-sales/`);
         const data = await response.json();
 
-        if (data.success && data.data.length > 0) {
-          const allItems = data.data.flatMap(
-            (sale: any) => sale.items
+        // Handle Django paginated response
+        const flashSales = data.results || data;
+        
+        if (Array.isArray(flashSales) && flashSales.length > 0) {
+          const allItems = flashSales.flatMap(
+            (sale: any) => sale.items || []
           );
           setItems(allItems);
         }
@@ -92,21 +93,24 @@ export default function MarqueeCards() {
     <div className="overflow-hidden pb-8">
       <Marquee speed={30} gradient={false} pauseOnHover>
         {displayItems.map((item, i) => {
-          const originalPrice = item.productItem.normalPrice;
-          const salePrice = item.salePrice;
-          const discount =
-            originalPrice > salePrice
-              ? Math.round(
-                ((originalPrice - salePrice) / originalPrice) * 100
-              )
-              : 0;
+          // Use snake_case fields from Django backend
+          const itemName = item.product_item_name;
+          const productName = item.product_name;
+          const originalPrice = item.normal_price;
+          const salePrice = item.sale_price;
+          const soldCount = item.sold_count;
+          const discount = item.discount_percentage || 0;
+          
+          // Use product_slug from backend
+          const productSlug = item.product_slug;
+          const iconImage = item.icon_image || "/img/icon1.webp";
 
           const progress = Math.min(
             100,
-            Math.round((item.soldCount / item.stock) * 100)
+            Math.round((soldCount / item.stock) * 100)
           );
 
-          const productUrl = `/${locale}/product/${item.productItem.product.slug}`;
+          const productUrl = `/${locale}/product/${productSlug}`;
 
           return (
             <Link
@@ -122,16 +126,16 @@ export default function MarqueeCards() {
                 <CardHeader className="z-10">
                   <div>
                     <h1 className="text-xl font-medium text-white">
-                      {item.productItem.name}
+                      {itemName}
                     </h1>
-                    <p className="text-sm text-white">{item.productItem.product.name}</p>
+                    <p className="text-sm text-white">{productName}</p>
                   </div>
 
                   <div className="z-10 mt-3 flex items-center gap-4">
                     <div>
                       <Image
-                        src={item.productItem.iconImage || "/img/icon1.webp"}
-                        alt={item.productItem.name}
+                        src={iconImage}
+                        alt={itemName}
                         width={80}
                         height={80}
                         className="rounded-sm"
@@ -165,7 +169,7 @@ export default function MarqueeCards() {
                   </div>
 
                   <p className="mt-2 text-right text-xs text-white">
-                    {item.soldCount} / {item.stock} purchased
+                    {soldCount} / {item.stock} purchased
                   </p>
                 </CardContent>
 

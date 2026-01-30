@@ -123,8 +123,8 @@ export function useLogout(options?: {
 }) {
   const mutation = useLogoutMutation({
     onSuccess: () => {
-      toast.success("Logged Out", {
-        description: "You have been logged out successfully.",
+      toast.success("Logout Berhasil", {
+        description: "Anda telah berhasil logout. Sampai jumpa!",
       });
 
       const destination = options?.redirectTo || "/id";
@@ -136,8 +136,8 @@ export function useLogout(options?: {
       options?.onSuccess?.();
     },
     onError: (error) => {
-      toast.error("Logout Failed", {
-        description: error.message || "An error occurred.",
+      toast.error("Logout Gagal", {
+        description: error.message || "Terjadi kesalahan saat logout.",
       });
     },
   });
@@ -153,19 +153,57 @@ export function useLogout(options?: {
 }
 
 /**
- * Hook for registration with automatic redirect
+ * Hook for registration with automatic redirect and role-based access control
  */
 export function useRegister(options?: {
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   redirectTo?: string;
+  isAdmin?: boolean;
 }) {
   const { refetchSession } = useAuthContext();
+  const { logout: forceLogout } = useLogoutMutation();
 
   const mutation = useRegisterMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const isStaffUser = data.user.role === "STAFF";
+
+      // Admin registration - only STAFF users allowed
+      if (options?.isAdmin) {
+        if (!isStaffUser) {
+          toast.error("Access Denied", {
+            description: "Only admin accounts can be created here.",
+          });
+          forceLogout();
+          return;
+        }
+
+        toast.success("Registration Successful", {
+          description: "Admin account created. Redirecting...",
+        });
+
+        refetchSession();
+
+        setTimeout(() => {
+          window.location.href = options?.redirectTo || "/admin";
+        }, 500);
+
+        options?.onSuccess?.();
+        return;
+      }
+
+      // Public registration - STAFF users NOT allowed
+      if (isStaffUser) {
+        toast.error("Access Denied", {
+          description: "Staff accounts cannot be created through public registration.",
+        });
+        forceLogout();
+        return;
+      }
+
+      // Regular user registration successful
       toast.success("Registration Successful", {
-        description: "Your account has been created.",
+        description: "Your account has been created successfully!",
       });
 
       refetchSession();
@@ -180,7 +218,7 @@ export function useRegister(options?: {
     },
     onError: (error) => {
       toast.error("Registration Failed", {
-        description: error.message || "An error occurred.",
+        description: error.message || "An error occurred during registration.",
       });
       options?.onError?.(error);
     },
@@ -195,7 +233,7 @@ export function useRegister(options?: {
 
   return {
     register,
-    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
     error: mutation.error,
   };
 }

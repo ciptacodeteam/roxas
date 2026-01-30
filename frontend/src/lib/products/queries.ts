@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-query";
 import {
     getProducts,
+    getActiveProducts,
+    getActiveProductBySlug,
     getProduct,
     createProduct,
     updateProduct,
@@ -24,9 +26,11 @@ import type {
 export const productsQueryKeys = {
     all: ["products"] as const,
     lists: () => [...productsQueryKeys.all, "list"] as const,
-    list: () => [...productsQueryKeys.lists()] as const,
+    list: (params?: { category?: string; search?: string }) => [...productsQueryKeys.lists(), params] as const,
+    active: (params?: { category?: string; search?: string }) => [...productsQueryKeys.all, "active", params] as const,
     details: () => [...productsQueryKeys.all, "detail"] as const,
     detail: (id: string) => [...productsQueryKeys.details(), id] as const,
+    detailBySlug: (slug: string) => [...productsQueryKeys.all, "slug", slug] as const,
 };
 
 // Queries
@@ -40,6 +44,20 @@ export function useProducts(
     });
 }
 
+/**
+ * Get active products (Public)
+ */
+export function useActiveProducts(
+    params?: { category?: string; search?: string },
+    options?: Omit<UseQueryOptions<Product[], ProductsApiError>, "queryKey" | "queryFn">
+) {
+    return useQuery({
+        queryKey: productsQueryKeys.active(params),
+        queryFn: () => getActiveProducts(params),
+        ...options,
+    });
+}
+
 export function useProduct(
     id: string,
     options?: Omit<UseQueryOptions<ProductWithItems, ProductsApiError>, "queryKey" | "queryFn">
@@ -48,6 +66,21 @@ export function useProduct(
         queryKey: productsQueryKeys.detail(id),
         queryFn: () => getProduct(id),
         enabled: !!id,
+        ...options,
+    });
+}
+
+/**
+ * Get active product by slug (Public)
+ */
+export function useActiveProductBySlug(
+    slug: string,
+    options?: Omit<UseQueryOptions<ProductWithItems, ProductsApiError>, "queryKey" | "queryFn">
+) {
+    return useQuery({
+        queryKey: productsQueryKeys.detailBySlug(slug),
+        queryFn: () => getActiveProductBySlug(slug),
+        enabled: !!slug,
         ...options,
     });
 }

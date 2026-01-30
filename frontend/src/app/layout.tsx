@@ -2,10 +2,12 @@ import "@/styles/globals.css";
 
 import { type Metadata } from "next";
 import { IBM_Plex_Sans_Condensed } from "next/font/google";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import { SessionProvider } from "@/components/auth/session-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/lib/auth";
+import { env } from "@/env";
 
 export const metadata: Metadata = {
   title: "Roxas Games Store | Top Up Game Teraman",
@@ -23,15 +25,27 @@ const ibmPlex = IBM_Plex_Sans_Condensed({
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const googleClientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  
   return (
     <html lang="en" className={ibmPlex.variable}>
       <body className="font-ibm">
         <QueryProvider>
-          <AuthProvider>
-            <SessionProvider>
-              {children}
-            </SessionProvider>
-          </AuthProvider>
+          {googleClientId ? (
+            <GoogleOAuthProvider clientId={googleClientId}>
+              <AuthProvider>
+                <SessionProvider>
+                  {children}
+                </SessionProvider>
+              </AuthProvider>
+            </GoogleOAuthProvider>
+          ) : (
+            <AuthProvider>
+              <SessionProvider>
+                {children}
+              </SessionProvider>
+            </AuthProvider>
+          )}
         </QueryProvider>
       </body>
     </html>

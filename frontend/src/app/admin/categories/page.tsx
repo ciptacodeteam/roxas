@@ -43,16 +43,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export default function CategoriesPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");

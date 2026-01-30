@@ -37,37 +37,62 @@ export default function GameSection() {
     error: categoriesErrorMessage,
   } = useCategories();
 
-  // Extract category names with proper typing
-  const categories: string[] = Array.isArray(categoriesData)
-    ? categoriesData.map((cat: Category) => cat.name)
+  // Extract categories with proper typing
+  const categories: Category[] = Array.isArray(categoriesData)
+    ? categoriesData.map((cat: any) => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug
+      }))
     : [];
 
   // Fallback to default categories if API fails
   const displayCategories = categories.length > 0
     ? categories
-    : ["Games", "Voucher & Hiburan", "Pulsa & PLN"];
+    : [
+        { id: "1", name: "Games", slug: "games" },
+        { id: "2", name: "Voucher & Hiburan", slug: "voucher-hiburan" },
+        { id: "3", name: "Pulsa & PLN", slug: "pulsa-pln" }
+      ];
 
-  // Set default active category
-  const [active, setActive] = useState<string>(displayCategories[0] || "");
+  // Set default active category (use full category object)
+  const [activeCategory, setActiveCategory] = useState<Category>(displayCategories[0]!);
 
   useEffect(() => {
-    if (displayCategories.length > 0 && !displayCategories.includes(active)) {
-      setActive(displayCategories[0]!);
+    if (displayCategories.length > 0 && !displayCategories.find(cat => cat.slug === activeCategory.slug)) {
+      setActiveCategory(displayCategories[0]!);
     }
-  }, [displayCategories, active]);
+  }, [displayCategories, activeCategory]);
 
-  // Fetch products when active category changes
+  // Fetch products when active category changes (use categorySlug for Django)
   const {
-    data: products = [],
+    data: productsData = [],
     isLoading: productsLoading,
     isError: productsError,
     error: productsErrorMessage,
   } = useProducts(
-    active ? { categoryName: active } : undefined,
+    activeCategory ? { categorySlug: activeCategory.slug } : undefined,
     {
-      enabled: !!active, // Only fetch when active category is set
+      enabled: !!activeCategory, // Only fetch when active category is set
     }
   );
+
+  // Transform products to match expected format (Django returns snake_case)
+  const products = Array.isArray(productsData) 
+    ? productsData.map((product: any) => ({
+        id: product.id,
+        title: product.name,
+        subtitle: product.category_name || "",
+        image: product.image || "/img/icon1.webp",
+        slug: product.slug,
+        description: product.description,
+        category: {
+          id: product.category || "",
+          name: product.category_name || "",
+          slug: ""
+        }
+      }))
+    : [];
 
   const isLoading = categoriesLoading || productsLoading;
   const hasError = categoriesError || productsError;
@@ -94,9 +119,14 @@ export default function GameSection() {
   return (
     <section className="mx-auto lg:max-w-7xl w-11/12 lg:mb-16 mb-12">
       <GameTabs
-        categories={displayCategories}
-        active={active}
-        setActive={setActive}
+        categories={displayCategories.map(cat => cat.name)}
+        active={activeCategory.name}
+        setActive={(name: string) => {
+          const category = displayCategories.find(cat => cat.name === name);
+          if (category) {
+            setActiveCategory(category);
+          }
+        }}
       />
       {products.length > 0 ? (
         <GameGrid items={products} />

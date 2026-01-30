@@ -252,6 +252,9 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = "account.CustomUser"
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
 # CSRF Settings for cookie-based authentication
 CSRF_COOKIE_HTTPONLY = False  # Must be False so frontend can read CSRF token if needed
 CSRF_COOKIE_SAMESITE = 'Lax'  # Match AUTH_COOKIE_SAMESITE - use 'None' for cross-domain

@@ -71,12 +71,16 @@ from .webhooks import (
     midtrans_webhook, midtrans_webhook_ping
 )
 
+# Import dashboard views
+from .dashboard import dashboard_stats
+
 urlpatterns = [
     # Public endpoints
     path('', include(public_router.urls)),
     
     # Admin endpoints
     path('admin/', include(admin_router.urls)),
+    path('admin/dashboard/', dashboard_stats, name='admin-dashboard'),
     
     # Webhooks - Digiflazz
     path('webhooks/digiflazz/', digiflazz_webhook, name='digiflazz-webhook'),

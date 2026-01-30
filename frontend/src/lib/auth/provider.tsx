@@ -10,6 +10,7 @@ import { useSessionQuery, useTokenRefresh } from "./queries";
 import type { AuthState, User } from "./types";
 
 interface AuthContextValue extends AuthState {
+  session: { user: User | null } | null;
   refetchSession: () => void;
 }
 
@@ -19,7 +20,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
  * Auth Provider Component
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data, isLoading, refetch } = useSessionQuery();
+  const { data, isLoading, refetch, error } = useSessionQuery();
   
   const user = data?.user ?? null;
   const isAuthenticated = !!user;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return {
       user,
+      session: data, // Include session object with user property
       isAuthenticated,
       isLoading,
       isAdmin,

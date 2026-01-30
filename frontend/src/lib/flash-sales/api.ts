@@ -27,7 +27,7 @@ export class FlashSalesApiError extends Error {
 }
 
 /**
- * Get all flash sales with optional filters
+ * Get all flash sales with optional filters (Admin)
  */
 export async function getFlashSales(
   params?: FlashSaleListParams
@@ -60,6 +60,32 @@ export async function getFlashSales(
 
   // Handle non-paginated response (array)
   return data;
+}
+
+/**
+ * Get active flash sales (Public)
+ */
+export async function getActiveFlashSales(): Promise<FlashSale[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/flash-sales/`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw new FlashSalesApiError("Failed to fetch active flash sales");
+  }
+
+  const data = await response.json();
+
+  // Handle paginated response from Django REST Framework
+  if (data && typeof data === "object" && "results" in data) {
+    return data.results;
+  }
+
+  // Handle non-paginated response (array)
+  return Array.isArray(data) ? data : [];
 }
 
 /**

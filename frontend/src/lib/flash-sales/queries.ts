@@ -13,6 +13,7 @@ import {
 
 import {
   getFlashSales,
+  getActiveFlashSales,
   getFlashSale,
   createFlashSale,
   updateFlashSale,
@@ -40,13 +41,14 @@ export const flashSalesKeys = {
   all: ["flash-sales"] as const,
   lists: () => [...flashSalesKeys.all, "list"] as const,
   list: (params?: FlashSaleListParams) => [...flashSalesKeys.lists(), params] as const,
+  active: () => [...flashSalesKeys.all, "active"] as const,
   details: () => [...flashSalesKeys.all, "detail"] as const,
   detail: (id: string) => [...flashSalesKeys.details(), id] as const,
   items: (id: string) => [...flashSalesKeys.detail(id), "items"] as const,
 };
 
 /**
- * Query: Get flash sales list
+ * Query: Get flash sales list (Admin)
  */
 export function useFlashSales(
   params?: FlashSaleListParams,
@@ -58,6 +60,23 @@ export function useFlashSales(
   return useQuery({
     queryKey: flashSalesKeys.list(params),
     queryFn: () => getFlashSales(params),
+    staleTime: 30 * 1000, // 30 seconds
+    ...options,
+  });
+}
+
+/**
+ * Query: Get active flash sales (Public)
+ */
+export function useActiveFlashSales(
+  options?: Omit<
+    UseQueryOptions<FlashSale[], Error>,
+    "queryKey" | "queryFn"
+  >
+) {
+  return useQuery({
+    queryKey: flashSalesKeys.active(),
+    queryFn: () => getActiveFlashSales(),
     staleTime: 30 * 1000, // 30 seconds
     ...options,
   });

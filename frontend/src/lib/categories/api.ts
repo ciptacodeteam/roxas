@@ -18,7 +18,7 @@ export class CategoriesApiError extends Error {
 }
 
 /**
- * Get all categories
+ * Get all categories (Admin)
  */
 export async function getCategories(): Promise<Category[]> {
     const response = await fetch(
@@ -31,6 +31,32 @@ export async function getCategories(): Promise<Category[]> {
 
     if (!response.ok) {
         throw new CategoriesApiError("Failed to fetch categories");
+    }
+
+    const data = await response.json();
+
+    // Handle paginated response from Django REST Framework
+    if (data && typeof data === "object" && "results" in data) {
+        return data.results;
+    }
+
+    // Handle non-paginated response (array)
+    return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Get active categories (Public)
+ */
+export async function getActiveCategories(): Promise<Category[]> {
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/categories/`,
+        {
+            method: "GET",
+        }
+    );
+
+    if (!response.ok) {
+        throw new CategoriesApiError("Failed to fetch active categories");
     }
 
     const data = await response.json();

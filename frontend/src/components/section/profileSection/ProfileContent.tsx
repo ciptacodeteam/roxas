@@ -1,137 +1,110 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useSession, signIn } from "@/lib/auth-client";
-import { useUserProfile, useUpdateProfile } from "@/lib/queries";
-import { useQueryClient } from "@tanstack/react-query";
-import { usePathname } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { useProfile, useUpdateProfile, useChangePassword } from "@/lib/profile";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, Phone, Edit2, Save, X, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { PhoneInputWithCountry } from "@/components/ui/phone-input-with-country";
+import { User, Mail, Phone, Edit2, Save, X, Lock, Eye, EyeOff, Loader } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useGoogleLogin } from "@react-oauth/google";
+
+// ==================== VALIDATION SCHEMAS ====================
 
 const ProfileSchema = z.object({
-  name: z.string().min(1, "Nama wajib diisi").max(100, "Nama terlalu panjang"),
-  phone: z.string().optional(),
+  full_name: z.string().min(1, "Nama wajib diisi").max(100, "Nama terlalu panjang"),
+  contact_phone: z.string().optional(),
 });
 
-// Schema that makes currentPassword optional (will be validated on server)
 const ChangePasswordSchema = z.object({
-  currentPassword: z.string().optional(),
-  newPassword: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
-  confirmPassword: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
+  old_password: z.string().min(1, "Kata sandi lama wajib diisi"),
+  new_password: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
+  confirm_password: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
+}).refine((data) => data.new_password === data.confirm_password, {
   message: "Kata sandi baru tidak cocok",
-  path: ["confirmPassword"],
+  path: ["confirm_password"],
 });
 
 type ProfileFormData = z.infer<typeof ProfileSchema>;
 type ChangePasswordFormData = z.infer<typeof ChangePasswordSchema>;
 
+// ==================== COMPONENT ====================
+
 export default function ProfileContent() {
-  const { data: session, isPending } = useSession();
-  const searchParams = useSearchParams();
+  const router = useRouter();
   const pathname = usePathname();
-  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const { session, isLoading: authLoading } = useAuth();
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [hasShownWelcomeToast, setHasShownWelcomeToast] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isResendingVerification, setIsResendingVerification] = useState(false);
-  const [isChangingPasswordLoading, setIsChangingPasswordLoading] = useState(false);
+  const [hasShownWelcomeToast, setHasShownWelcomeToast] = useState(false);
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
 
-  // Use TanStack Query hook for profile data
-  const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile({
+  // Fetch profile data
+  const { data: profile, isLoading: profileLoading, error: profileError, refetch } = useProfile({
     enabled: !!session?.user,
   });
 
-  // Use userData from profile query or fallback to session
-  const userData = useMemo(() => {
-    if (profileData) {
-      return {
-        name: profileData.name,
-        phone: profileData.phone,
-        image: profileData.image,
-        hasPassword: profileData.hasPassword,
-        isOAuthOnly: profileData.isOAuthOnly,
-        emailVerified: profileData.emailVerified,
-        hasGoogleAccount: profileData.hasGoogleAccount,
-      };
-    }
-    if (session?.user) {
-      return {
-        name: session.user.name || null,
-        phone: null,
-        image: session.user.image || null,
-      };
-    }
-    return null;
-  }, [profileData, session]);
-
-  // Memoize display values - MUST be before any early returns
-  const displayName = useMemo(() => {
-    if (!session?.user) return "User";
-    return userData?.name || session.user.name || "User";
-  }, [userData?.name, session?.user?.name, session]);
-
-  const displayPhone = useMemo(() => userData?.phone || "Tidak diisi", [userData?.phone]);
-
-  const displayImage = useMemo(() => {
-    if (!session?.user) return undefined;
-    return userData?.image || session.user.image || undefined;
-  }, [userData?.image, session?.user?.image, session]);
-
+  // Update profile mutation
   const updateProfileMutation = useUpdateProfile({
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       setIsEditing(false);
+      // Refetch to ensure latest data
+      refetch?.();
       toast.success("Profil Diperbarui", {
         description: "Perubahan profil Anda berhasil disimpan!",
       });
     },
     onError: (error) => {
       toast.error("Gagal Memperbarui", {
-        description: error instanceof Error ? error.message : "Terjadi kesalahan saat memperbarui profil. Silakan coba lagi.",
+        description: error.message || "Terjadi kesalahan saat memperbarui profil.",
       });
     },
   });
 
-  const isLoading = updateProfileMutation.isPending || profileLoading || isResendingVerification || isChangingPasswordLoading;
+  // Change password mutation
+  const changePasswordMutation = useChangePassword({
+    onSuccess: () => {
+      setIsChangingPassword(false);
+      resetPassword();
+      toast.success("Kata Sandi Diubah", {
+        description: "Kata sandi Anda berhasil diubah!",
+      });
+    },
+    onError: (error) => {
+      toast.error("Gagal Mengubah Kata Sandi", {
+        description: error.message || "Terjadi kesalahan saat mengubah kata sandi.",
+      });
+    },
+  });
 
-  // Track if component is mounted to avoid hydration mismatch
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
+  // Profile form
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
+    control,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(ProfileSchema),
   });
 
+  // Password form
   const {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
@@ -141,118 +114,129 @@ export default function ProfileContent() {
     resolver: zodResolver(ChangePasswordSchema),
   });
 
-  const phoneValue = watch("phone");
-
-  // Handle query params and toasts
+  // Show welcome toast on first load
   useEffect(() => {
     if (session?.user && !hasShownWelcomeToast) {
       const fromLogin = searchParams?.get("from") === "login";
       const fromGoogle = searchParams?.get("from") === "google";
-      const verified = searchParams?.get("verified") === "true";
-      const googleLinked = searchParams?.get("google_linked") === "true";
-      const oauthError = searchParams?.get("error");
 
-      // Check for OAuth account linking error
-      if (oauthError === "OAuthAccountNotLinked") {
-        toast.error("Akun Google Sudah Terhubung", {
-          description: "Akun Google ini sudah terhubung dengan akun lain. Tidak dapat menghubungkan.",
+      if (fromGoogle) {
+        toast.success("Login Google Berhasil", {
+          description: "Selamat datang! Akun Google Anda berhasil terhubung.",
         });
         setHasShownWelcomeToast(true);
-        // Remove error from URL
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.delete("error");
-        newUrl.searchParams.delete("google_linked");
-        window.history.replaceState({}, "", newUrl.toString());
-      } else if (googleLinked && !oauthError) {
-        toast.success("Akun Google Terhubung", {
-          description: "Akun Google Anda berhasil dihubungkan! Anda sekarang bisa login dengan Google.",
+      } else if (fromLogin) {
+        toast.success("Selamat Datang", {
+          description: "Anda berhasil masuk ke akun Anda.",
         });
         setHasShownWelcomeToast(true);
-        refetchProfile();
-      } else if (verified) {
-        toast.success("Email Terverifikasi", {
-          description: "Email Anda berhasil diverifikasi! Akun Anda sekarang aktif.",
+      }
+    }
+  }, [session, searchParams, hasShownWelcomeToast]);
+
+  // Populate form when profile loads
+  useEffect(() => {
+    if (profile && !isEditing) {
+      setValue("full_name", profile.full_name || "");
+      setValue("contact_phone", profile.contact_phone || "");
+    }
+  }, [profile, setValue, isEditing]);
+
+  // Redirect if not authenticated (but only after loading is complete)
+  useEffect(() => {
+    // Don't redirect while still loading
+    if (authLoading || profileLoading) {
+      return;
+    }
+    
+    // Only redirect if we're sure there's no session
+    if (!session?.user) {
+      const locale = pathname.split("/")[1] ?? "id";
+      router.replace(`/${locale}/login`);
+    }
+  }, [authLoading, profileLoading, session, router, pathname, profile]);
+
+  // Form submit handlers
+  const onSubmit = (data: ProfileFormData) => {
+    updateProfileMutation.mutate(data);
+  };
+
+  const onPasswordSubmit = (data: ChangePasswordFormData) => {
+    changePasswordMutation.mutate({
+      old_password: data.old_password,
+      new_password: data.new_password,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    if (profile) {
+      setValue("full_name", profile.full_name || "");
+      setValue("contact_phone", profile.contact_phone || "");
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelPasswordChange = () => {
+    resetPassword();
+    setIsChangingPassword(false);
+  };
+
+  // Google login handler
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (response) => {
+      setIsConnectingGoogle(true);
+      try {
+        // Send the token to the backend to connect Google account
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/v1/auth/connect-google/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          },
+          body: JSON.stringify({
+            access_token: response.access_token,
+          }),
         });
-        setHasShownWelcomeToast(true);
-        refetchProfile();
-      } else if (fromLogin || fromGoogle) {
-        if (fromGoogle) {
-          toast.success("Login Google Berhasil", {
-            description: "Selamat datang! Akun Google Anda berhasil terhubung.",
+
+        if (res.ok) {
+          toast.success("Google Terhubung", {
+            description: "Akun Google Anda berhasil terhubung ke akun Roxas Anda.",
           });
+          // Refetch profile to get updated data
+          refetch?.();
         } else {
-          toast.success("Selamat Datang", {
-            description: "Anda berhasil masuk ke akun Anda.",
+          const error = await res.json();
+          toast.error("Gagal Terhubung", {
+            description: error.detail || "Terjadi kesalahan saat menghubungkan akun Google.",
           });
         }
-        setHasShownWelcomeToast(true);
-      }
-    }
-  }, [session, searchParams, hasShownWelcomeToast, refetchProfile]);
-
-  // Set form values when profile data changes
-  useEffect(() => {
-    if (userData && !isEditing) {
-      setValue("name", userData.name || "");
-      setValue("phone", userData.phone || "");
-    }
-  }, [userData, setValue, isEditing]);
-
-  const onSubmit = async (data: ProfileFormData) => {
-    try {
-      await updateProfileMutation.mutateAsync(data);
-    } catch (error) {
-      // Error is already handled by the mutation's onError callback
-      console.error('Profile update error:', error);
-    }
-  };
-
-  const onPasswordSubmit = async (data: ChangePasswordFormData) => {
-    try {
-      setIsChangingPasswordLoading(true);
-      const response = await fetch("/api/user/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error("Gagal Mengubah Kata Sandi", {
-          description: result.message || "Terjadi kesalahan saat mengubah kata sandi.",
+      } catch (error) {
+        toast.error("Gagal Terhubung", {
+          description: "Terjadi kesalahan saat menghubungkan akun Google.",
         });
-        return;
+      } finally {
+        setIsConnectingGoogle(false);
       }
-
-      setIsChangingPassword(false);
-      resetPassword();
-
-      // Refresh user data to update hasPassword status
-      const previousHasPassword = userData?.hasPassword;
-      await refetchProfile();
-
-      toast.success(previousHasPassword ? "Kata Sandi Diubah" : "Kata Sandi Diatur", {
-        description: previousHasPassword
-          ? "Kata sandi Anda berhasil diubah!"
-          : "Kata sandi Anda berhasil diatur! Anda sekarang bisa login dengan email dan password.",
+    },
+    onError: () => {
+      toast.error("Login Google Dibatalkan", {
+        description: "Anda membatalkan proses login Google.",
       });
-    } catch (err) {
-      toast.error("Gagal Mengubah Kata Sandi", {
-        description: "Terjadi kesalahan saat mengubah kata sandi. Silakan coba lagi.",
-      });
-    } finally {
-      setIsChangingPasswordLoading(false);
-    }
-  };
+      setIsConnectingGoogle(false);
+    },
+    flow: "implicit",
+  });
 
-  // Show loading only after mount to avoid hydration mismatch
-  if (!isMounted || isPending) {
+  // Loading states
+  const isLoading = authLoading || profileLoading;
+  const isSaving = updateProfileMutation.isPending || changePasswordMutation.isPending;
+
+  // Show loading skeleton
+  if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl pb-12 pt-42">
+      <div className="mx-auto max-w-7xl pb-12 pt-40">
         <div className="bg-card rounded-lg p-8">
           <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
-            {/* Avatar Skeleton */}
             <div className="flex flex-col items-center">
               <Skeleton className="h-32 w-32 rounded-full" />
               <div className="mt-4 text-center">
@@ -260,33 +244,13 @@ export default function ProfileContent() {
                 <Skeleton className="h-4 w-40 rounded" />
               </div>
             </div>
-
-            {/* Profile Info Skeleton */}
             <div className="flex-1 space-y-6">
               <Card className="bg-gray-800/50 border-gray-700 p-6">
                 <Skeleton className="h-7 w-48 rounded mb-4" />
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-20 rounded mb-2" />
-                      <Skeleton className="h-5 w-40 rounded" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-20 rounded mb-2" />
-                      <Skeleton className="h-5 w-48 rounded" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-20 rounded mb-2" />
-                      <Skeleton className="h-5 w-32 rounded" />
-                    </div>
-                  </div>
+                  <Skeleton className="h-16 w-full rounded" />
+                  <Skeleton className="h-16 w-full rounded" />
+                  <Skeleton className="h-16 w-full rounded" />
                 </div>
               </Card>
             </div>
@@ -296,497 +260,312 @@ export default function ProfileContent() {
     );
   }
 
-  if (!session) {
-    return (
-      <div className="mx-auto max-w-7xl mb-10">
-        <div className="bg-card rounded-lg p-8">
-          <div className="text-center text-white">Not authenticated</div>
-        </div>
-      </div>
-    );
+  if (!session || !profile) {
+    return null;
   }
 
-  const user = session.user;
+  const { user } = session;
+  if (!user) {
+    return null;
+  }
+
+  const displayName = profile.full_name || user?.email?.split("@")[0] || "User";
+  const displayInitials = (displayName || "U")
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "U";
 
   return (
-    <div className="mx-auto max-w-7xl pb-12 pt-42">
-      {/* Email Verification Banner */}
-      {userData && !userData.emailVerified && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-white font-semibold mb-1">Verifikasi Email Diperlukan</h3>
-            <p className="text-gray-300 text-sm mb-3">
-              Silakan verifikasi email Anda untuk mengaktifkan akun. Klik tombol di bawah untuk mengirim email verifikasi ke <span className="font-medium text-white">{user.email}</span>
-            </p>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={async () => {
-                  try {
-                    setIsResendingVerification(true);
-                    const loadingToast = toast.loading("Mengirim email verifikasi...", {
-                      description: "Mohon tunggu sebentar...",
-                    });
-                    const response = await fetch("/api/user/resend-verification", {
-                      method: "POST",
-                    });
-                    const data = await response.json();
-                    toast.dismiss(loadingToast);
-                    if (response.ok) {
-                      toast.success("Email Verifikasi Dikirim", {
-                        description: "Silakan cek inbox email Anda untuk verifikasi. Link berlaku selama 24 jam.",
-                      });
-                    } else {
-                      toast.error("Gagal Mengirim Email", {
-                        description: data.message || "Terjadi kesalahan. Silakan coba lagi.",
-                      });
-                    }
-                  } catch (err) {
-                    toast.error("Gagal Mengirim Email", {
-                      description: "Terjadi kesalahan. Silakan coba lagi.",
-                    });
-                  } finally {
-                    setIsResendingVerification(false);
-                  }
-                }}
-                disabled={isLoading}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white"
-              >
-                {isLoading ? "Mengirim..." : "Kirim Email Verifikasi"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-card rounded-lg p-8">
+    <div className="mx-auto max-w-7xl pb-12 pt-40">
+      <div className="bg-card rounded-2xl p-8">
         <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
           {/* Avatar Section */}
           <div className="flex flex-col items-center">
-            <Avatar className="h-32 w-32 border-4 border-gray-700">
-              <AvatarImage
-                src={displayImage}
-                alt={displayName}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-gray-700 text-white text-2xl">
-                {displayName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
+            <Avatar className="h-32 w-32 border-4 border-purple-500/30">
+              <AvatarImage src={profile.photo || undefined} alt={displayName} />
+              <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500 text-white text-3xl font-bold">
+                {displayInitials}
               </AvatarFallback>
             </Avatar>
             <div className="mt-4 text-center">
-              <h3 className="text-xl font-semibold text-white">{displayName}</h3>
-              <p className="text-sm text-gray-400 mt-1">{user.email}</p>
+              <h2 className="text-xl font-bold text-white">{displayName}</h2>
+              <p className="text-sm text-gray-200">{user?.email || ""}</p>
             </div>
           </div>
 
-          {/* Profile Information */}
-          <div className="flex-1 space-y-4">
-            {profileLoading ? (
-              <>
-                <Card className="bg-gray-800/50 border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <Skeleton className="h-7 w-48 rounded" />
-                    <Skeleton className="h-9 w-20 rounded" />
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-10 w-10 rounded-lg" />
-                      <div className="flex-1">
-                        <Skeleton className="h-4 w-12 rounded mb-2" />
-                        <Skeleton className="h-5 w-40 rounded" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-10 w-10 rounded-lg" />
-                      <div className="flex-1">
-                        <Skeleton className="h-4 w-12 rounded mb-2" />
-                        <Skeleton className="h-5 w-48 rounded" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-10 w-10 rounded-lg" />
-                      <div className="flex-1">
-                        <Skeleton className="h-4 w-20 rounded mb-2" />
-                        <Skeleton className="h-5 w-32 rounded" />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+          {/* Profile Info Section */}
+          <div className="flex-1 space-y-6">
+            {/* Basic Info Card */}
+            <Card className="bg-card border-border/50 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Informasi Profil</h3>
+                {!isEditing && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                    className="border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </div>
 
-                <Card className="bg-gray-800/50 border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <Skeleton className="h-7 w-32 rounded" />
-                    <Skeleton className="h-9 w-32 rounded" />
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                {/* Full Name */}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <User className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <Skeleton className="h-5 w-40 rounded mb-2" />
-                        <Skeleton className="h-4 w-48 rounded" />
+                  <div className="flex-1">
+                    <Label className="text-sm text-white mb-1">Nama Lengkap</Label>
+                    {isEditing ? (
+                      <div>
+                        <Input
+                          {...register("full_name")}
+                          placeholder="Masukkan nama lengkap"
+                          className="bg-foreground/50 border-border text-white placeholder-white"
+                          disabled={isSaving}
+                        />
+                        {errors.full_name && (
+                          <p className="text-sm text-red-400 mt-1">{errors.full_name.message}</p>
+                        )}
                       </div>
-                      <Skeleton className="h-2 w-2 rounded-full" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <Skeleton className="h-5 w-32 rounded mb-2" />
-                        <Skeleton className="h-4 w-56 rounded" />
-                      </div>
-                      <Skeleton className="h-2 w-2 rounded-full" />
-                    </div>
+                    ) : (
+                      <p className="text-white">{profile.full_name || "-"}</p>
+                    )}
                   </div>
-                </Card>
-              </>
-            ) : (
-              <>
-                <Card className="bg-gray-800/50 border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-white">
-                      Informasi Profil
-                    </h4>
-                    {!isEditing && (
-                      <Button
-                        onClick={() => setIsEditing(true)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-white hover:text-white hover:bg-gray-700"
+                </div>
+
+                {/* Email */}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Mail className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-sm text-white mb-1">Email</Label>
+                    <p className="text-white">{user?.email || ""}</p>
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Phone className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-sm text-white mb-1">Nomor Telepon</Label>
+                    {isEditing ? (
+                      <Controller
+                        name="contact_phone"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInputWithCountry
+                            {...field}
+                            placeholder="812 3456 7890"
+                            disabled={isSaving}
+                            className="bg-foreground/50 border-border text-white placeholder-white"
+                          />
+                        )}
+                      />
+                    ) : (
+                      <p className="text-white">{profile.contact_phone || "-"}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {isEditing && (
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="bg-primary hover:bg-primary/90 text-white"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {isSaving ? "Menyimpan..." : "Simpan"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                      className="border-border text-white hover:bg-foreground/10"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Batal
+                    </Button>
+                  </div>
+                )}
+              </form>
+            </Card>
+
+            {/* Change Password Card */}
+            <Card className="bg-card border-border/50 p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white">Keamanan</h3>
+              </div>
+
+              {isChangingPassword ? (
+                <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4">
+                  {/* Old Password */}
+                  <div>
+                    <Label className="text-sm text-white mb-1">Kata Sandi Lama</Label>
+                    <div className="relative">
+                      <Input
+                        {...registerPassword("old_password")}
+                        type={showOldPassword ? "text" : "password"}
+                        placeholder="Masukkan kata sandi lama"
+                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        disabled={isSaving}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
                       >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
+                        {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {passwordErrors.old_password && (
+                      <p className="text-sm text-red-400 mt-1">{passwordErrors.old_password.message}</p>
                     )}
                   </div>
 
-                  {isEditing ? (
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                      {/* Name Field */}
-                      <div>
-                        <Label htmlFor="name" className="text-sm text-gray-400 mb-2 block">
-                          Nama Lengkap
-                        </Label>
-                        <Input
-                          id="name"
-                          {...register("name")}
-                          className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
-                          placeholder="Masukkan nama lengkap"
-                        />
-                        {errors.name && (
-                          <p className="text-xs text-red-400 mt-1">
-                            {errors.name.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Phone Field */}
-                      <div>
-                        <Label className="text-sm text-gray-400 mb-2 block">
-                          Nomor Telepon
-                        </Label>
-                        <CountryPhoneInput
-                          value={phoneValue || ""}
-                          onChange={(val) => setValue("phone", val)}
-                        />
-                        {errors.phone && (
-                          <p className="text-xs text-red-400 mt-1">
-                            {errors.phone.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-3 pt-4">
-                        <Button
-                          type="submit"
-                          disabled={isLoading}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {isLoading ? "Menyimpan..." : "Simpan"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setIsEditing(false);
-                            // Reset form to original values
-                            setValue("name", userData?.name || "");
-                            setValue("phone", userData?.phone || "");
-                          }}
-                          className="border-gray-600 text-white hover:bg-gray-700"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Batal
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gray-700/50 p-2 rounded-lg">
-                          <User className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">Nama</p>
-                          <p className="text-white font-medium">{displayName}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gray-700/50 p-2 rounded-lg">
-                          <Mail className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">Email</p>
-                          <p className="text-white font-medium">{user.email}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gray-700/50 p-2 rounded-lg">
-                          <Phone className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">Nomor Telepon</p>
-                          <p className="text-white font-medium">{displayPhone}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Account Security */}
-                <Card className="bg-gray-800/50 border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-white">
-                      Keamanan Akun
-                    </h4>
-                    {!isChangingPassword && (
-                      <Button
+                  {/* New Password */}
+                  <div>
+                    <Label className="text-sm text-white mb-1">Kata Sandi Baru</Label>
+                    <div className="relative">
+                      <Input
+                        {...registerPassword("new_password")}
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="Masukkan kata sandi baru"
+                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        disabled={isSaving}
+                      />
+                      <button
                         type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {passwordErrors.new_password && (
+                      <p className="text-sm text-red-400 mt-1">{passwordErrors.new_password.message}</p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <Label className="text-sm text-white mb-1">Konfirmasi Kata Sandi Baru</Label>
+                    <div className="relative">
+                      <Input
+                        {...registerPassword("confirm_password")}
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Konfirmasi kata sandi baru"
+                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        disabled={isSaving}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {passwordErrors.confirm_password && (
+                      <p className="text-sm text-red-400 mt-1">{passwordErrors.confirm_password.message}</p>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="bg-primary hover:bg-primary/90 text-white"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {isSaving ? "Menyimpan..." : "Simpan"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelPasswordChange}
+                      disabled={isSaving}
+                      className="border-border text-white hover:bg-foreground/10"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Batal
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-6">
+                  {/* Password Change Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-white font-semibold">Kata Sandi</h4>
+                      <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setIsChangingPassword(true)}
-                        className="border-gray-600 text-white hover:bg-gray-700"
+                        className="border-primary/50 text-primary hover:bg-primary/10"
                       >
                         <Lock className="h-4 w-4 mr-2" />
-                        {userData?.hasPassword ? "Ubah Kata Sandi" : "Atur Kata Sandi"}
+                        Ubah
                       </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-white font-medium">Email Terverifikasi</p>
-                        <p className="text-sm text-gray-400">
-                          {userData?.emailVerified ? "Email sudah terverifikasi" : "Email belum terverifikasi"}
-                        </p>
-                      </div>
-                      <div className={`h-2 w-2 rounded-full ${userData?.emailVerified ? "bg-green-500" : "bg-yellow-500"}`}></div>
                     </div>
-
-                    {userData?.isOAuthOnly && (
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-700">
-                        <div>
-                          <p className="text-white font-medium">Akun Google</p>
-                          <p className="text-sm text-gray-400">
-                            Akun Google sudah terhubung
-                          </p>
-                        </div>
-                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                      </div>
-                    )}
-
-                    {/* Google Account Connection */}
-                    {userData?.hasPassword && !userData?.hasGoogleAccount && (
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-700">
-                        <div>
-                          <p className="text-white font-medium">Akun Google</p>
-                          <p className="text-sm text-gray-400">
-                            Hubungkan akun Google untuk login lebih mudah
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={async () => {
-                            const locale = pathname?.split("/")[1] ?? "id";
-                            const loadingToast = toast.loading("Menghubungkan akun Google...", {
-                              description: "Mengarahkan ke Google...",
-                            });
-                            try {
-                              await signIn.social({
-                                provider: "google",
-                                callbackURL: `/${locale}/profile?google_linked=true`,
-                              });
-                            } catch (error) {
-                              toast.dismiss(loadingToast);
-                              toast.error("Gagal Menghubungkan Google", {
-                                description: "Terjadi kesalahan saat menghubungkan akun Google.",
-                              });
-                            }
-                          }}
-                          className="bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                          size="sm"
-                        >
-                          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                            <path
-                              fill="currentColor"
-                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                            />
-                            <path
-                              fill="currentColor"
-                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                            />
-                            <path
-                              fill="currentColor"
-                              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                            />
-                            <path
-                              fill="currentColor"
-                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                            />
-                          </svg>
-                          Hubungkan Google
-                        </Button>
-                      </div>
-                    )}
-
-                    {userData?.hasPassword && userData?.hasGoogleAccount && (
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-700">
-                        <div>
-                          <p className="text-white font-medium">Akun Google</p>
-                          <p className="text-sm text-gray-400">
-                            Akun Google sudah terhubung
-                          </p>
-                        </div>
-                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                      </div>
-                    )}
-
-                    {isChangingPassword && (
-                      <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4 pt-4 border-t border-gray-700">
-                        {userData?.hasPassword && (
-                          <div>
-                            <Label htmlFor="currentPassword" className="text-sm text-gray-400 mb-2 block">
-                              Kata Sandi Saat Ini
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id="currentPassword"
-                                type={showCurrentPassword ? "text" : "password"}
-                                {...registerPassword("currentPassword")}
-                                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 pr-10"
-                                placeholder="Masukkan kata sandi saat ini"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
-                              >
-                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                            {passwordErrors.currentPassword && (
-                              <p className="text-xs text-red-400 mt-1">
-                                {passwordErrors.currentPassword.message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        {!userData?.hasPassword && (
-                          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
-                            <p className="text-sm text-blue-300">
-                              Anda belum memiliki kata sandi. Atur kata sandi untuk dapat login dengan email dan password.
-                            </p>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor="newPassword" className="text-sm text-gray-400 mb-2 block">
-                            Kata Sandi Baru
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              id="newPassword"
-                              type={showNewPassword ? "text" : "password"}
-                              {...registerPassword("newPassword")}
-                              className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 pr-10"
-                              placeholder="Masukkan kata sandi baru (min. 8 karakter)"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowNewPassword(!showNewPassword)}
-                              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
-                            >
-                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                          </div>
-                          {passwordErrors.newPassword && (
-                            <p className="text-xs text-red-400 mt-1">
-                              {passwordErrors.newPassword.message}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label htmlFor="confirmPassword" className="text-sm text-gray-400 mb-2 block">
-                            Konfirmasi Kata Sandi Baru
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              id="confirmPassword"
-                              type={showConfirmPassword ? "text" : "password"}
-                              {...registerPassword("confirmPassword")}
-                              className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 pr-10"
-                              placeholder="Masukkan ulang kata sandi baru"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
-                            >
-                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                          </div>
-                          {passwordErrors.confirmPassword && (
-                            <p className="text-xs text-red-400 mt-1">
-                              {passwordErrors.confirmPassword.message}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                          <Button
-                            type="submit"
-                            disabled={isLoading}
-                            className="bg-primary hover:bg-primary/90"
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            {isLoading ? "Menyimpan..." : "Simpan Kata Sandi"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setIsChangingPassword(false);
-                              resetPassword();
-                            }}
-                            className="border-gray-600 text-white hover:bg-gray-700"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            Batal
-                          </Button>
-                        </div>
-                      </form>
-                    )}
+                    <p className="text-white text-sm">
+                      Ubah kata sandi Anda secara berkala untuk menjaga keamanan akun.
+                    </p>
                   </div>
-                </Card>
-              </>
-            )}
+
+                  {/* Google Connection Section */}
+                  <div className="border-t border-border/50 pt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                          <Mail className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-semibold">Google</h4>
+                          {profile?.user_data?.google_id ? (
+                            <p className="text-xs text-green-400">Terhubung</p>
+                          ) : (
+                            <p className="text-xs text-gray-400">Tidak terhubung</p>
+                          )}
+                        </div>
+                      </div>
+                      {!profile?.user_data?.google_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => googleLogin()}
+                          disabled={isConnectingGoogle}
+                          className="border-primary/50 text-primary hover:bg-primary/10"
+                        >
+                          {isConnectingGoogle ? (
+                            <Loader className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Mail className="h-4 w-4 mr-2" />
+                          )}
+                          {isConnectingGoogle ? "Menghubungkan..." : "Hubungkan"}
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-white text-sm">
+                      Hubungkan akun Google Anda untuk memudahkan login dan keamanan akun yang lebih baik.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Card>
           </div>
         </div>
       </div>

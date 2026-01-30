@@ -1,8 +1,7 @@
 "use client"
 
 import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react"
-import { useAdminDashboard } from "@/lib/queries"
-import { Loader2 } from "lucide-react"
+import type { DashboardData } from "@/lib/dashboard"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -22,21 +21,12 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-export function SectionCards() {
-  const { data: dashboardData, isLoading } = useAdminDashboard()
-  const stats = dashboardData?.data
+interface SectionCardsProps {
+  data: DashboardData;
+}
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12 px-4 lg:px-6">
-        <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
-      </div>
-    )
-  }
-
-  if (!stats) {
-    return null
-  }
+export function SectionCards({ data }: SectionCardsProps) {
+  const stats = data.overviewStats;
 
   const revenueGrowth = stats.revenue.growth
   const isRevenuePositive = revenueGrowth >= 0

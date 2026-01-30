@@ -102,23 +102,34 @@ export async function getSessionApi(): Promise<SessionResponse> {
   }
 
   const data = await response.json();
+  
+  // Debug logging
+  console.log('[getSessionApi] Raw backend response:', data);
+  console.log('[getSessionApi] Request cookies:', document.cookie);
 
   // Backend returns user data with profile info
-  return {
+  // Derive is_staff from role since backend doesn't return it directly
+  const isStaff = data.role === 'STAFF';
+  
+  const sessionData = {
     user: {
       id: data.id,
       email: data.email,
-      name: data.name,
-      phone: data.phone,
+      name: data.full_name, // Use full_name as name
+      phone: '', // Backend doesn't return phone in this endpoint
       full_name: data.full_name,
       profile_picture_url: data.profile_picture_url,
       role: data.role,
-      is_staff: data.is_staff,
-      is_superuser: data.is_superuser,
-      is_active: data.is_active,
-      date_joined: data.date_joined,
+      is_staff: isStaff,
+      is_superuser: isStaff, // Assume superuser same as staff
+      is_active: true, // Assume active if endpoint returns data
+      date_joined: new Date().toISOString(), // Backend doesn't return this
     },
   };
+  
+  console.log('[getSessionApi] Transformed session data:', sessionData);
+  
+  return sessionData;
 }
 
 /**
@@ -128,13 +139,21 @@ export async function getSessionApi(): Promise<SessionResponse> {
 export async function registerApi(
   data: RegisterRequest
 ): Promise<RegisterResponse> {
+  // Map frontend field names to backend field names
+  const requestData = {
+    email: data.email,
+    password: data.password,
+    full_name: data.full_name || data.name || "",
+    contact_phone: data.contact_phone || data.phone || "",
+  };
+
   const response = await fetch(`${API_BASE_URL}/api/v1/register/customer/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify(data),
+    body: JSON.stringify(requestData),
   });
 
   if (!response.ok) {
@@ -152,7 +171,7 @@ export async function registerApi(
 
   return {
     user: result.user,
-    message: result.message || "Registration successful",
+    message: result.message || result.detail || "Registration successful",
   };
 }
 

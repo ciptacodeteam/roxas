@@ -20,7 +20,7 @@ export default function GameCard({ item }: GameCardProps) {
       <div className="group relative cursor-pointer overflow-hidden lg:rounded-2xl rounded-lg bg-neutral-800 shadow transition-all hover:outline-2 hover:outline-rose-500">
         <div className="relative aspect-2/3 w-full">
           <Image
-            src={item.image}
+            src={item.image || "/img/icon1.webp"}
             alt={item.title}
             fill
             className="object-cover"

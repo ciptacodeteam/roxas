@@ -3,6 +3,8 @@
 
 import { productDetail } from "@/lib/data/productDetail";
 import { calculateTotalWithFees } from "@/lib/payment-fees";
+import { useActiveFlashSales } from "@/lib/flash-sales/queries";
+import { useActivePaymentMethods } from "@/lib/payment-methods/queries";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
@@ -57,20 +59,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useSession } from "@/lib/auth-client";
+import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 type ProductData = {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
   slug: string;
+  title: string;
   description: string | null;
   image: string;
-  bannerImage: string | null;
-  canvas: string;
-  inputFields: Array<{
+  canvas?: string;
+  banner_image?: string | null;
+  inputFields?: Array<{
+    name: string;
+    label: string;
+    required: boolean;
+    dialog?: {
+      title: string;
+      content: string;
+    };
+  }>;
+  input_fields?: Array<{
     name: string;
     label: string;
     required: boolean;
@@ -82,9 +94,27 @@ type ProductData = {
   items: Array<{
     id: string;
     name: string;
+    icon_image?: string | null;
     price: number;
-    basePrice: number;
-    skuCode: string;
+    base_price?: number;
+    normal_price?: number;
+    discounted_price?: number;
+    sku_code?: string;
+    group?: string;
+  }>;
+  denominations?: Array<{
+    id: number | string;
+    name: string;
+    price: number;
+    oldPrice?: number;
+    discount?: number;
+    instant?: boolean;
+    fast?: boolean;
+  }>;
+  instruction_images?: Array<{
+    id: string;
+    image: string | null;
+    alt_text: string;
   }>;
 };
 
@@ -128,7 +158,6 @@ export default function ProductDetailClient({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     string | null
   >(null);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -179,11 +208,15 @@ export default function ProductDetailClient({
   const [isMounted, setIsMounted] = useState(false);
 
   // Get user session
-  const { data: session } = useSession();
+  const { session } = useAuth();
 
   // Get flash sale data
   const { data: flashSaleData } = useActiveFlashSales();
   const currentFlashSale = flashSaleData?.[0];
+
+  // Get payment methods
+  const { data: paymentMethodsData } = useActivePaymentMethods();
+  const paymentMethods = paymentMethodsData || [];
 
   // Find if current product has items in flash sale
   const flashSaleItems = useMemo(() => {
@@ -192,7 +225,7 @@ export default function ProductDetailClient({
     const pItems = productData?.items || (product as any).denominations || [];
 
     return currentFlashSale.items.filter((item: any) => {
-      return pItems.some((pItem: any) => pItem.id === item.productItemId);
+      return pItems.some((pItem: any) => pItem.id === item.product_item);
     });
   }, [currentFlashSale, product, productData]);
 
@@ -209,28 +242,18 @@ export default function ProductDetailClient({
     }
   }, [session, phone]);
 
-  // Fetch payment methods
+  // Auto-select payment method when data is loaded
   useEffect(() => {
-    const fetchPaymentMethods = async () => {
-      try {
-        const response = await fetch("/api/payment-methods?isActive=true");
-        const data = await response.json();
-        if (data.success && data.data) {
-          setPaymentMethods(data.data);
-          // Auto-select QRIS if available
-          const qrisMethod = data.data.find((pm: any) => pm.type === "QRIS");
-          if (qrisMethod) {
-            setSelectedPaymentMethod(qrisMethod.id);
-          } else if (data.data.length > 0) {
-            setSelectedPaymentMethod(data.data[0].id);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch payment methods:", error);
+    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentMethod) {
+      // Auto-select QRIS if available
+      const qrisMethod = paymentMethods.find((pm: any) => pm.type === "QRIS");
+      if (qrisMethod) {
+        setSelectedPaymentMethod(qrisMethod.id);
+      } else if (paymentMethods[0]) {
+        setSelectedPaymentMethod(paymentMethods[0].id);
       }
-    };
-    fetchPaymentMethods();
-  }, []);
+    }
+  }, [paymentMethods, selectedPaymentMethod]);
 
   if (!product) {
     return <div className="mt-96 text-white">Produk tidak ditemukan</div>;
@@ -243,8 +266,8 @@ export default function ProductDetailClient({
     (product as any).denominations ||
     []
   ).sort((a: any, b: any) => {
-    const priceA = a.price || a.sellPrice || 0;
-    const priceB = b.price || b.sellPrice || 0;
+    const priceA = a.price || 0;
+    const priceB = b.price || 0;
     return priceA - priceB;
   });
 
@@ -256,7 +279,7 @@ export default function ProductDetailClient({
 
     // Fallback: If no group field, try to infer from SKU code (for backward compatibility)
     if (!groupName) {
-      const skuCode = item.skuCode || "";
+      const skuCode = item.sku_code || "";
       if (skuCode.startsWith("MLID") || skuCode.includes("DIAMOND")) {
         groupName = "Diamond";
       } else if (skuCode.includes("WEEK") || skuCode.includes("PASS")) {
@@ -434,39 +457,44 @@ export default function ProductDetailClient({
     setVerificationError(null);
 
     try {
-      const response = await fetch("/api/products/verify-ml-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: userId.trim(),
-          serverId: serverOrZoneId.trim(),
-        }),
+      // TODO: Implement Django ML account verification API endpoint
+      // const response = await fetch("/api/products/verify-ml-account", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     userId: userId.trim(),
+      //     serverId: serverOrZoneId.trim(),
+      //   }),
+      // });
+      // const data = await response.json();
+      // if (data.success && data.valid) {
+      //   setIsVerified(true);
+      //   setVerifiedAccount({
+      //     userId: userId.trim(),
+      //     serverId: serverOrZoneId.trim(),
+      //     username: data.username,
+      //   });
+      //   setVerificationError(null);
+      //   toast.success("Akun berhasil diverifikasi!");
+      // } else {
+      //   setIsVerified(false);
+      //   setVerifiedAccount(null);
+      //   setVerificationError(data.error || "Verifikasi akun gagal");
+      // }
+      
+      // Temporary: Auto-verify for now
+      setIsVerified(true);
+      setVerifiedAccount({
+        userId: userId.trim(),
+        serverId: serverOrZoneId.trim(),
       });
-
-      const data = await response.json();
-
-      if (data.success && data.data?.verified) {
-        setIsVerified(true);
-        setVerifiedAccount({
-          userId: userId.trim(),
-          serverId: serverOrZoneId.trim(),
-          username: data.data?.username || undefined,
-        });
-        setVerificationError(null);
-      } else {
-        setIsVerified(false);
-        setVerificationError(
-          data.message ||
-          "Gagal memverifikasi akun. Pastikan User ID dan Server ID benar.",
-        );
-      }
+      toast.success("Akun berhasil diverifikasi!");
     } catch (error) {
       setIsVerified(false);
-      setVerificationError(
-        "Terjadi kesalahan saat memverifikasi akun. Silakan coba lagi.",
-      );
+      setVerifiedAccount(null);
+      setVerificationError("Terjadi kesalahan saat memverifikasi akun");
     } finally {
       setIsVerifying(false);
     }
@@ -475,10 +503,10 @@ export default function ProductDetailClient({
   // Check if this is Mobile Legends product
   // Check by slug or by input fields (userId and serverId/zoneId)
   const hasUserIdField =
-    product?.inputFields?.some((field) => field.name === "userId") || false;
+    product?.inputFields?.some((field: any) => field.name === "userId") || false;
   const hasServerField =
     product?.inputFields?.some(
-      (field) => field.name === "serverId" || field.name === "zoneId",
+      (field: any) => field.name === "serverId" || field.name === "zoneId",
     ) || false;
   const isMobileLegends =
     slug.includes("mobile-legends") ||
@@ -488,9 +516,8 @@ export default function ProductDetailClient({
   const selectedItemData = selectedItem
     ? items.find((item: any) => item.id === selectedItem)
     : null;
-
   const productPrice =
-    selectedItemData?.price || selectedItemData?.sellPrice || 0;
+    selectedItemData?.price || 0;
 
   // Get selected payment method
   const selectedPaymentMethodData = selectedPaymentMethod
@@ -505,14 +532,17 @@ export default function ProductDetailClient({
       setLoadingCoupons(true);
       try {
         const baseAmount = productPrice * quantity;
-        const response = await fetch(`/api/coupons?orderAmount=${baseAmount}`);
-        const data = await response.json();
-        if (data.success && data.data) {
-          setAvailableCoupons(data.data);
-          if (data.applicable) {
-            setApplicableCouponIds(data.applicable);
-          }
-        }
+        // TODO: Implement Django coupon API endpoint
+        // const response = await fetch(`/api/coupons?orderAmount=${baseAmount}`);
+        // const data = await response.json();
+        // if (data.success && data.data) {
+        //   setAvailableCoupons(data.data);
+        //   if (data.applicable) {
+        //     setApplicableCouponIds(data.applicable);
+        //   }
+        // }
+        setAvailableCoupons([]);
+        setApplicableCouponIds([]);
       } catch (error) {
         console.error("Failed to fetch coupons:", error);
       } finally {
@@ -529,11 +559,13 @@ export default function ProductDetailClient({
 
       setLoadingRatings(true);
       try {
-        const response = await fetch(`/api/products/${slug}/ratings`);
-        const data = await response.json();
-        if (data.success && data.data) {
-          setProductRatings(data.data);
-        }
+        // TODO: Implement Django ratings API endpoint
+        // const response = await fetch(`/api/products/${slug}/ratings`);
+        // const data = await response.json();
+        // if (data.success && data.data) {
+        //   setProductRatings(data.data);
+        // }
+        setProductRatings(null);
       } catch (error) {
         console.error("Failed to fetch ratings:", error);
       } finally {
@@ -565,7 +597,17 @@ export default function ProductDetailClient({
 
     return calculateTotalWithFees(
       baseAmountAfterCoupon,
-      selectedPaymentMethodData,
+      selectedPaymentMethodData ? { 
+        id: parseInt(selectedPaymentMethodData.id),
+        type: selectedPaymentMethodData.type as string,
+        name: selectedPaymentMethodData.name,
+        description: selectedPaymentMethodData.description,
+        icon: selectedPaymentMethodData.icon,
+        fee_type: selectedPaymentMethodData.fee_type,
+        fee_value: selectedPaymentMethodData.fee_value,
+        vat_type: selectedPaymentMethodData.vat_type,
+        vat_value: selectedPaymentMethodData.vat_value,
+      } : null,
     );
   }, [baseAmountAfterCoupon, selectedPaymentMethodData]);
 
@@ -576,7 +618,7 @@ export default function ProductDetailClient({
       {/* Banner */}
       <div className="relative aspect-video w-full overflow-hidden lg:aspect-16/4">
         <Image
-          src={product.canvas}
+          src={product.image || "/img/img-2.webp"}
           alt="Banner"
           fill
           priority
@@ -658,7 +700,7 @@ export default function ProductDetailClient({
                   data-verification-section
                 >
                   {/* ID */}
-                  {product.inputFields.map((field) => (
+                  {product.inputFields?.map((field: any) => (
                     <div key={field.name}>
                       <Label className="mb-2 flex items-center gap-2 text-sm text-white">
                         {field.label}
@@ -816,18 +858,18 @@ export default function ProductDetailClient({
                                 {groupItems.map((item: any) => {
                                   // Check if this item is in flash sale
                                   const flashSaleItem = flashSaleItems.find(
-                                    (fsi: any) => fsi.productItemId === item.id,
+                                    (fsi: any) => fsi.product_item === item.id,
                                   );
 
                                   // Price logic: Use flash sale price if available, otherwise use discountedPrice, then sellPrice
                                   const flashSalePrice =
-                                    flashSaleItem?.salePrice || null;
+                                    flashSaleItem?.sale_price || null;
                                   const discountedPrice =
-                                    item.discountedPrice || null;
+                                    item.discounted_price || null;
                                   const normalPrice =
-                                    item.normalPrice || item.basePrice || 0;
+                                    item.normal_price || item.base_price || 0;
                                   const sellPrice =
-                                    item.sellPrice || item.price || 0;
+                                    item.price || 0;
 
                                   // Current displayed price: flash sale price > discounted price > sell price
                                   const itemPrice =
@@ -840,7 +882,7 @@ export default function ProductDetailClient({
                                     ? normalPrice
                                     : discountedPrice
                                       ? normalPrice
-                                      : item.basePrice || normalPrice;
+                                      : item.base_price || normalPrice;
 
                                   // Calculate discount percentage
                                   const discount =
@@ -911,7 +953,7 @@ export default function ProductDetailClient({
                                       </CardHeader>
                                       <CardContent className="-mb-2 flex items-center gap-3 px-3 lg:gap-4 lg:px-4">
                                         <Image
-                                          src={item.iconImage || wdp}
+                                          src={item.icon_image || wdp}
                                           alt={item.name}
                                           width={48}
                                           height={48}

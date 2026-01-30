@@ -973,3 +973,177 @@ class RegisterCustomerView(APIView):
                 {'detail': f'An error occurred during customer registration: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# ==================== GOOGLE OAUTH ENDPOINT ====================
+
+
+class GoogleAuthView(APIView):
+    """
+    Public API endpoint for Google OAuth authentication.
+    Only creates/authenticates CUSTOMER role users (not for admin staff).
+    
+    Request body:
+    {
+        "email": "user@example.com",
+        "google_id": "google_user_id",
+        "full_name": "User Name",
+        "picture": "https://...",
+        "email_verified": true
+    }
+    
+    Returns JWT tokens in httpOnly cookies.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = []
+
+    def post(self, request):
+        """
+        Authenticate or register a customer using Google OAuth user info.
+        """
+        from .serializers import GoogleAuthSerializer
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Log the incoming request data for debugging
+        logger.info(f"Google OAuth request data: {request.data}")
+        
+        serializer = GoogleAuthSerializer(data=request.data, context={'request': request})
+        
+        if not serializer.is_valid():
+            logger.error(f"Google OAuth validation failed: {serializer.errors}")
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get user info from validated data
+        email = serializer.validated_data['email']
+        google_id = serializer.validated_data['google_id']
+        full_name = serializer.validated_data.get('full_name', '')
+        picture = serializer.validated_data.get('picture', '')
+        
+        logger.info(f"Processing Google OAuth for email: {email}, google_id: {google_id}")
+        
+        try:
+            with transaction.atomic():
+                # Check if user exists with this email
+                user = CustomUser.objects.filter(email=email).first()
+                
+                if user:
+                    logger.info(f"Existing user found: {user.email}, role: {user.role}")
+                    # User exists - verify it's a CUSTOMER role
+                    if user.role != UserRole.CUSTOMER:
+                        logger.warning(f"Staff user attempted public Google login: {user.email}")
+                        return Response(
+                            {
+                                'detail': 'This Google account is linked to a staff account. Please use admin login.',
+                                'error_code': 'STAFF_ACCOUNT'
+                            },
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                    
+                    # Update google_id if not set
+                    if not user.google_id:
+                        user.google_id = google_id
+                        user.save()
+                    
+                    # Verify email if from Google (Google pre-verifies emails)
+                    if not user.email_verified:
+                        user.email_verified = True
+                        user.email_verified_at = timezone.now()
+                        user.save()
+                    
+                    # Update customer profile if exists
+                    if hasattr(user, 'customer_profile'):
+                        profile = user.customer_profile
+                        if not profile.full_name and full_name:
+                            profile.full_name = full_name
+                            profile.save()
+                    
+                    is_new_user = False
+                else:
+                    logger.info(f"Creating new customer account for: {email}")
+                    # Create new customer user
+                    user = CustomUser.objects.create_user(
+                        email=email,
+                        password=None,  # No password for OAuth users
+                        role=UserRole.CUSTOMER,
+                        is_active=True,
+                        email_verified=True,  # Google pre-verifies emails
+                        email_verified_at=timezone.now(),
+                        google_id=google_id,
+                    )
+                    
+                    # Create customer profile
+                    CustomerProfile.objects.create(
+                        user=user,
+                        full_name=full_name or email.split('@')[0],
+                        contact_phone='',
+                    )
+                    
+                    logger.info(f"Successfully created customer account: {user.email}")
+                    is_new_user = True
+                
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+                refresh_token = str(refresh)
+                
+                # Prepare response
+                response_data = {
+                    'detail': 'Successfully authenticated with Google.' if not is_new_user else 'Account created successfully with Google.',
+                    'user_id': user.id,
+                    'email': user.email,
+                    'is_new_user': is_new_user,
+                }
+                
+                response = Response(response_data, status=status.HTTP_200_OK)
+                
+                # Set httpOnly cookies for tokens
+                # In development (DEBUG=True), use Lax samesite policy
+                # In production (DEBUG=False), use Lax with secure flag
+                is_secure = not settings.DEBUG
+                samesite_policy = 'Lax'
+                
+                response.set_cookie(
+                    key='access_token',
+                    value=access_token,
+                    httponly=True,
+                    secure=is_secure,
+                    samesite=samesite_policy,
+                    path='/',
+                    max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
+                )
+                
+                response.set_cookie(
+                    key='refresh_token',
+                    value=refresh_token,
+                    httponly=True,
+                    secure=is_secure,
+                    samesite=samesite_policy,
+                    path='/',
+                    max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+                )
+                
+                return response
+                
+        except IntegrityError as e:
+            error_message = str(e)
+            if "email" in error_message.lower() or "account_customuser_email_key" in error_message:
+                return Response(
+                    {'email': ['A user with this email already exists.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                {'detail': 'An error occurred during Google authentication. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Google OAuth error: {str(e)}", exc_info=True)
+            return Response(
+                {'detail': f'An error occurred during Google authentication: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

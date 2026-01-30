@@ -160,7 +160,25 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export function useCategories(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.categories.list(),
-    queryFn: () => fetchJSON<any[]>("/api/categories"),
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/categories/`, {
+        method: "GET",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch categories");
+      }
+      
+      const data = await response.json();
+      
+      // Handle paginated response from Django REST Framework
+      if (data && typeof data === 'object' && 'results' in data) {
+        return data.results;
+      }
+      
+      // Handle non-paginated response (array)
+      return Array.isArray(data) ? data : [];
+    },
     ...options,
   });
 }
@@ -186,7 +204,26 @@ export function useProducts(
 
   return useQuery({
     queryKey: queryKeys.products.list(filters),
-    queryFn: () => fetchJSON<any[]>(`/api/products?${queryParams.toString()}`),
+    queryFn: async () => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/?${queryParams.toString()}`,
+        { method: "GET" }
+      );
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      
+      const data = await response.json();
+      
+      // Handle paginated response from Django REST Framework
+      if (data && typeof data === 'object' && 'results' in data) {
+        return data.results;
+      }
+      
+      // Handle non-paginated response (array)
+      return Array.isArray(data) ? data : [];
+    },
     ...options,
   });
 }
@@ -266,7 +303,25 @@ export function useAdminTransaction(
 export function useMarketingBanners(options?: Omit<UseQueryOptions<any[]>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.banners.active(),
-    queryFn: () => fetchJSON<any[]>("/api/marketing-banners"),
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/banners/`, {
+        method: "GET",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch marketing banners");
+      }
+      
+      const data = await response.json();
+      
+      // Handle paginated response from Django REST Framework
+      if (data && typeof data === 'object' && 'results' in data) {
+        return data.results;
+      }
+      
+      // Handle non-paginated response (array)
+      return Array.isArray(data) ? data : [];
+    },
     ...options,
   });
 }
@@ -593,7 +648,25 @@ export function useAdminFlashSale(id: string, options?: Omit<UseQueryOptions<any
 export function useActiveFlashSales(options?: Omit<UseQueryOptions<any>, "queryKey" | "queryFn">) {
   return useQuery({
     queryKey: queryKeys.flashSales.active(),
-    queryFn: () => fetchJSON<any>("/api/v1/flash-sales/active"),
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/flash-sales/`, {
+        method: "GET",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch active flash sales");
+      }
+      
+      const data = await response.json();
+      
+      // Handle paginated response from Django REST Framework
+      if (data && typeof data === 'object' && 'results' in data) {
+        return data.results;
+      }
+      
+      // Handle non-paginated response (array)
+      return Array.isArray(data) ? data : [];
+    },
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 1000 * 60, // Refetch every 1 minute
     ...options,

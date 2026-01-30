@@ -1,5 +1,5 @@
 import UserTransactionHero from "@/components/section/transactionSection/UserTransactionHero";
-import UserTransactionTable from "@/components/section/transactionSection/UserTransactionTable";
+import UserTransactionTable from "@/components/section/transactionSection/UserTransactionTableNew";
 
 export default function MyTransactions() {
   return (
