@@ -410,23 +410,24 @@ export default function ProductDetailClient({
 
     try {
       const baseAmount = productPrice * quantity;
-      const response = await fetch("/api/coupons/validate", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/api/v1/coupons/validate/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           code: couponToValidate.toUpperCase(),
-          orderAmount: baseAmount,
+          order_amount: baseAmount,
         }),
       });
 
       const data = await response.json();
 
-      if (data.success && data.valid) {
+      if (response.ok && data.valid) {
         setAppliedCoupon({
           code: couponToValidate.toUpperCase(),
-          discountAmount: data.discountAmount,
+          discountAmount: data.discount_amount,
           coupon: data.coupon,
         });
         setCouponError(null);
@@ -457,44 +458,41 @@ export default function ProductDetailClient({
     setVerificationError(null);
 
     try {
-      // TODO: Implement Django ML account verification API endpoint
-      // const response = await fetch("/api/products/verify-ml-account", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     userId: userId.trim(),
-      //     serverId: serverOrZoneId.trim(),
-      //   }),
-      // });
-      // const data = await response.json();
-      // if (data.success && data.valid) {
-      //   setIsVerified(true);
-      //   setVerifiedAccount({
-      //     userId: userId.trim(),
-      //     serverId: serverOrZoneId.trim(),
-      //     username: data.username,
-      //   });
-      //   setVerificationError(null);
-      //   toast.success("Akun berhasil diverifikasi!");
-      // } else {
-      //   setIsVerified(false);
-      //   setVerifiedAccount(null);
-      //   setVerificationError(data.error || "Verifikasi akun gagal");
-      // }
-      
-      // Temporary: Auto-verify for now
-      setIsVerified(true);
-      setVerifiedAccount({
-        userId: userId.trim(),
-        serverId: serverOrZoneId.trim(),
+      // Call Django backend ML account verification API endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/product-items/validate-ml-id/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId.trim(),
+          server_id: serverOrZoneId.trim(),
+        }),
       });
-      toast.success("Akun berhasil diverifikasi!");
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        setIsVerified(true);
+        setVerifiedAccount({
+          userId: userId.trim(),
+          serverId: serverOrZoneId.trim(),
+          username: data.account_name,
+        });
+        setVerificationError(null);
+        toast.success("Akun berhasil diverifikasi!");
+      } else {
+        setIsVerified(false);
+        setVerifiedAccount(null);
+        setVerificationError(data.error || "Verifikasi akun gagal");
+        toast.error(data.error || "Verifikasi akun gagal");
+      }
     } catch (error) {
+      console.error("Verification error:", error);
       setIsVerified(false);
       setVerifiedAccount(null);
       setVerificationError("Terjadi kesalahan saat memverifikasi akun");
+      toast.error("Terjadi kesalahan saat memverifikasi akun");
     } finally {
       setIsVerifying(false);
     }
@@ -502,10 +500,12 @@ export default function ProductDetailClient({
 
   // Check if this is Mobile Legends product
   // Check by slug or by input fields (userId and serverId/zoneId)
+  // Support both camelCase (inputFields) and snake_case (input_fields) from Django
+  const inputFields = product?.inputFields || product?.input_fields || [];
   const hasUserIdField =
-    product?.inputFields?.some((field: any) => field.name === "userId") || false;
+    inputFields?.some((field: any) => field.name === "userId") || false;
   const hasServerField =
-    product?.inputFields?.some(
+    inputFields?.some(
       (field: any) => field.name === "serverId" || field.name === "zoneId",
     ) || false;
   const isMobileLegends =
@@ -597,7 +597,7 @@ export default function ProductDetailClient({
 
     return calculateTotalWithFees(
       baseAmountAfterCoupon,
-      selectedPaymentMethodData ? { 
+      selectedPaymentMethodData ? {
         id: parseInt(selectedPaymentMethodData.id),
         type: selectedPaymentMethodData.type as string,
         name: selectedPaymentMethodData.name,
@@ -700,7 +700,7 @@ export default function ProductDetailClient({
                   data-verification-section
                 >
                   {/* ID */}
-                  {product.inputFields?.map((field: any) => (
+                  {inputFields?.map((field: any) => (
                     <div key={field.name}>
                       <Label className="mb-2 flex items-center gap-2 text-sm text-white">
                         {field.label}
@@ -743,7 +743,8 @@ export default function ProductDetailClient({
                       </Label>
                       <Input
                         placeholder={field.label}
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={
                           field.name === "userId"
                             ? userId
@@ -755,20 +756,20 @@ export default function ProductDetailClient({
                               : ""
                         }
                         onChange={(e) => {
+                          const value = e.target.value;
                           if (field.name === "userId") {
-                            setUserId(e.target.value);
-                            setIsVerified(false); // Reset verification when user changes ID
+                            setUserId(value);
+                            setIsVerified(false);
                           } else if (field.name === "serverId") {
-                            setServerId(e.target.value);
-                            setIsVerified(false); // Reset verification when user changes server
+                            setServerId(value);
+                            setIsVerified(false);
                           } else if (field.name === "zoneId") {
-                            setZoneId(e.target.value);
-                            setServerId(e.target.value); // Also update serverId for compatibility
-                            setIsVerified(false); // Reset verification when user changes zone
+                            setZoneId(value);
+                            setServerId(value);
+                            setIsVerified(false);
                           }
                         }}
-                        readOnly={false}
-                        className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400"
                       />
                     </div>
                   ))}
@@ -2637,19 +2638,20 @@ export default function ProductDetailClient({
                                 customerData.phone = phone;
                               }
 
-                              // Create payment
+                              // Create order with payment via Django backend
+                              const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
                               const response = await fetch(
-                                "/api/payments/create",
+                                `${apiUrl}/api/v1/orders/`,
                                 {
                                   method: "POST",
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
                                   body: JSON.stringify({
-                                    productItemId: selectedItemData.id,
-                                    customerData,
-                                    couponCode: appliedCoupon?.code || null,
-                                    paymentMethodId: selectedPaymentMethod,
+                                    product_item: selectedItemData.id,
+                                    customer_data: customerData,
+                                    coupon_code: appliedCoupon?.code || "",
+                                    payment_method: selectedPaymentMethod,
                                   }),
                                 },
                               );
@@ -2657,26 +2659,26 @@ export default function ProductDetailClient({
                               const data = await response.json();
 
                               if (!response.ok) {
-                                console.error("Payment creation failed:", data);
+                                console.error("Order creation failed:", data);
+                                // Extract error message from Django response
+                                const errorMsg = typeof data === 'object' ?
+                                  (data.detail || data.message || JSON.stringify(data)) :
+                                  `Error ${response.status}: ${response.statusText}`;
                                 toast.error("Gagal membuat pesanan", {
-                                  description:
-                                    data.message ||
-                                    `Error ${response.status}: ${response.statusText}`,
+                                  description: errorMsg,
                                 });
                                 setIsLoading(false);
                                 return;
                               }
 
-                              if (data.success) {
-                                // Redirect to payment page with order ID
+                              if (data.id) {
+                                // Order created successfully, redirect to payment page
                                 router.push(
-                                  `/payment?orderId=${data.data.orderId}`,
+                                  `/payment?orderId=${data.id}`,
                                 );
                               } else {
                                 toast.error("Gagal membuat pesanan", {
-                                  description:
-                                    data.message ||
-                                    "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.",
+                                  description: "Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.",
                                 });
                                 setIsLoading(false);
                               }

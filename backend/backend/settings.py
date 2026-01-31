@@ -255,6 +255,23 @@ AUTH_USER_MODEL = "account.CustomUser"
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 
+# ============================================
+# MIDTRANS PAYMENT GATEWAY CONFIGURATION
+# ============================================
+MIDTRANS_SERVER_KEY = os.environ.get("MIDTRANS_SERVER_KEY", "")
+MIDTRANS_CLIENT_KEY = os.environ.get("MIDTRANS_CLIENT_KEY", "")
+MIDTRANS_PRODUCTION = get_env_bool("MIDTRANS_IS_PRODUCTION", False)
+
+# ============================================
+# DIGIFLAZZ GAME TOP-UP CONFIGURATION
+# ============================================
+DIGIFLAZZ_USERNAME = os.environ.get("DIGIFLAZZ_USERNAME", "")
+DIGIFLAZZ_API_KEY = os.environ.get("DIGIFLAZZ_API_KEY", "")
+DIGIFLAZZ_API_URL = os.environ.get("DIGIFLAZZ_API_URL", "https://api.digiflazz.com/v1")
+DIGIFLAZZ_WEBHOOK_SECRET = os.environ.get("DIGIFLAZZ_WEBHOOK_SECRET", "")
+DIGIFLAZZ_PRODUCTION = get_env_bool("DIGIFLAZZ_IS_PRODUCTION", False)
+DIGIFLAZZ_ENVIRONMENT = "production" if DIGIFLAZZ_PRODUCTION else "sandbox"
+
 # CSRF Settings for cookie-based authentication
 CSRF_COOKIE_HTTPONLY = False  # Must be False so frontend can read CSRF token if needed
 CSRF_COOKIE_SAMESITE = 'Lax'  # Match AUTH_COOKIE_SAMESITE - use 'None' for cross-domain

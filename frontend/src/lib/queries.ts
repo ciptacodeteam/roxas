@@ -397,9 +397,17 @@ export function useCreatePayment(
 
   return useMutation({
     mutationFn: async (data: { productItemId: string; customerData: any; couponCode?: string; paymentMethodId?: string }) => {
-      return fetchJSON<any>("/api/payments/create", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Map to Django backend format
+      const payload = {
+        product_item: data.productItemId,
+        customer_data: data.customerData,
+        payment_method: data.paymentMethodId,
+        coupon_code: data.couponCode || "",
+      };
+      return fetchJSON<any>(`${apiUrl}/api/v1/orders/`, {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
     },
     onSuccess: () => {
@@ -416,9 +424,15 @@ export function useValidateCoupon(
 ) {
   return useMutation({
     mutationFn: async ({ code, orderAmount }: { code: string; orderAmount: number }) => {
-      return fetchJSON<any>("/api/coupons/validate", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Map to Django backend format
+      const payload = {
+        code,
+        order_amount: orderAmount,
+      };
+      return fetchJSON<any>(`${apiUrl}/api/v1/coupons/validate/`, {
         method: "POST",
-        body: JSON.stringify({ code, orderAmount }),
+        body: JSON.stringify(payload),
       });
     },
     ...options,

@@ -19,23 +19,28 @@ export default async function ProductDetailPage({
   // Transform API response to match expected format
   let productData: any = undefined;
   if (product) {
-    productData = {
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description,
-      image: product.image || "/img/ffcover.webp",
-      banner_image: product.banner_image,
-      input_fields: Array.isArray(product.input_fields)
-        ? product.input_fields
-          .filter((field): field is string => typeof field === "string")
-          .map((field) => ({
+    // Handle input_fields - can be array of strings OR array of objects
+    let inputFields: any[] = [];
+    if (Array.isArray(product.input_fields)) {
+      inputFields = product.input_fields.map((field: any) => {
+        // If field is already an object with name property, use it directly
+        if (typeof field === 'object' && field !== null && field.name) {
+          return {
+            name: field.name,
+            label: field.label || field.name,
+            required: field.required !== false,
+            dialog: field.dialog,
+          };
+        }
+        // If field is a string, convert to object
+        if (typeof field === 'string') {
+          return {
             name: field,
             label:
               field === "userId"
-                ? "ID"
+                ? "User ID"
                 : field === "serverId" || field === "zoneId"
-                  ? "Server"
+                  ? "Server ID"
                   : field === "phoneNumber"
                     ? "Nomor Telepon"
                     : field,
@@ -43,12 +48,23 @@ export default async function ProductDetailPage({
             ...(field === "userId" && {
               dialog: {
                 title: "Cara Menemukan User ID",
-                content:
-                  "Buka game → klik avatar → salin User ID di profile.",
+                content: "Buka game → klik avatar → salin User ID di profile.",
               },
             }),
-          }))
-        : [],
+          };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+
+    productData = {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      image: product.image || "/img/ffcover.webp",
+      banner_image: product.banner_image,
+      input_fields: inputFields,
       items: (product.items || [])
         .filter((item: any) => item.is_active)
         .map((item: any) => ({

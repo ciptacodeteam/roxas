@@ -203,35 +203,50 @@ def process_order_topup(self, order_id):
         if not order.product_item:
             raise ValueError("Order tidak memiliki product item")
         
-        if not order.product_item.digiflazz_sku:
-            raise ValueError("Product tidak memiliki Digiflazz SKU")
+        if not order.product_item.sku_code:
+            raise ValueError("Product tidak memiliki SKU code")
         
-        # Validasi customer data
-        customer_no = order.customer_data.get('user_id') or order.customer_data.get('game_id')
-        if not customer_no:
-            raise ValueError("Customer data tidak memiliki user_id/game_id")
+        # Extract customer_no from customer_data based on game type
+        # Mobile Legends format: userId + serverId (concatenated)
+        # Other games: just userId
+        customer_data = order.customer_data or {}
+        user_id = customer_data.get('userId') or customer_data.get('user_id') or customer_data.get('gameId')
+        
+        if not user_id:
+            raise ValueError("Customer data tidak memiliki userId")
+        
+        # For Mobile Legends, combine userId and serverId
+        server_id = customer_data.get('serverId') or customer_data.get('server_id') or customer_data.get('zoneId')
+        if server_id:
+            # Mobile Legends format
+            customer_no = f"{user_id}{server_id}"
+        else:
+            # Other games - just userId
+            customer_no = str(user_id)
+        
+        logger.info(f"Processing top-up for customer_no: {customer_no}")
         
         # Get Digiflazz client
         client = get_digiflazz_client()
         
         # Create transaction
         transaction = client.create_transaction(
-            buyer_sku_code=order.product_item.digiflazz_sku,
-            customer_no=str(customer_no),
-            ref_id=str(order.id),
+            buyer_sku_code=order.product_item.sku_code,
+            customer_no=customer_no,
+            ref_id=order.order_number,  # Use order_number instead of UUID for ref_id
             testing=False
         )
         
         # Save transaction to database
         df_transaction = DigiflazzTransaction.objects.create(
             order=order,
-            ref_id=str(order.id),
-            buyer_sku_code=transaction['buyer_sku_code'],
-            customer_no=transaction['customer_no'],
-            status=transaction['status'],
-            rc=transaction['rc'],
-            message=transaction['message'],
-            price=transaction['price'],
+            ref_id=order.order_number,
+            buyer_sku_code=transaction.get('buyer_sku_code', ''),
+            customer_no=transaction.get('customer_no', ''),
+            status=transaction.get('status', ''),
+            rc=transaction.get('rc', ''),
+            message=transaction.get('message', ''),
+            price=transaction.get('price', 0),
             sn=transaction.get('sn', ''),
             raw_response=transaction
         )

@@ -129,7 +129,7 @@ class ProductItemSerializer(serializers.ModelSerializer):
 
 
 class ProductItemPublicSerializer(serializers.ModelSerializer):
-    """Public serializer for ProductItem (excludes internal pricing)."""
+    """Public serializer for ProductItem (excludes internal pricing and MLCU items)."""
     
     class Meta:
         model = ProductItem
@@ -138,6 +138,30 @@ class ProductItemPublicSerializer(serializers.ModelSerializer):
             'sell_price', 'normal_price', 'discounted_price', 'is_active', 'sort_order'
         ]
         read_only_fields = ['id']
+
+
+class MobileLegendValidationSerializer(serializers.Serializer):
+    """Serializer for Mobile Legend ID + Server ID validation."""
+    user_id = serializers.CharField(max_length=50, required=True)
+    server_id = serializers.CharField(max_length=50, required=True)
+    
+    def validate(self, data):
+        """Validate user_id and server_id format."""
+        user_id = data.get('user_id', '').strip()
+        server_id = data.get('server_id', '').strip()
+        
+        if not user_id or not server_id:
+            raise serializers.ValidationError({
+                'error': 'User ID dan Server ID harus diisi'
+            })
+        
+        # Basic validation - should be numeric
+        if not user_id.isdigit() or not server_id.isdigit():
+            raise serializers.ValidationError({
+                'error': 'User ID dan Server ID harus berupa angka'
+            })
+        
+        return data
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -375,7 +399,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating orders."""
+    """Serializer for creating orders with full validation and pricing calculation."""
     coupon_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     
     class Meta:
@@ -385,16 +409,174 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         ]
     
     def validate_product_item(self, value):
-        """Ensure product item is active."""
+        """Ensure product item is active and available."""
         if not value.is_active:
-            raise serializers.ValidationError("This product item is not available.")
+            raise serializers.ValidationError("Produk ini tidak tersedia.")
+        if value.digiflazz_status == 'INACTIVE':
+            raise serializers.ValidationError("Produk ini sedang tidak aktif di sistem.")
         return value
     
     def validate_payment_method(self, value):
         """Ensure payment method is active."""
         if not value.is_active:
-            raise serializers.ValidationError("This payment method is not available.")
+            raise serializers.ValidationError("Metode pembayaran ini tidak tersedia.")
         return value
+    
+    def validate_customer_data(self, value):
+        """Validate customer data based on product requirements."""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Data pelanggan harus berupa object.")
+        
+        # Check for required fields (userId is required for all game products)
+        if 'userId' not in value or not value['userId']:
+            raise serializers.ValidationError("User ID harus diisi.")
+        
+        return value
+    
+    def validate(self, data):
+        """Cross-field validation and price calculation."""
+        product_item = data.get('product_item')
+        payment_method = data.get('payment_method')
+        coupon_code = data.get('coupon_code', '').strip().upper()
+        
+        if not product_item or not payment_method:
+            raise serializers.ValidationError("Product item dan payment method harus diisi.")
+        
+        # Calculate base price (use sell_price from ProductItem)
+        original_price = product_item.sell_price
+        final_price = original_price
+        coupon_discount = 0
+        applied_coupon = None
+        
+        # Apply coupon if provided
+        if coupon_code:
+            try:
+                coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+                
+                # Check date validity
+                now = timezone.now()
+                if coupon.start_date and now < coupon.start_date:
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Kupon belum dapat digunakan.'
+                    })
+                if coupon.end_date and now > coupon.end_date:
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Kupon sudah kadaluarsa.'
+                    })
+                
+                # Check usage limits
+                if coupon.usage_limit and coupon.usage_count >= coupon.usage_limit:
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Kupon sudah habis digunakan.'
+                    })
+                
+                # Check user limit (requires authenticated user in context)
+                user = self.context.get('request').user if self.context.get('request') else None
+                if user and coupon.user_limit:
+                    user_usage = CouponUsage.objects.filter(
+                        coupon=coupon, user=user
+                    ).count()
+                    if user_usage >= coupon.user_limit:
+                        raise serializers.ValidationError({
+                            'coupon_code': 'Anda sudah mencapai batas penggunaan kupon ini.'
+                        })
+                
+                # Check minimum purchase
+                if coupon.min_purchase and original_price < coupon.min_purchase:
+                    raise serializers.ValidationError({
+                        'coupon_code': f'Minimal pembelian Rp {coupon.min_purchase:,} untuk kupon ini.'
+                    })
+                
+                # Calculate discount
+                if coupon.discount_type == 'PERCENTAGE':
+                    coupon_discount = int(original_price * coupon.discount_value / 100)
+                    if coupon.max_discount:
+                        coupon_discount = min(coupon_discount, coupon.max_discount)
+                else:  # FIXED_AMOUNT
+                    coupon_discount = int(coupon.discount_value)
+                
+                final_price = max(0, original_price - coupon_discount)
+                applied_coupon = coupon
+                
+            except Coupon.DoesNotExist:
+                raise serializers.ValidationError({
+                    'coupon_code': 'Kode kupon tidak valid.'
+                })
+        
+        # Calculate payment fees
+        from decimal import Decimal
+        
+        payment_fee = 0
+        if payment_method.fee_type == 'PERCENTAGE':
+            payment_fee = int(final_price * float(payment_method.fee_value) / 100)
+        else:  # FIXED
+            payment_fee = int(payment_method.fee_value)
+        
+        # Calculate VAT
+        vat_amount = 0
+        if payment_method.vat_type == 'PERCENTAGE':
+            vat_amount = int((final_price + payment_fee) * float(payment_method.vat_value) / 100)
+        else:  # FIXED
+            vat_amount = int(payment_method.vat_value)
+        
+        # Total amount
+        total_amount = final_price + payment_fee + vat_amount
+        
+        # Store calculated values in validated_data for use in create()
+        data['_calculated_values'] = {
+            'original_price': original_price,
+            'final_price': final_price,
+            'coupon_discount': coupon_discount,
+            'payment_fee': payment_fee,
+            'vat_amount': vat_amount,
+            'total_amount': total_amount,
+            'applied_coupon': applied_coupon,
+        }
+        
+        return data
+    
+    def create(self, validated_data):
+        """Create order with calculated pricing."""
+        import uuid
+        from datetime import timedelta
+        
+        # Remove temporary data
+        calc_values = validated_data.pop('_calculated_values')
+        validated_data.pop('coupon_code', None)
+        
+        # Generate unique order number
+        order_number = f"ORD-{uuid.uuid4().hex[:12].upper()}"
+        
+        # Set payment expiry (24 hours from now)
+        payment_expires_at = timezone.now() + timedelta(hours=24)
+        
+        # Create order
+        order = Order.objects.create(
+            order_number=order_number,
+            original_price=calc_values['original_price'],
+            final_price=calc_values['final_price'],
+            payment_fee=calc_values['payment_fee'],
+            vat_amount=calc_values['vat_amount'],
+            total_amount=calc_values['total_amount'],
+            payment_expires_at=payment_expires_at,
+            status='PENDING',
+            **validated_data
+        )
+        
+        # Record coupon usage if applied
+        if calc_values['applied_coupon']:
+            coupon = calc_values['applied_coupon']
+            CouponUsage.objects.create(
+                coupon=coupon,
+                user=order.user,
+                order=order,
+                discount_amount=calc_values['coupon_discount']
+            )
+            # Increment coupon usage count
+            coupon.usage_count += 1
+            coupon.save(update_fields=['usage_count'])
+        
+        return order
 
 
 class OrderListSerializer(serializers.ModelSerializer):

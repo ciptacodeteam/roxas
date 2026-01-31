@@ -1,6 +1,7 @@
 """
 Django REST Framework ViewSets for the main app.
 """
+import logging
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,6 +10,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db.models import Q, Count, Avg
 from django.shortcuts import get_object_or_404
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     PaymentMethod,
@@ -40,6 +43,7 @@ from .serializers import (
     ProductListSerializer,
     ProductItemSerializer,
     ProductItemPublicSerializer,
+    MobileLegendValidationSerializer,
     PriceSyncSerializer,
     CouponSerializer,
     CouponValidationSerializer,
@@ -229,16 +233,116 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Public API for product items.
-    GET /api/v1/product-items/ - List active product items
+    GET /api/v1/product-items/ - List active product items (excludes MLCU)
     GET /api/v1/product-items/{id}/ - Get product item details
+    POST /api/v1/product-items/validate-ml-id/ - Validate Mobile Legend ID
     """
-    queryset = ProductItem.objects.filter(is_active=True).select_related('product', 'product__category')
     serializer_class = ProductItemPublicSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
     search_fields = ['name', 'sku_code']
     filterset_fields = ['product', 'product__category']
     ordering_fields = ['name', 'sell_price', 'sort_order']
+    
+    def get_queryset(self):
+        """Filter out MLCU items from public listing."""
+        return ProductItem.objects.filter(
+            is_active=True
+        ).exclude(
+            sku_code__icontains='MLCU'
+        ).select_related('product', 'product__category')
+    
+    @action(detail=False, methods=['post'], url_path='validate-ml-id')
+    def validate_ml_id(self, request):
+        """
+        Validate Mobile Legend user ID + server ID using Digiflazz MLCU SKU.
+        
+        POST /api/v1/product-items/validate-ml-id/
+        {
+            "user_id": "123456789",
+            "server_id": "1234"
+        }
+        """
+        from .serializers import MobileLegendValidationSerializer
+        from .integrations.digiflazz import DigiflazzClient, DigiflazzException
+        
+        serializer = MobileLegendValidationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user_id = serializer.validated_data['user_id']
+        server_id = serializer.validated_data['server_id']
+        
+        # Find MLCU product item
+        try:
+            mlcu_item = ProductItem.objects.filter(
+                sku_code__icontains='MLCU',
+                is_active=True
+            ).first()
+            
+            if not mlcu_item:
+                return Response({
+                    'valid': False,
+                    'error': 'Validasi Mobile Legend saat ini tidak tersedia',
+                    'message': 'MLCU product not configured'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            # Call Digiflazz to validate
+            client = DigiflazzClient()
+            customer_no = f"{user_id}{server_id}"  # ML format: userid+serverid
+            
+            # Generate temporary ref_id for validation
+            import uuid
+            temp_ref_id = f"MLCHECK-{uuid.uuid4().hex[:12].upper()}"
+            
+            try:
+                # Create a test transaction to validate the account
+                # In testing mode, it will validate without actually processing
+                result = client.create_transaction(
+                    buyer_sku_code=mlcu_item.sku_code,
+                    customer_no=customer_no,
+                    ref_id=temp_ref_id,
+                    testing=True  # Use testing mode for validation only
+                )
+                
+                # Check if validation successful
+                # Digiflazz client already unwraps 'data' key, so result IS the transaction data
+                # Check status - Pending means account is valid (waiting for callback)
+                transaction_status = result.get('status', '')
+                account_name = result.get('sn', '') or result.get('customer_name', '') or result.get('message', '')
+                rc = result.get('rc', '')
+                
+                # Status "Pending" or "Sukses" means the account exists
+                # RC empty or "00" means success
+                if transaction_status in ['Pending', 'Sukses'] or rc in ['', '00']:
+                    return Response({
+                        'valid': True,
+                        'user_id': user_id,
+                        'server_id': server_id,
+                        'account_name': account_name if account_name else f"Player {user_id}",
+                        'message': 'Akun Mobile Legends valid'
+                    })
+                else:
+                    return Response({
+                        'valid': False,
+                        'error': result.get('message', 'User ID atau Server ID tidak valid'),
+                        'message': 'Account not found'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+            except DigiflazzException as e:
+                logger.error(f"Digiflazz validation error: {str(e)}")
+                return Response({
+                    'valid': False,
+                    'error': 'Gagal memvalidasi akun Mobile Legends',
+                    'message': str(e)
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logger.error(f"ML validation error: {str(e)}")
+            return Response({
+                'valid': False,
+                'error': 'Terjadi kesalahan saat validasi',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminProductItemViewSet(viewsets.ModelViewSet):
@@ -560,9 +664,139 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderSerializer
     
     def perform_create(self, serializer):
-        """Create order and initiate payment."""
-        serializer.save(user=self.request.user)
-        # TODO: Trigger payment creation via Celery task
+        """Create order and initiate Midtrans payment."""
+        from .integrations.midtrans import MidtransClient, MidtransException
+        
+        # Create the order
+        order = serializer.save(user=self.request.user)
+        
+        try:
+            # Initialize Midtrans client
+            midtrans_client = MidtransClient()
+            
+            # Prepare customer details
+            customer_details = {
+                "email": self.request.user.email,
+                "first_name": self.request.user.name or "Customer",
+                "phone": getattr(self.request.user, 'phone', ''),
+            }
+            
+            # Prepare item details
+            item_details = [{
+                "id": str(order.product_item.id),
+                "name": order.product_item.name,
+                "price": order.final_price,
+                "quantity": 1,
+            }]
+            
+            # Add payment fee as separate item
+            if order.payment_fee > 0:
+                item_details.append({
+                    "id": "payment_fee",
+                    "name": f"Biaya {order.payment_method.name}",
+                    "price": order.payment_fee,
+                    "quantity": 1,
+                })
+            
+            # Add VAT as separate item
+            if order.vat_amount > 0:
+                item_details.append({
+                    "id": "vat",
+                    "name": "PPN",
+                    "price": order.vat_amount,
+                    "quantity": 1,
+                })
+            
+            # Create payment based on payment method type
+            payment_method = order.payment_method
+            payment_response = None
+            
+            if payment_method.type == 'QRIS':
+                payment_response = midtrans_client.charge_qris(
+                    order_id=order.order_number,
+                    gross_amount=order.total_amount,
+                    customer_details=customer_details,
+                    item_details=item_details,
+                )
+            elif payment_method.type == 'BANK_TRANSFER':
+                # Extract bank code from midtrans_code (e.g., 'bca', 'bni', 'mandiri')
+                bank_code = payment_method.midtrans_code
+                payment_response = midtrans_client.charge_bank_transfer(
+                    order_id=order.order_number,
+                    gross_amount=order.total_amount,
+                    bank=bank_code,
+                    customer_details=customer_details,
+                    item_details=item_details,
+                )
+            elif payment_method.type == 'E_WALLET':
+                # Handle different e-wallets
+                if 'gopay' in payment_method.midtrans_code.lower():
+                    payment_response = midtrans_client.charge_gopay(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
+                elif 'shopeepay' in payment_method.midtrans_code.lower():
+                    payment_response = midtrans_client.charge_shopeepay(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
+            else:
+                # Default to QRIS for unsupported types
+                payment_response = midtrans_client.charge_qris(
+                    order_id=order.order_number,
+                    gross_amount=order.total_amount,
+                    customer_details=customer_details,
+                    item_details=item_details,
+                )
+            
+            # Create Payment record
+            if payment_response:
+                payment = Payment.objects.create(
+                    order=order,
+                    external_id=order.order_number,
+                    transaction_id=payment_response.get('transaction_id'),
+                    payment_method=payment_method,
+                    amount=order.total_amount,
+                    status='pending',
+                    payment_url=payment_response.get('payment_url'),
+                    va_number=payment_response.get('va_numbers', [{}])[0].get('va_number') if payment_response.get('va_numbers') else None,
+                    qris_string=payment_response.get('actions', [{}])[0].get('url') if payment_response.get('actions') else None,
+                    deeplink_url=payment_response.get('actions', [{}])[0].get('url') if payment_response.get('actions') else None,
+                    expires_at=order.payment_expires_at,
+                    webhook_data=payment_response,
+                )
+                
+                logger.info(f"Payment created for order {order.order_number}: {payment.id}")
+            
+        except MidtransException as e:
+            logger.error(f"Midtrans payment creation failed for order {order.order_number}: {str(e)}")
+            # Don't fail the order creation, just log the error
+            # Payment can be created later or manually
+        except Exception as e:
+            logger.error(f"Unexpected error creating payment for order {order.order_number}: {str(e)}")
+        
+        return order
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to return order with payment details."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = self.perform_create(serializer)
+        
+        # Get payment details if exists
+        payment = Payment.objects.filter(order=order).first()
+        
+        # Prepare response data
+        order_data = OrderSerializer(order).data
+        if payment:
+            order_data['payment'] = PaymentPublicSerializer(payment).data
+        
+        headers = self.get_success_headers(order_data)
+        return Response(order_data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class AdminOrderViewSet(viewsets.ModelViewSet):
