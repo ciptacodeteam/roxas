@@ -29,19 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // This prevents flash of unauthenticated state during navigation
   const isAuthLoading = isPending || (isLoading && isFetching);
   
-  // Debug logging
-  React.useEffect(() => {
-    console.log('[AuthProvider] State:', {
-      isLoading,
-      isPending,
-      isFetching,
-      isAuthLoading,
-      isAuthenticated,
-      user: user ? { email: user.email, role: user.role } : null,
-      error: error?.message,
-    });
-  }, [isLoading, isPending, isFetching, isAuthLoading, isAuthenticated, user, error]);
-  
   // Automatically refresh token every 4 minutes if authenticated
   useTokenRefresh(isAuthenticated);
 

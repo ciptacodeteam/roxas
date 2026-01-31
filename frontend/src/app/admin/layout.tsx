@@ -28,18 +28,7 @@ export default function AdminLayout({
   // Debug logging - always log except on login page
   useEffect(() => {
     if (!isLoginPage) {
-      console.log('[Admin Layout] Auth State:', {
-        pathname,
-        isLoading,
-        isAuthenticated,
-        isAdmin,
-        user: user ? {
-          email: user.email,
-          role: user.role,
-          is_staff: user.is_staff,
-          is_superuser: user.is_superuser,
-        } : null,
-      });
+      // Silent logging removed
     }
   }, [isAuthenticated, isAdmin, isLoading, user, isLoginPage, pathname]);
 
@@ -47,16 +36,12 @@ export default function AdminLayout({
   useEffect(() => {
     // Skip authentication check for login page
     if (isLoginPage) {
-      console.log('[Admin Layout] On login page, skipping auth check');
       setHasInitialized(true);
       return;
     }
 
-    console.log('[Admin Layout] Checking auth - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'hasInitialized:', hasInitialized);
-
     // Wait for auth to finish loading before making any decisions
     if (isLoading) {
-      console.log('[Admin Layout] Still loading auth state...');
       return;
     }
 
@@ -68,18 +53,14 @@ export default function AdminLayout({
     // Only redirect if fully initialized and not authenticated/admin
     if (hasInitialized || !isLoading) {
       if (!isAuthenticated) {
-        console.log('[Admin Layout] Not authenticated, redirecting to login');
         router.replace('/admin/login');
         return;
       }
 
       if (!isAdmin) {
-        console.log('[Admin Layout] Not admin user, redirecting to login');
         router.replace('/admin/login');
         return;
       }
-
-      console.log('[Admin Layout] ✅ Admin user authenticated successfully');
     }
   }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname, hasInitialized]);
 
@@ -111,7 +92,6 @@ export default function AdminLayout({
   // Show loading while redirecting (not authenticated or not admin)
   // EXCEPT for login page
   if (!isLoginPage && hasInitialized && !isLoading && (!isAuthenticated || !isAdmin)) {
-    console.log('[Admin Layout] Unauthorized, should be redirecting...');
     return (
       <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
