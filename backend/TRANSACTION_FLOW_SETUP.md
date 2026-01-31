@@ -246,18 +246,6 @@ Response:
 
 ## Environment Variables Required
 
-### Backend (.env)
-```env
-# Already configured ✓
-MIDTRANS_SERVER_KEY=Mid-server-SemNJr2BsvmZzcggd8w8On5q
-MIDTRANS_CLIENT_KEY=Mid-client-yh_VLX_WjEf3MgK1
-MIDTRANS_IS_PRODUCTION=false
-
-DIGIFLAZZ_USERNAME=julexigNJYXg
-DIGIFLAZZ_API_KEY=dev-820e6660-b318-11f0-b8dc-9d5ce5559de6
-DIGIFLAZZ_WEBHOOK_SECRET=ciptacode
-```
-
 ### Frontend (.env)
 ```env
 # Already configured ✓
