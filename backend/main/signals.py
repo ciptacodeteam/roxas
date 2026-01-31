@@ -127,6 +127,11 @@ def _optimize_image_field(instance, field_name, max_width=1920, max_height=1920,
     if image_field and image_field.name and not image_field.name.lower().endswith('.webp'):
         _optimizing.add(instance_id)
         try:
+            # Check if file exists and is accessible in media storage
+            if not image_field.storage.exists(image_field.name):
+                logger.debug(f"Skipping optimization for {field_name}: file does not exist in storage")
+                return
+            
             # Open image
             image_field.seek(0)
             img = Image.open(image_field)

@@ -8,6 +8,16 @@ from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Validate environment variables (only in production or when explicitly enabled)
+if not os.environ.get("SKIP_ENV_VALIDATION", "").lower() in ("1", "true", "yes"):
+    try:
+        from backend.env_validator import validate_env_vars, print_env_summary
+        validate_env_vars()
+        print_env_summary()
+    except ImportError:
+        # env_validator not yet created - skip validation
+        pass
+
 
 def get_env_list(key: str) -> list[str]:
     """
@@ -231,6 +241,13 @@ REST_FRAMEWORK = {
 ACCESS_TOKEN_MINUTES = int(os.environ.get("ACCESS_TOKEN_LIFETIME_MINUTES", "5"))
 REFRESH_TOKEN_DAYS = int(os.environ.get("REFRESH_TOKEN_LIFETIME_DAYS", "7"))
 
+# Determine SameSite cookie policy based on environment
+# In development (DEBUG=True), use "None" to allow cross-origin cookies (frontend:3000 -> backend:8000)
+# In production (DEBUG=False), use "None" if CORS_ALLOWED_ORIGINS is set (cross-domain setup)
+# Otherwise use "Lax" for same-domain production setup
+COOKIE_SAMESITE = "None"  # Always use None to support both same-domain and cross-domain
+COOKIE_SECURE = not DEBUG  # Secure cookies in production (HTTPS required)
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=ACCESS_TOKEN_MINUTES),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=REFRESH_TOKEN_DAYS),
@@ -239,15 +256,14 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "access_token",  # Name of the access token cookie
     "AUTH_COOKIE_REFRESH": "refresh_token",  # Name of the refresh token cookie
-    "AUTH_COOKIE_SECURE": not DEBUG,  # Set to True in production
+    "AUTH_COOKIE_SECURE": COOKIE_SECURE,  # HTTPS only in production
     "AUTH_COOKIE_HTTP_ONLY": True,  # HttpOnly flag
-    # SameSite cookie policy:
-    # - "Lax" (default): Cookies sent for top-level navigation and same-site requests
-    # - "Strict": Cookies only sent for same-site requests
-    # - "None": Cookies sent for all requests (requires Secure=True in production)
-    # For development with different ports (frontend:3000, backend:8000), use "None"
-    # In production on same domain, "Lax" is more secure
-    "AUTH_COOKIE_SAMESITE": "None" if DEBUG else "Lax",
+    # SameSite="None" allows cross-origin cookies (required when frontend and backend are on different domains)
+    # This works for both localhost development and production cross-domain setups
+    # Important: Secure=True is REQUIRED when SameSite=None (enforced by browsers)
+    "AUTH_COOKIE_SAMESITE": COOKIE_SAMESITE,
+    "AUTH_COOKIE_DOMAIN": os.environ.get("COOKIE_DOMAIN", None),  # Allow setting cookie domain via env var
+    "AUTH_COOKIE_PATH": "/",  # Cookie available for all paths
 }
 
 AUTH_USER_MODEL = "account.CustomUser"
@@ -274,13 +290,13 @@ DIGIFLAZZ_ENVIRONMENT = "production" if DIGIFLAZZ_PRODUCTION else "sandbox"
 
 # CSRF Settings for cookie-based authentication
 CSRF_COOKIE_HTTPONLY = False  # Must be False so frontend can read CSRF token if needed
-CSRF_COOKIE_SAMESITE = 'Lax'  # Match AUTH_COOKIE_SAMESITE - use 'None' for cross-domain
-CSRF_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
+CSRF_COOKIE_SAMESITE = COOKIE_SAMESITE  # Match AUTH_COOKIE_SAMESITE
+CSRF_COOKIE_SECURE = COOKIE_SECURE  # Use secure cookies in production
 CSRF_TRUSTED_ORIGINS = get_env_list("CSRF_TRUSTED_ORIGINS")
 
 # Session Settings
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = COOKIE_SAMESITE
+SESSION_COOKIE_SECURE = COOKIE_SECURE
 
 # Email Configuration (Mailgun)
 # Use HTTP API backend if MAILGUN_API_KEY is provided, otherwise fall back to SMTP

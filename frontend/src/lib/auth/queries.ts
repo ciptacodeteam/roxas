@@ -46,8 +46,12 @@ export function useSessionQuery(
   return useQuery({
     queryKey: authKeys.session(),
     queryFn: getSessionApi,
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Retry once to handle network issues
+    retryDelay: 1000, // Wait 1 second before retry
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnMount: true, // Always refetch on component mount
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid flicker
     ...options,
   });
 }

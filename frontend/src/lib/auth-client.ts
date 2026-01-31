@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 // Django API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -106,7 +108,4 @@ export function useSession() {
 
 // Re-export for compatibility
 export const { signIn, signOut, signUp } = authClient;
-
-// React import for useSession hook
-import React from "react";
 

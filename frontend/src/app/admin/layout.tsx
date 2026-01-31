@@ -46,18 +46,24 @@ export default function AdminLayout({
       return;
     }
 
+    // Only redirect when loading is complete
     if (!isLoading) {
       // Check if user is not authenticated at all
       if (!isAuthenticated) {
+        console.log('[Admin Layout] Not authenticated, redirecting to login');
         router.replace('/admin/login');
         return;
       }
 
       // Check if user is authenticated but not an admin
       if (!isAdmin) {
+        console.log('[Admin Layout] Not admin user, redirecting to login');
         router.replace('/admin/login');
         return;
       }
+
+      // User is authenticated and is admin - log success
+      console.log('[Admin Layout] Admin user authenticated successfully');
     }
   }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname]);
 
