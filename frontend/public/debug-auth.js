@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Authentication Debug Helper
  * Add this to your browser console to debug cookie and auth issues
@@ -9,7 +10,7 @@
   // Check cookies
   const cookies = document.cookie.split(';').reduce((acc, cookie) => {
     const [key, value] = cookie.trim().split('=');
-    acc[key] = value;
+    if (key) acc[key] = value;
     return acc;
   }, {});
   
