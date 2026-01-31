@@ -9,7 +9,7 @@ This guide will walk you through deploying the Travel Marketplace Backend to a D
 
 - A Digital Ocean droplet with Ubuntu 22.04+ (1 vCPU, 2GB RAM)
 - SSH access to your server
-- Domain name configured (e.g., `data.goholiday.id`)
+- Domain name configured (e.g., `data.roxasgamestore.com`)
 - DNS A record pointing to your server IP
 
 ---
@@ -58,8 +58,8 @@ nano .env
 # Django Settings
 SECRET_KEY=your-super-secret-key-here  # Generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 DEBUG=0
-ALLOWED_HOSTS=data.goholiday.id,your-server-ip
-CSRF_TRUSTED_ORIGINS=https://data.goholiday.id
+ALLOWED_HOSTS=data.roxasgamestore.com,your-server-ip
+CSRF_TRUSTED_ORIGINS=https://data.roxasgamestore.com
 
 # Database
 SQL_DATABASE=travel_marketplace
@@ -175,10 +175,10 @@ docker compose -f docker-compose.prod.yml restart api
 
 ```bash
 # Test HTTP (should redirect to HTTPS)
-curl -I http://data.goholiday.id/health/
+curl -I http://data.roxasgamestore.com/health/
 
 # Test HTTPS
-curl https://data.goholiday.id/health/
+curl https://data.roxasgamestore.com/health/
 ```
 
 **Check service logs:**
@@ -413,8 +413,8 @@ travel-marketplace-backend/
 │   └── DEPLOYMENT_GUIDE.md # This file
 ├── nginx/
 │   ├── nginx.conf         # Main nginx config
-│   ├── data.goholiday.id.conf          # SSL config
-│   ├── data.goholiday.id.http-only.conf # HTTP-only config
+│   ├── data.roxasgamestore.com.conf          # SSL config
+│   ├── data.roxasgamestore.com.http-only.conf # HTTP-only config
 │   └── ssl/               # SSL certificates (created by ssl-setup.sh)
 ├── docker-compose.prod.yml # Docker Compose configuration
 ├── .env                   # Environment variables (create from env.prod.example)
@@ -476,8 +476,8 @@ docker compose -f docker-compose.prod.yml exec api python manage.py collectstati
 ## 🎉 You're Done!
 
 Your Travel Marketplace Backend should now be running on:
-- **HTTP:** http://data.goholiday.id (redirects to HTTPS)
-- **HTTPS:** https://data.goholiday.id
+- **HTTP:** http://data.roxasgamestore.com (redirects to HTTPS)
+- **HTTPS:** https://data.roxasgamestore.com
 
 **Next Steps:**
 - Test your API endpoints

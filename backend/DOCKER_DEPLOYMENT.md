@@ -203,9 +203,9 @@ mkdir -p nginx/ssl/yourdomain.com
 
 4. **Update nginx configuration:**
 ```bash
-# Edit nginx/data.goholiday.id.conf and replace:
-# - server_name: data.goholiday.id → yourdomain.com
-# - SSL paths: data.goholiday.id → yourdomain.com
+# Edit nginx/data.roxasgamestore.com.conf and replace:
+# - server_name: data.roxasgamestore.com → yourdomain.com
+# - SSL paths: data.roxasgamestore.com → yourdomain.com
 ```
 
 5. **Start production services:**
