@@ -28,7 +28,7 @@ interface SectionCardsProps {
 export function SectionCards({ data }: SectionCardsProps) {
   const stats = data.overviewStats;
 
-  const revenueGrowth = stats.revenue.growth
+  const revenueGrowth = stats.revenueChange
   const isRevenuePositive = revenueGrowth >= 0
 
   return (
@@ -37,7 +37,7 @@ export function SectionCards({ data }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Revenue</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {formatCurrency(stats.revenue.total)}
+            {formatCurrency(stats.totalRevenue)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
@@ -61,33 +61,20 @@ export function SectionCards({ data }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Orders</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.orders.total.toLocaleString("id-ID")}
+            {stats.totalOrders.toLocaleString("id-ID")}
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="bg-green-600/20 text-green-400">
-              {stats.orders.completed} completed
+              {stats.monthOrders} this month
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.orders.today} orders today
-            {(stats.orders.processing || 0) > 0 && (
-              <Badge variant="outline" className="ml-1 bg-purple-600/20 text-purple-400 text-xs">
-                {stats.orders.processing} processing
-              </Badge>
-            )}
+            {stats.monthOrders} orders this month
           </div>
-          <div className="text-muted-foreground flex items-center gap-2">
-            {stats.orders.pending > 0 && (
-              <span className="text-yellow-400">{stats.orders.pending} pending</span>
-            )}
-            {(stats.orders.failed || 0) > 0 && (
-              <span className="text-red-400">{stats.orders.failed} failed</span>
-            )}
-            {stats.orders.pending === 0 && (stats.orders.failed || 0) === 0 && (
-              <span>All orders processed</span>
-            )}
+          <div className="text-muted-foreground">
+            Growth {stats.ordersChange >= 0 ? "up" : "down"} {Math.abs(stats.ordersChange).toFixed(1)}%
           </div>
         </CardFooter>
       </Card>
@@ -95,11 +82,11 @@ export function SectionCards({ data }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Products</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.products.total.toLocaleString("id-ID")}
+            {stats.totalProducts.toLocaleString("id-ID")}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {stats.products.items} items
+              Active products
             </Badge>
           </CardAction>
         </CardHeader>
@@ -108,7 +95,7 @@ export function SectionCards({ data }: SectionCardsProps) {
             Strong product catalog <IconTrendingUp className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            {stats.products.items} product items available for purchase
+            {stats.totalProducts} products available for purchase
           </div>
         </CardFooter>
       </Card>
@@ -116,21 +103,21 @@ export function SectionCards({ data }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Total Users</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.users.total.toLocaleString("id-ID")}
+            {stats.totalUsers.toLocaleString("id-ID")}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <IconTrendingUp />
-              +{stats.users.newThisMonth}
+              Registered users
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.users.newThisMonth} new users this month <IconTrendingUp className="size-4" />
+            Active user base <IconTrendingUp className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            User growth and engagement exceed targets
+            Growing community of users
           </div>
         </CardFooter>
       </Card>

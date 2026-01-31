@@ -141,7 +141,7 @@ export function useCreateFlashSale(
     mutationFn: createFlashSale,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -166,7 +166,7 @@ export function useUpdateFlashSale(
       queryClient.invalidateQueries({
         queryKey: flashSalesKeys.detail(variables.id),
       });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -184,7 +184,7 @@ export function useDeleteFlashSale(
     mutationFn: deleteFlashSale,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -205,7 +205,7 @@ export function useCreateFlashSaleItem(
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.detail(variables.flash_sale) });
       // Invalidate flash sale items list
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.items(variables.flash_sale) });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -232,7 +232,7 @@ export function useUpdateFlashSaleItem(
         queryClient.invalidateQueries({ queryKey: flashSalesKeys.items(flashSaleId) });
       }
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -255,7 +255,7 @@ export function useDeleteFlashSaleItem(
         queryClient.invalidateQueries({ queryKey: flashSalesKeys.items(flashSaleId) });
       }
       queryClient.invalidateQueries({ queryKey: flashSalesKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });

@@ -327,7 +327,7 @@ export default function ProductItemsPage() {
     globalFilterFn: (row, columnId, filterValue) => {
       const item = row.original;
       const searchLower = filterValue.toLowerCase();
-      return (
+      return !!(
         item.name.toLowerCase().includes(searchLower) ||
         item.sku_code.toLowerCase().includes(searchLower) ||
         (item.group && item.group.toLowerCase().includes(searchLower)) ||

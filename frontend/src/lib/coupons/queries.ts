@@ -81,7 +81,7 @@ export function useCreateCoupon(
     mutationFn: createCoupon,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: couponsKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -106,7 +106,7 @@ export function useUpdateCoupon(
       queryClient.invalidateQueries({
         queryKey: couponsKeys.detail(variables.id),
       });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -124,7 +124,7 @@ export function useDeleteCoupon(
     mutationFn: deleteCoupon,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: couponsKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });

@@ -10,7 +10,7 @@ export const createCouponSchema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Code must be 50 characters or less"),
   description: z.string().optional(),
   discount_type: z.nativeEnum(DiscountType, {
-    errorMap: () => ({ message: "Invalid discount type" }),
+    message: "Invalid discount type",
   }),
   discount_value: z.number().min(0, "Discount value must be positive"),
   min_purchase: z.number().min(0, "Minimum purchase must be positive").optional(),
@@ -38,7 +38,7 @@ export const updateCouponSchema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Code must be 50 characters or less").optional(),
   description: z.string().optional(),
   discount_type: z.nativeEnum(DiscountType, {
-    errorMap: () => ({ message: "Invalid discount type" }),
+    message: "Invalid discount type",
   }).optional(),
   discount_value: z.number().min(0, "Discount value must be positive").optional(),
   min_purchase: z.number().min(0, "Minimum purchase must be positive").optional(),

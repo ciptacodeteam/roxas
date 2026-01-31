@@ -64,7 +64,7 @@ export default async function ProductDetailPage({
       description: product.description,
       image: product.image || "/img/ffcover.webp",
       banner_image: product.banner_image,
-      input_fields: inputFields,
+      inputFields: inputFields,
       items: (product.items || [])
         .filter((item: any) => item.is_active)
         .map((item: any) => ({

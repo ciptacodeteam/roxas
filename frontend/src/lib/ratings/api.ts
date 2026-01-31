@@ -3,7 +3,7 @@
  * Handles HTTP requests to Django backend for ratings management
  */
 
-import type { Rating, UpdateRatingRequest } from "./types";
+import type { Rating, UpdateRatingRequest, RatingFilters } from "./types";
 import { RatingsApiError } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";

@@ -10,7 +10,7 @@ import { useSessionQuery, useTokenRefresh } from "./queries";
 import type { AuthState, User } from "./types";
 
 interface AuthContextValue extends AuthState {
-  session: { user: User | null } | null;
+  session: { user: User } | undefined;
   refetchSession: () => void;
 }
 

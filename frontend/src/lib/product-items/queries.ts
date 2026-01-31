@@ -109,7 +109,7 @@ export function useUpdateProductItem(
 }
 
 export function useDeleteProductItem(
-    options?: Omit<UseMutationOptions<void, ProductItemsApiError, string>, "mutationFn">
+    options?: Omit<UseMutationOptions<void, ProductItemsApiError, string, { previousItems: ProductItem[] | undefined }>, "mutationFn">
 ) {
     const queryClient = useQueryClient();
 
@@ -133,7 +133,7 @@ export function useDeleteProductItem(
             // Return a context object with the snapshotted value
             return { previousItems };
         },
-        onError: (err, deletedId, context) => {
+        onError: (err, deletedId, context: any) => {
             // If the mutation fails, use the context returned from onMutate to roll back
             if (context?.previousItems) {
                 queryClient.setQueryData(productItemsQueryKeys.list(), context.previousItems);

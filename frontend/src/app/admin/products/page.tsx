@@ -277,7 +277,7 @@ export default function ProductsPage() {
 
   const table = useReactTable({
     data: products,
-    columns: columnsWithImage,
+    columns: columnsWithImage as any,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -293,12 +293,13 @@ export default function ProductsPage() {
       },
     },
     globalFilterFn: (row, columnId, filterValue) => {
-      const product = row.original;
+      const product = row.original as any;
       const searchLower = filterValue.toLowerCase();
-      return (
+      const categoryName = typeof product.category === 'string' ? product.category : product.category?.name || '';
+      return !!(
         product.name.toLowerCase().includes(searchLower) ||
         product.slug.toLowerCase().includes(searchLower) ||
-        product.category.name.toLowerCase().includes(searchLower)
+        categoryName.toLowerCase().includes(searchLower)
       );
     },
   });

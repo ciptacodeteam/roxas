@@ -60,14 +60,17 @@ export function useLoginMutation(
 ) {
   const queryClient = useQueryClient();
 
+  const userOnSuccess = options?.onSuccess;
+  
   return useMutation({
+    ...options,
     mutationFn: loginApi,
     onSuccess: (data, variables, context) => {
       // Update session cache
       queryClient.setQueryData(authKeys.session(), { user: data.user });
-      options?.onSuccess?.(data, variables, context);
+      // Call user-provided onSuccess if it exists
+      (userOnSuccess as any)?.(data, variables, context);
     },
-    ...options,
   });
 }
 
@@ -79,15 +82,18 @@ export function useLogoutMutation(
 ) {
   const queryClient = useQueryClient();
 
+  const userOnSuccess = options?.onSuccess;
+  
   return useMutation({
+    ...options,
     mutationFn: logoutApi,
     onSuccess: (data, variables, context) => {
       // Clear all auth data
       queryClient.setQueryData(authKeys.session(), null);
       queryClient.removeQueries({ queryKey: authKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      // Call user-provided onSuccess if it exists
+      (userOnSuccess as any)?.(data, variables, context);
     },
-    ...options,
   });
 }
 
@@ -99,14 +105,17 @@ export function useRegisterMutation(
 ) {
   const queryClient = useQueryClient();
 
+  const userOnSuccess = options?.onSuccess;
+  
   return useMutation({
+    ...options,
     mutationFn: registerApi,
     onSuccess: (data, variables, context) => {
       // Update session cache
       queryClient.setQueryData(authKeys.session(), { user: data.user });
-      options?.onSuccess?.(data, variables, context);
+      // Call user-provided onSuccess if it exists
+      (userOnSuccess as any)?.(data, variables, context);
     },
-    ...options,
   });
 }
 

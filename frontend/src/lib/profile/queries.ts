@@ -38,7 +38,7 @@ export function useUpdateProfile(
       // Update cache immediately
       queryClient.setQueryData<CustomerProfile>(profileKeys.current(), data);
       // Call custom onSuccess if provided
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -70,7 +70,7 @@ export function useUploadProfilePhoto(
       // Invalidate profile to refetch with new photo
       queryClient.invalidateQueries({ queryKey: profileKeys.current() });
       // Call custom onSuccess if provided
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });

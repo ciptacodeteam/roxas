@@ -100,7 +100,7 @@ export function useCreateMarketingBanner(
     mutationFn: createMarketingBanner,
     onSuccess: async (data, variables, context) => {
       await queryClient.invalidateQueries({ queryKey: marketingBannersKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -127,7 +127,7 @@ export function useUpdateMarketingBanner(
           queryKey: marketingBannersKeys.detail(variables.id),
         }),
       ]);
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -145,7 +145,7 @@ export function useDeleteMarketingBanner(
     mutationFn: deleteMarketingBanner,
     onSuccess: async (data, variables, context) => {
       await queryClient.invalidateQueries({ queryKey: marketingBannersKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });

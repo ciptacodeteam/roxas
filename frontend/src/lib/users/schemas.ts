@@ -11,7 +11,7 @@ export const createUserSchema = z.object({
   full_name: z.string().min(1, "Full name is required").max(255, "Name is too long"),
   contact_phone: z.string().optional(),
   role: z.enum(["STAFF", "CUSTOMER"], {
-    errorMap: () => ({ message: "Please select a valid role" }),
+    message: "Please select a valid role",
   }),
 });
 

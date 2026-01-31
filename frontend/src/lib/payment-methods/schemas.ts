@@ -8,7 +8,7 @@ import { PaymentMethodType, FeeType } from "./types";
 
 export const createPaymentMethodSchema = z.object({
   type: z.nativeEnum(PaymentMethodType, {
-    required_error: "Payment type is required",
+    message: "Payment type is required",
   }),
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().optional(),

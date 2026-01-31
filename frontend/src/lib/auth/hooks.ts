@@ -36,7 +36,7 @@ export function useLogin(options?: {
 }) {
   const router = useRouter();
   const { refetchSession } = useAuthContext();
-  const { logout: forceLogout } = useLogoutMutation();
+  const logoutMutation = useLogoutMutation();
 
   const mutation = useLoginMutation({
     onSuccess: (data) => {
@@ -49,7 +49,7 @@ export function useLogin(options?: {
             description: "Only admin accounts can access this page.",
           });
           // Force logout the non-admin user
-          forceLogout();
+          logoutMutation.mutate();
           return;
         }
 
@@ -73,7 +73,7 @@ export function useLogin(options?: {
           description: "Staff accounts must use the admin login page.",
         });
         // Force logout the staff user
-        forceLogout();
+        logoutMutation.mutate();
         return;
       }
 
@@ -85,7 +85,7 @@ export function useLogin(options?: {
       refetchSession();
 
       const destination = options?.redirectTo || "/id/profile";
-      
+
       setTimeout(() => {
         window.location.href = destination;
       }, 500);
@@ -128,7 +128,7 @@ export function useLogout(options?: {
       });
 
       const destination = options?.redirectTo || "/id";
-      
+
       setTimeout(() => {
         window.location.href = destination;
       }, 500);
@@ -162,7 +162,7 @@ export function useRegister(options?: {
   isAdmin?: boolean;
 }) {
   const { refetchSession } = useAuthContext();
-  const { logout: forceLogout } = useLogoutMutation();
+  const logoutMutation = useLogoutMutation();
 
   const mutation = useRegisterMutation({
     onSuccess: (data) => {
@@ -174,7 +174,7 @@ export function useRegister(options?: {
           toast.error("Access Denied", {
             description: "Only admin accounts can be created here.",
           });
-          forceLogout();
+          logoutMutation.mutate();
           return;
         }
 
@@ -197,7 +197,7 @@ export function useRegister(options?: {
         toast.error("Access Denied", {
           description: "Staff accounts cannot be created through public registration.",
         });
-        forceLogout();
+        logoutMutation.mutate();
         return;
       }
 
@@ -209,7 +209,7 @@ export function useRegister(options?: {
       refetchSession();
 
       const destination = options?.redirectTo || "/id/profile";
-      
+
       setTimeout(() => {
         window.location.href = destination;
       }, 500);

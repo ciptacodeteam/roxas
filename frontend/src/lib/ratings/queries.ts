@@ -81,7 +81,7 @@ export function useUpdateRating(
  * Delete rating mutation
  */
 export function useDeleteRating(
-    options?: Omit<UseMutationOptions<void, Error, string>, "mutationFn">
+    options?: Omit<UseMutationOptions<void, Error, string, { previousRatings: Rating[] | undefined }>, "mutationFn">
 ) {
     const queryClient = useQueryClient();
 

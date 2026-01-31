@@ -148,7 +148,7 @@ export function useCreateStaffUser(
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.staff() });
       queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -167,7 +167,7 @@ export function useCreateCustomerUser(
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: usersKeys.customer() });
       queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -193,7 +193,7 @@ export function useUpdateStaffUser(
       queryClient.invalidateQueries({
         queryKey: usersKeys.staffDetail(variables.id),
       });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -219,7 +219,7 @@ export function useUpdateCustomerUser(
       queryClient.invalidateQueries({
         queryKey: usersKeys.customerDetail(variables.id),
       });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });
@@ -243,7 +243,7 @@ export function useToggleUserActive(
     onSuccess: (data, variables, context) => {
       // Invalidate both staff and customer queries
       queryClient.invalidateQueries({ queryKey: usersKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      (options?.onSuccess as any)?.(data, variables, context);
     },
     ...options,
   });

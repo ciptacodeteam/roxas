@@ -284,7 +284,7 @@ export default function PaymentMethodsPage() {
       return !!(
         pm.name.toLowerCase().includes(searchLower) ||
         pm.type.toLowerCase().includes(searchLower) ||
-        pm.midtransCode.toLowerCase().includes(searchLower)
+        pm.midtrans_code?.toLowerCase().includes(searchLower)
       );
     },
   });

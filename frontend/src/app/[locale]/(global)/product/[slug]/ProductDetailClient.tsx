@@ -82,15 +82,6 @@ type ProductData = {
       content: string;
     };
   }>;
-  input_fields?: Array<{
-    name: string;
-    label: string;
-    required: boolean;
-    dialog?: {
-      title: string;
-      content: string;
-    };
-  }>;
   items: Array<{
     id: string;
     name: string;
@@ -500,8 +491,7 @@ export default function ProductDetailClient({
 
   // Check if this is Mobile Legends product
   // Check by slug or by input fields (userId and serverId/zoneId)
-  // Support both camelCase (inputFields) and snake_case (input_fields) from Django
-  const inputFields = product?.inputFields || product?.input_fields || [];
+  const inputFields = product?.inputFields || [];
   const hasUserIdField =
     inputFields?.some((field: any) => field.name === "userId") || false;
   const hasServerField =

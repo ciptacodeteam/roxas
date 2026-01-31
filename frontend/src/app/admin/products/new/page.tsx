@@ -52,7 +52,7 @@ export default function ProductAddPage() {
 
   useEffect(() => {
     if (categories.length > 0 && !formData.category) {
-      setFormData((prev) => ({ ...prev, category: categories[0].id }));
+      setFormData((prev) => ({ ...prev, category: categories[0]!.id }));
     }
   }, [categories, formData.category]);
 
