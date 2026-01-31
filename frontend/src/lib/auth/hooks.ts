@@ -57,14 +57,15 @@ export function useLogin(options?: {
           description: "Redirecting to admin dashboard...",
         });
 
-        // Refetch session and wait for it to complete before redirecting
+        // Trigger session refetch
+        console.log('[useLogin] Triggering session refetch...');
         refetchSession();
 
-        // Use longer delay to ensure session is fully loaded
+        // Wait longer to ensure session is fully loaded
         setTimeout(() => {
           console.log('[useLogin] Redirecting to admin dashboard');
           window.location.href = options?.redirectTo || "/admin";
-        }, 1000); // Increased from 500ms to 1000ms
+        }, 1500); // Increased to 1.5 seconds to ensure session loads
 
         options?.onSuccess?.();
         return;

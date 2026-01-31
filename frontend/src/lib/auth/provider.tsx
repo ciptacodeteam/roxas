@@ -25,6 +25,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user = data?.user ?? null;
   const isAuthenticated = !!user;
   
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[AuthProvider] State:', {
+      isLoading,
+      isAuthenticated,
+      user: user ? { email: user.email, role: user.role } : null,
+      error: error?.message,
+    });
+  }, [isLoading, isAuthenticated, user, error]);
+  
   // Automatically refresh token every 4 minutes if authenticated
   useTokenRefresh(isAuthenticated);
 

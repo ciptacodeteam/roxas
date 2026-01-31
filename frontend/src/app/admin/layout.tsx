@@ -24,17 +24,20 @@ export default function AdminLayout({
   // Check if current page is the login page
   const isLoginPage = pathname === '/admin/login';
 
-  // Debug logging
+  // Debug logging - always log except on login page
   useEffect(() => {
     if (!isLoginPage) {
-      console.log('Admin Layout Auth State:', {
+      console.log('[Admin Layout] Auth State:', {
+        pathname,
+        isLoading,
         isAuthenticated,
         isAdmin,
-        isLoading,
-        role: user?.role,
-        is_staff: user?.is_staff,
-        is_superuser: user?.is_superuser,
-        pathname
+        user: user ? {
+          email: user.email,
+          role: user.role,
+          is_staff: user.is_staff,
+          is_superuser: user.is_superuser,
+        } : null,
       });
     }
   }, [isAuthenticated, isAdmin, isLoading, user, isLoginPage, pathname]);
@@ -92,10 +95,18 @@ export default function AdminLayout({
     );
   }
 
-  // Don't render content if not authenticated or not admin
-  // (useEffect will redirect them) - EXCEPT for login page
-  if (!isLoginPage && (!isAuthenticated || !isAdmin)) {
-    return null;
+  // Show loading while redirecting (not authenticated or not admin)
+  // EXCEPT for login page
+  if (!isLoginPage && !isLoading && (!isAuthenticated || !isAdmin)) {
+    console.log('[Admin Layout] Unauthorized, should be redirecting...');
+    return (
+      <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2Icon className="h-8 w-8 animate-spin text-white" />
+          <p className="text-white text-sm">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

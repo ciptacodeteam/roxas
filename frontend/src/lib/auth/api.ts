@@ -33,6 +33,9 @@ export class AuthApiError extends Error {
  * Tokens are stored in HTTP-only cookies by the backend
  */
 export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
+  console.log('[loginApi] Attempting login for:', data.email);
+  console.log('[loginApi] API URL:', API_BASE_URL);
+  
   const response = await fetch(`${API_BASE_URL}/api/v1/token/`, {
     method: "POST",
     headers: {
@@ -42,11 +45,15 @@ export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
     body: JSON.stringify(data),
   });
 
+  console.log('[loginApi] Response status:', response.status);
+  console.log('[loginApi] Response headers:', Object.fromEntries(response.headers.entries()));
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({
       detail: "Invalid credentials",
     }));
 
+    console.error('[loginApi] Login failed:', error);
     throw new AuthApiError(
       error.detail || error.message || "Login failed",
       error.errors
@@ -54,6 +61,7 @@ export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
   }
 
   const result = await response.json();
+  console.log('[loginApi] Login successful:', result);
 
   // Backend returns user info in response body
   // Tokens are automatically stored in HTTP-only cookies
@@ -92,12 +100,19 @@ export async function logoutApi(): Promise<void> {
  * Fetches user data using HTTP-only cookie authentication
  */
 export async function getSessionApi(): Promise<SessionResponse> {
+  console.log('[getSessionApi] Fetching session from backend...');
+  console.log('[getSessionApi] API URL:', API_BASE_URL);
+  
   const response = await fetch(`${API_BASE_URL}/api/v1/token/me/`, {
     method: "GET",
     credentials: "include",
   });
 
+  console.log('[getSessionApi] Response status:', response.status);
+  console.log('[getSessionApi] Response headers:', Object.fromEntries(response.headers.entries()));
+
   if (!response.ok) {
+    console.error('[getSessionApi] Session fetch failed:', response.status, response.statusText);
     throw new AuthApiError("Session expired");
   }
 
@@ -105,7 +120,6 @@ export async function getSessionApi(): Promise<SessionResponse> {
   
   // Debug logging
   console.log('[getSessionApi] Raw backend response:', data);
-  console.log('[getSessionApi] Request cookies:', document.cookie);
 
   // Backend returns user data with profile info
   // Derive is_staff from role since backend doesn't return it directly
