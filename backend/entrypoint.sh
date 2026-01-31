@@ -37,6 +37,24 @@ if [ "${DEBUG:-0}" = "0" ]; then
     fi
 fi
 
+# Clean Python cache to avoid stale migration discovery issues
+echo "Cleaning Python cache..."
+find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find /app -type f -name "*.pyc" -delete 2>/dev/null || true
+
+# Verify migrations exist (helpful for debugging)
+echo "Checking for migrations..."
+if [ ! -f /app/account/migrations/__init__.py ]; then
+    echo "ERROR: account/migrations/__init__.py not found!"
+    echo "Available app structure:"
+    ls -la /app/account/
+    exit 1
+fi
+if [ ! -f /app/main/migrations/__init__.py ]; then
+    echo "ERROR: main/migrations/__init__.py not found!"
+    exit 1
+fi
+
 # Run migrations first
 python manage.py migrate --noinput
 
