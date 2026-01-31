@@ -20,20 +20,27 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
  * Auth Provider Component
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data, isLoading, refetch, error } = useSessionQuery();
+  const { data, isLoading, isPending, isFetching, refetch, error } = useSessionQuery();
   
   const user = data?.user ?? null;
   const isAuthenticated = !!user;
+  
+  // Consider loading if either isPending (no data yet) or currently fetching
+  // This prevents flash of unauthenticated state during navigation
+  const isAuthLoading = isPending || (isLoading && isFetching);
   
   // Debug logging
   React.useEffect(() => {
     console.log('[AuthProvider] State:', {
       isLoading,
+      isPending,
+      isFetching,
+      isAuthLoading,
       isAuthenticated,
       user: user ? { email: user.email, role: user.role } : null,
       error: error?.message,
     });
-  }, [isLoading, isAuthenticated, user, error]);
+  }, [isLoading, isPending, isFetching, isAuthLoading, isAuthenticated, user, error]);
   
   // Automatically refresh token every 4 minutes if authenticated
   useTokenRefresh(isAuthenticated);
@@ -47,11 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       session: data, // Include session object with user property
       isAuthenticated,
-      isLoading,
+      isLoading: isAuthLoading, // Use combined loading state
       isAdmin,
       refetchSession: refetch,
     };
-  }, [data, isLoading, refetch, user, isAuthenticated]);
+  }, [data, isAuthLoading, refetch, user, isAuthenticated]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

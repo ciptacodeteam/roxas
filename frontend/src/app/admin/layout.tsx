@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Toaster as Sonner } from "sonner";
 import {
@@ -20,6 +20,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Check if current page is the login page
   const isLoginPage = pathname === '/admin/login';
@@ -46,29 +47,41 @@ export default function AdminLayout({
   useEffect(() => {
     // Skip authentication check for login page
     if (isLoginPage) {
+      console.log('[Admin Layout] On login page, skipping auth check');
+      setHasInitialized(true);
       return;
     }
 
-    // Only redirect when loading is complete
-    if (!isLoading) {
-      // Check if user is not authenticated at all
+    console.log('[Admin Layout] Checking auth - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'hasInitialized:', hasInitialized);
+
+    // Wait for auth to finish loading before making any decisions
+    if (isLoading) {
+      console.log('[Admin Layout] Still loading auth state...');
+      return;
+    }
+
+    // Mark as initialized once loading is complete
+    if (!hasInitialized) {
+      setHasInitialized(true);
+    }
+
+    // Only redirect if fully initialized and not authenticated/admin
+    if (hasInitialized || !isLoading) {
       if (!isAuthenticated) {
         console.log('[Admin Layout] Not authenticated, redirecting to login');
         router.replace('/admin/login');
         return;
       }
 
-      // Check if user is authenticated but not an admin
       if (!isAdmin) {
         console.log('[Admin Layout] Not admin user, redirecting to login');
         router.replace('/admin/login');
         return;
       }
 
-      // User is authenticated and is admin - log success
-      console.log('[Admin Layout] Admin user authenticated successfully');
+      console.log('[Admin Layout] ✅ Admin user authenticated successfully');
     }
-  }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname]);
+  }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname, hasInitialized]);
 
   useEffect(() => {
     // Ensure dark theme is applied for gaming aesthetic
@@ -84,7 +97,7 @@ export default function AdminLayout({
   }, []);
 
   // Show loading screen while checking authentication (except on login page)
-  if (isLoading && !isLoginPage) {
+  if ((isLoading || !hasInitialized) && !isLoginPage) {
     return (
       <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -97,7 +110,7 @@ export default function AdminLayout({
 
   // Show loading while redirecting (not authenticated or not admin)
   // EXCEPT for login page
-  if (!isLoginPage && !isLoading && (!isAuthenticated || !isAdmin)) {
+  if (!isLoginPage && hasInitialized && !isLoading && (!isAuthenticated || !isAdmin)) {
     console.log('[Admin Layout] Unauthorized, should be redirecting...');
     return (
       <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
