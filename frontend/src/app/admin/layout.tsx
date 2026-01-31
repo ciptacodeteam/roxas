@@ -20,65 +20,87 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
-  const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Track if we've completed the initial auth check
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Check if current page is the login page
   const isLoginPage = pathname === '/admin/login';
 
-  // Debug logging - always log except on login page
+  // Handle auth state changes
   useEffect(() => {
-    if (!isLoginPage) {
-      // Silent logging removed
-    }
-  }, [isAuthenticated, isAdmin, isLoading, user, isLoginPage, pathname]);
-
-  // Redirect if not authenticated or not admin (except for login page)
-  useEffect(() => {
-    // Skip authentication check for login page
+    // Login page doesn't need auth checks
     if (isLoginPage) {
-      setHasInitialized(true);
+      setAuthChecked(true);
       return;
     }
 
-    // Wait for auth to finish loading before making any decisions
+    // Still loading - wait
     if (isLoading) {
       return;
     }
 
-    // Mark as initialized once loading is complete
-    if (!hasInitialized) {
-      setHasInitialized(true);
+    // Auth loading complete - mark as checked
+    setAuthChecked(true);
+
+    // Redirect if not authenticated or not admin
+    if (!isAuthenticated || !isAdmin) {
+      router.replace('/admin/login');
     }
+  }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage]);
 
-    // Only redirect if fully initialized and not authenticated/admin
-    if (hasInitialized || !isLoading) {
-      if (!isAuthenticated) {
-        router.replace('/admin/login');
-        return;
-      }
-
-      if (!isAdmin) {
-        router.replace('/admin/login');
-        return;
-      }
-    }
-  }, [isLoading, isAuthenticated, isAdmin, router, isLoginPage, pathname, hasInitialized]);
-
+  // Apply dark theme
   useEffect(() => {
-    // Ensure dark theme is applied for gaming aesthetic
     document.documentElement.classList.add('dark');
-    
-    // Cleanup function to remove dark class when unmounting (if user navigates away)
     return () => {
-      // Only remove if we're navigating away from admin routes
       if (!window.location.pathname.startsWith('/admin')) {
         document.documentElement.classList.remove('dark');
       }
     };
   }, []);
 
-  // Show loading screen while checking authentication (except on login page)
-  if ((isLoading || !hasInitialized) && !isLoginPage) {
+  // For login page, render immediately
+  if (isLoginPage) {
+    return (
+      <div 
+        className="dark min-h-screen"
+        style={{
+          '--background': '#151a22',
+          '--foreground': '#ffffff',
+        } as React.CSSProperties}
+      >
+        <div className="min-h-screen bg-[#151a22] text-white">
+          {children}
+        </div>
+        <Sonner
+          theme="dark"
+          position="top-center"
+          className="toaster group"
+          icons={{
+            success: <CircleCheckIcon className="size-4 text-green-400" />,
+            info: <InfoIcon className="size-4 text-blue-400" />,
+            warning: <TriangleAlertIcon className="size-4 text-yellow-400" />,
+            error: <OctagonXIcon className="size-4 text-red-400" />,
+            loading: <Loader2Icon className="size-4 animate-spin text-gray-400" />,
+          }}
+          toastOptions={{
+            duration: 4000,
+            unstyled: false,
+            classNames: {
+              toast: "!bg-[#1B2129] !text-white !border !border-gray-800",
+              success: "!bg-green-950/50 !text-green-100 !border-green-800",
+              error: "!bg-red-950/50 !text-red-100 !border-red-800",
+              warning: "!bg-yellow-950/50 !text-yellow-100 !border-yellow-800",
+              info: "!bg-blue-950/50 !text-blue-100 !border-blue-800",
+            },
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Show loading while checking auth
+  if (isLoading || !authChecked) {
     return (
       <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -89,9 +111,8 @@ export default function AdminLayout({
     );
   }
 
-  // Show loading while redirecting (not authenticated or not admin)
-  // EXCEPT for login page
-  if (!isLoginPage && hasInitialized && !isLoading && (!isAuthenticated || !isAdmin)) {
+  // If not authenticated or not admin after loading, show redirecting
+  if (!isAuthenticated || !isAdmin) {
     return (
       <div className="dark min-h-screen bg-[#151a22] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -102,6 +123,7 @@ export default function AdminLayout({
     );
   }
 
+  // Authenticated admin user - render admin content
   return (
     <div 
       className="dark min-h-screen"
