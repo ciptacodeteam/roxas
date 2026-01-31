@@ -56,31 +56,35 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             status=status.HTTP_200_OK
         )
         
-        # Set httpOnly cookies
-        is_secure = not settings.DEBUG  # Use Secure flag in production
+        # Set httpOnly cookies using settings from SIMPLE_JWT
+        cookie_secure = settings.SIMPLE_JWT.get('AUTH_COOKIE_SECURE', not settings.DEBUG)
+        cookie_samesite = settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN', None)
         max_age_access = int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds())
         max_age_refresh = int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds())
         
-        # Don't set domain - let the browser determine it based on the request
-        # This works for both localhost (dev) and production domains
+        # Set access token cookie
         response.set_cookie(
             key='access_token',
             value=access_token,
             max_age=max_age_access,
             httponly=True,
-            secure=is_secure,
-            samesite='Lax',
+            secure=cookie_secure,
+            samesite=cookie_samesite,
             path='/',
+            domain=cookie_domain,
         )
         
+        # Set refresh token cookie
         response.set_cookie(
             key='refresh_token',
             value=refresh_token,
             max_age=max_age_refresh,
             httponly=True,
-            secure=is_secure,
-            samesite='Lax',
+            secure=cookie_secure,
+            samesite=cookie_samesite,
             path='/',
+            domain=cookie_domain,
         )
         
         # Log successful login
@@ -159,30 +163,35 @@ class CustomTokenRefreshView(TokenRefreshView):
             status=status.HTTP_200_OK
         )
         
-        # Set new httpOnly cookies
-        is_secure = not settings.DEBUG
+        # Set new httpOnly cookies using settings from SIMPLE_JWT
+        cookie_secure = settings.SIMPLE_JWT.get('AUTH_COOKIE_SECURE', not settings.DEBUG)
+        cookie_samesite = settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN', None)
         max_age_access = int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds())
         max_age_refresh = int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds())
         
-        # Don't set domain - let the browser determine it based on the request
+        # Set access token cookie
         response.set_cookie(
             key='access_token',
             value=access_token,
             max_age=max_age_access,
             httponly=True,
-            secure=is_secure,
-            samesite='Lax',
+            secure=cookie_secure,
+            samesite=cookie_samesite,
             path='/',
+            domain=cookie_domain,
         )
         
+        # Set refresh token cookie
         response.set_cookie(
             key='refresh_token',
             value=new_refresh_token,
             max_age=max_age_refresh,
             httponly=True,
-            secure=is_secure,
-            samesite='Lax',
+            secure=cookie_secure,
+            samesite=cookie_samesite,
             path='/',
+            domain=cookie_domain,
         )
         
         return response

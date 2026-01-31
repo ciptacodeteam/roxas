@@ -403,10 +403,13 @@ class LogoutView(APIView):
         # Use Django's JsonResponse for better cookie handling
         response = JsonResponse({'detail': 'Successfully logged out.'})
         
-        # Use Django's delete_cookie - this is the most reliable way
-        # It sets the cookie to empty string with max_age=0 and expires in the past
-        response.delete_cookie('access_token', path='/')
-        response.delete_cookie('refresh_token', path='/')
+        # Get cookie settings from SIMPLE_JWT for cross-domain support
+        cookie_samesite = settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
+        cookie_domain = settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN', None)
+        
+        # Use delete_cookie with proper samesite and domain for cross-domain cookies
+        response.delete_cookie('access_token', path='/', samesite=cookie_samesite, domain=cookie_domain)
+        response.delete_cookie('refresh_token', path='/', samesite=cookie_samesite, domain=cookie_domain)
         response.delete_cookie('csrftoken', path='/')
         response.delete_cookie('sessionid', path='/')
         
