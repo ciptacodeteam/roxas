@@ -29,6 +29,10 @@ const nextConfig = {
         hostname: "localhost",
       },
       {
+        protocol: "https",
+        hostname: "data.roxasgamestore.com",
+      },
+      {
         protocol: 'https',
         hostname: 'api.sandbox.midtrans.com',
       },
