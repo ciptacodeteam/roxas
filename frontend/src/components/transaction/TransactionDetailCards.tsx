@@ -15,7 +15,7 @@ import {
     copyToClipboard,
 } from "@/lib/transaction/utils";
 import { toast } from "sonner";
-import { Copy, Package, CreditCard, Calendar, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Copy, Package, CreditCard, Calendar, CheckCircle2, XCircle, Clock, Zap } from "lucide-react";
 
 // ==================== CONSTANTS ====================
 
@@ -175,9 +175,12 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                 {order.payment && (
                     <div className="space-y-4">
                         {/* Virtual Account */}
-                        {order.payment.va_number && order.payment.payment_method?.type === "BANK_TRANSFER" && (
+                        {order.payment.va_number && (
                             <div className={SECTION_STYLES}>
                                 <p className="mb-3 text-sm font-medium text-white">Nomor Virtual Account</p>
+                                {order.payment.payment_method?.name && (
+                                    <p className="mb-2 text-xs text-white/60">Bank: {order.payment.payment_method.name}</p>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <code className="flex-1 rounded-lg bg-slate-950 border border-white/10 px-3 py-2 font-mono text-lg text-white">
                                         {order.payment.va_number}
@@ -189,14 +192,56 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                                         <Copy className="h-4 w-4" />
                                     </button>
                                 </div>
+                                <p className="mt-2 text-xs text-white/60">Gunakan nomor ini untuk transfer melalui ATM, mobile banking, atau internet banking</p>
                             </div>
                         )}
 
                         {/* QRIS */}
-                        {order.payment.qris_string && order.payment.payment_method?.type === "QRIS" && (
+                        {(order.payment.qris_string || order.payment.payment_url) && order.payment.payment_method?.type === "QRIS" && (
                             <div className={SECTION_STYLES}>
                                 <p className="mb-3 text-sm font-medium text-white">QRIS</p>
-                                <p className="text-sm text-white/60">Scan kode QR untuk pembayaran</p>
+                                {(() => {
+                                    const qrCodeValue = order.payment.qris_string || order.payment.payment_url;
+                                    return (
+                                        <>
+                                            <div className="flex justify-center rounded-xl bg-white p-4 mb-3">
+                                                {qrCodeValue && qrCodeValue.startsWith('http') ? (
+                                                    <img
+                                                        src={qrCodeValue}
+                                                        alt="QRIS QR Code"
+                                                        className="w-64 h-64 object-contain"
+                                                    />
+                                                ) : qrCodeValue ? (
+                                                    <div className="flex items-center justify-center p-4 bg-gray-50 rounded">
+                                                        <div className="text-center">
+                                                            <p className="text-gray-700 text-xs mb-2">
+                                                                Scan dengan aplikasi pembayaran
+                                                            </p>
+                                                            <p className="font-mono text-[10px] text-gray-600 break-all max-w-[200px]">
+                                                                {qrCodeValue.substring(0, 100)}...
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-[220px] w-[220px] bg-gray-100">
+                                                        <p className="text-gray-500 text-sm text-center p-4">
+                                                            Memuat QR Code...
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {qrCodeValue && (
+                                                <button
+                                                    onClick={() => handleCopy(qrCodeValue, "QRIS code")}
+                                                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition-colors"
+                                                >
+                                                    {qrCodeValue.startsWith('http') ? "Buka QR Code di Tab Baru" : "Salin QRIS Code"}
+                                                </button>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                <p className="text-sm text-white/60 mt-3">Scan kode QR untuk pembayaran</p>
                             </div>
                         )}
 
@@ -263,6 +308,142 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                         {order.refund_reason && <p className="mt-1 text-sm text-white/60">{order.refund_reason}</p>}
                     </div>
                 )}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Digiflazz Transaction Status Card
+ */
+export function DigiflazzTransactionCard({ order }: { order: OrderDetail }) {
+    const handleCopy = useCopyToClipboard();
+
+    if (!order.digiflazz_transaction) {
+        return null;
+    }
+
+    const df = order.digiflazz_transaction;
+    
+    // Get status info
+    const getDigiflazzStatusInfo = (status: string) => {
+        switch (status) {
+            case "Sukses":
+                return {
+                    label: "Berhasil",
+                    color: "bg-green-500/10 text-green-400 border-green-500/30",
+                    icon: "✅",
+                    description: "Top-up berhasil diproses"
+                };
+            case "Pending":
+                return {
+                    label: "Sedang Diproses",
+                    color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30", 
+                    icon: "⏳",
+                    description: "Sedang diproses oleh provider"
+                };
+            case "Gagal":
+                return {
+                    label: "Gagal",
+                    color: "bg-red-500/10 text-red-400 border-red-500/30",
+                    icon: "❌",
+                    description: "Top-up gagal diproses"
+                };
+            default:
+                return {
+                    label: status,
+                    color: "bg-gray-500/10 text-gray-400 border-gray-500/30",
+                    icon: "ℹ️",
+                    description: "Status tidak dikenal"
+                };
+        }
+    };
+
+    const statusInfo = getDigiflazzStatusInfo(df.status);
+
+    return (
+        <div className={CARD_STYLES}>
+            <CardHeader icon={Zap} iconColor="orange" title="Status Top-up Digiflazz" />
+            
+            <div className="space-y-4">
+                {/* Status Display */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="text-2xl">{statusInfo.icon}</span>
+                        <div>
+                            <h3 className="text-lg font-semibold text-white">{statusInfo.label}</h3>
+                            <p className="text-sm text-white/60">{statusInfo.description}</p>
+                        </div>
+                    </div>
+                    <div className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${statusInfo.color}`}>
+                        {df.status}
+                    </div>
+                </div>
+
+                {/* Transaction Details */}
+                <div className={SECTION_STYLES}>
+                    <p className="mb-3 text-sm font-medium text-white">Detail Transaksi</p>
+                    <div className="space-y-3">
+                        <InfoRow 
+                            label="Reference ID" 
+                            value={df.ref_id} 
+                            copyable 
+                            onCopy={() => handleCopy(df.ref_id, "Reference ID")} 
+                        />
+                        {df.trx_id && (
+                            <InfoRow 
+                                label="Transaction ID" 
+                                value={df.trx_id}
+                                copyable 
+                                onCopy={() => handleCopy(df.trx_id, "Transaction ID")} 
+                            />
+                        )}
+                        <InfoRow label="SKU Code" value={df.sku_code} />
+                        <InfoRow label="Customer No" value={df.customer_no} />
+                        {df.message && (
+                            <InfoRow label="Message" value={df.message} />
+                        )}
+                    </div>
+                </div>
+
+                {/* Serial Number (voucher codes, etc.) */}
+                {df.serial_number && (
+                    <div className={`${SECTION_STYLES} bg-green-500/5 border-green-500/20`}>
+                        <p className="mb-3 text-sm font-medium text-green-400">Serial Number / Voucher</p>
+                        <div className="flex items-center gap-2">
+                            <code className="flex-1 rounded-lg bg-slate-950 border border-green-500/30 px-3 py-2 font-mono text-lg text-green-400">
+                                {df.serial_number}
+                            </code>
+                            <button
+                                onClick={() => handleCopy(df.serial_number, "Serial number")}
+                                className="rounded-lg bg-green-500/20 p-2 text-green-400 transition-colors hover:bg-green-500/30"
+                            >
+                                <Copy className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <p className="mt-2 text-xs text-green-400/70">Simpan serial number ini untuk aktivasi produk</p>
+                    </div>
+                )}
+
+                {/* Timeline */}
+                <div className="space-y-3">
+                    <TimelineItem
+                        icon={<Calendar className="h-4 w-4" />}
+                        label="Dibuat"
+                        value={formatDate(df.created_at)}
+                        sublabel={getRelativeTime(df.created_at)}
+                        active
+                    />
+                    {df.updated_at !== df.created_at && (
+                        <TimelineItem
+                            icon={<CheckCircle2 className="h-4 w-4" />}
+                            label="Diperbarui"
+                            value={formatDate(df.updated_at)}
+                            sublabel={getRelativeTime(df.updated_at)}
+                            active
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -368,12 +549,13 @@ function CardHeader({
     title,
 }: {
     icon: React.ComponentType<{ className?: string }>;
-    iconColor: "purple" | "green";
+    iconColor: "purple" | "green" | "orange";
     title: string;
 }) {
     const colorClasses = {
         purple: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
         green: "bg-green-500/20 text-green-400 border border-green-500/30",
+        orange: "bg-orange-500/20 text-orange-400 border border-orange-500/30",
     };
 
     return (

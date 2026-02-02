@@ -1703,7 +1703,7 @@ export default function ProductDetailClient({
 
                       {/* Bank Transfer Group */}
                       {paymentMethods.filter(
-                        (pm: any) => pm.type === "MOBILE_BANKING",
+                        (pm: any) => pm.type === "BANK_TRANSFER",
                       ).length > 0 && (
                           <div className="overflow-hidden rounded-md bg-gray-800">
                             <AccordionItem
@@ -1722,7 +1722,7 @@ export default function ProductDetailClient({
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                   {paymentMethods
                                     .filter(
-                                      (pm: any) => pm.type === "MOBILE_BANKING",
+                                      (pm: any) => pm.type === "BANK_TRANSFER",
                                     )
                                     .map((pm: any) => {
                                       const isSelected =

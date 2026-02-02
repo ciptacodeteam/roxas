@@ -115,8 +115,10 @@ export default function PaymentPage() {
   const paymentMethod = payment?.payment_method;
   const customerData = order.customer_data as any;
 
-  // Generate QR code if QRIS string exists
+  // For QRIS payments, prioritize qris_string over payment_url
   const qrCodeValue = payment?.qris_string || payment?.payment_url;
+  // Only show QR code if payment method type is explicitly QRIS
+  const isQRISPayment = paymentMethod?.type === "QRIS";
 
   return (
     <div className="from-card via-muted-foreground to-foreground/20 min-h-screen bg-linear-to-b text-white">
@@ -226,42 +228,58 @@ export default function PaymentPage() {
             </div>
 
             {/* QR Code for QRIS */}
-            {qrCodeValue && paymentMethod?.type === "QRIS" && (
+            {isQRISPayment && (
               <>
-                <div className="flex justify-center rounded-xl bg-white p-4">
-                  {payment.payment_url ? (
-                    <Image
-                      src={payment.payment_url}
-                      alt="QR Code"
-                      width={220}
-                      height={220}
-                      className="w-full h-auto"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-[220px] w-[220px] bg-gray-100">
-                      <p className="text-gray-500 text-sm text-center p-4">
-                        Scan QR Code dengan aplikasi pembayaran Anda
-                        <br />
-                        <span className="font-mono text-xs break-all mt-2 block">
-                          {qrCodeValue.length > 50 ? `${qrCodeValue.substring(0, 50)}...` : qrCodeValue}
-                        </span>
-                      </p>
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-400">Scan QR Code untuk Membayar</p>
+                  <div className="flex justify-center rounded-xl bg-white p-4">
+                    {qrCodeValue ? (
+                      <div className="flex flex-col items-center gap-2">
+                        {qrCodeValue.startsWith('http') ? (
+                          <Image
+                            src={qrCodeValue}
+                            alt="QRIS QR Code"
+                            width={256}
+                            height={256}
+                            className="w-64 h-64 object-contain"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center p-4 bg-gray-50 rounded">
+                            <div className="text-center">
+                              <p className="text-gray-700 text-xs mb-2">
+                                Scan dengan aplikasi pembayaran
+                              </p>
+                              <p className="font-mono text-[10px] text-gray-600 break-all max-w-[200px]">
+                                {qrCodeValue.substring(0, 100)}...
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-[220px] w-[220px] bg-gray-100">
+                        <p className="text-gray-500 text-sm text-center p-4">
+                          Memuat QR Code...
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Button
-                  className="w-full bg-primary text-white cursor-pointer"
-                  onClick={() => {
-                    if (payment.payment_url) {
-                      window.open(payment.payment_url, "_blank");
-                    } else {
-                      navigator.clipboard.writeText(qrCodeValue);
-                      alert("QR Code string telah disalin!");
-                    }
-                  }}
-                >
-                  {payment.paymentUrl ? "Buka QR Code" : "Salin QR Code"}
-                </Button>
+                {qrCodeValue && (
+                  <Button
+                    className="w-full bg-primary text-white cursor-pointer"
+                    onClick={() => {
+                      if (qrCodeValue.startsWith('http')) {
+                        window.open(qrCodeValue, "_blank");
+                      } else {
+                        navigator.clipboard.writeText(qrCodeValue);
+                        alert("QR Code string telah disalin!");
+                      }
+                    }}
+                  >
+                    {qrCodeValue.startsWith('http') ? "Buka QR Code di Tab Baru" : "Salin QR Code"}
+                  </Button>
+                )}
               </>
             )}
 
@@ -269,11 +287,15 @@ export default function PaymentPage() {
             {payment?.va_number && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-400">Nomor Virtual Account</p>
+                {paymentMethod?.name && (
+                  <p className="text-xs text-gray-500">Bank: {paymentMethod.name}</p>
+                )}
                 <div className="rounded-lg bg-gray-700 p-4">
                   <p className="text-center text-xl font-mono font-semibold">
                     {payment.va_number}
                   </p>
                 </div>
+                <p className="text-xs text-gray-500">Gunakan nomor ini untuk transfer melalui ATM, mobile banking, atau internet banking</p>
                 <Button
                   className="w-full bg-primary text-white cursor-pointer"
                   onClick={() => {

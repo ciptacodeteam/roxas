@@ -14,7 +14,7 @@ from django.utils.text import slugify
 from decimal import Decimal
 
 from main.models import (
-    Product, ProductItem, Category, Order, 
+    Product, ProductItem, Category, Order, OrderStatus,
     DigiflazzTransaction, ApiLog
 )
 from main.integrations.digiflazz import (
@@ -207,7 +207,7 @@ def process_order_topup(self, order_id):
         logger.info(f"Processing top-up for Order {order.id}")
         
         # Validasi order
-        if order.status != 'PROCESSING':
+        if order.status != OrderStatus.PROCESSING:
             error_msg = f"Order {order.id} bukan dalam status PROCESSING (current: {order.status})"
             logger.warning(error_msg)
             return {
@@ -273,19 +273,17 @@ def process_order_topup(self, order_id):
         df_transaction = DigiflazzTransaction.objects.create(
             order=order,
             ref_id=order.order_number,
-            buyer_sku_code=transaction.get('buyer_sku_code', ''),
+            sku_code=transaction.get('buyer_sku_code', ''),
             customer_no=transaction.get('customer_no', ''),
             status=transaction.get('status', ''),
-            rc=transaction.get('rc', ''),
             message=transaction.get('message', ''),
-            price=transaction.get('price', 0),
-            sn=transaction.get('sn', ''),
-            raw_response=transaction
+            serial_number=transaction.get('sn', ''),
+            response_data=transaction
         )
         
         # Update order based on transaction status
         if client.is_transaction_success(transaction['status'], transaction['rc']):
-            order.status = 'COMPLETED'
+            order.status = OrderStatus.COMPLETED
             order.completion_data = {
                 'serial_number': transaction['sn'],
                 'completed_at': timezone.now().isoformat(),
@@ -295,17 +293,18 @@ def process_order_topup(self, order_id):
             logger.info(f"✅ Order {order.id} COMPLETED - SN: {transaction['sn']}")
             
         elif client.is_transaction_pending(transaction['status'], transaction['rc']):
-            order.status = 'PROCESSING'
+            order.status = OrderStatus.PROCESSING
             logger.info(f"⏳ Order {order.id} PENDING - Will check status later")
             
-            # Schedule status check after 2 minutes
-            check_order_status.apply_async(
-                args=[str(order.id)],
-                countdown=120  # 2 minutes
+            # Schedule status check using the new task with appropriate delay
+            delay_minutes = client.get_retry_delay_minutes(transaction.get('rc', ''))
+            check_digiflazz_transaction_status.apply_async(
+                args=[str(df_transaction.id)],
+                countdown=delay_minutes * 60
             )
             
         else:
-            order.status = 'FAILED'
+            order.status = OrderStatus.FAILED
             order.failure_reason = transaction['message']
             logger.warning(f"❌ Order {order.id} FAILED - {transaction['message']}")
         
@@ -395,7 +394,7 @@ def check_order_status(self, order_id):
         logger.info(f"Checking status for Order {order.id}")
         
         # Skip jika order sudah completed atau failed
-        if order.status in ['COMPLETED', 'FAILED']:
+        if order.status in [OrderStatus.COMPLETED, OrderStatus.FAILED, OrderStatus.EXPIRED]:
             logger.info(f"Order {order.id} already {order.status}, skipping status check")
             return {
                 'success': True,
@@ -415,22 +414,21 @@ def check_order_status(self, order_id):
         # Check status
         client = get_digiflazz_client()
         status_result = client.check_transaction_status(
-            buyer_sku_code=df_transaction.buyer_sku_code,
+            buyer_sku_code=df_transaction.sku_code,
             customer_no=df_transaction.customer_no,
             ref_id=df_transaction.ref_id
         )
         
         # Update transaction
         df_transaction.status = status_result['status']
-        df_transaction.rc = status_result['rc']
         df_transaction.message = status_result['message']
-        df_transaction.sn = status_result.get('sn', '')
-        df_transaction.raw_response = status_result
+        df_transaction.serial_number = status_result.get('sn', '')
+        df_transaction.response_data = status_result
         df_transaction.save()
         
         # Update order
         if client.is_transaction_success(status_result['status'], status_result['rc']):
-            order.status = 'COMPLETED'
+            order.status = OrderStatus.COMPLETED
             order.completion_data = {
                 'serial_number': status_result['sn'],
                 'completed_at': timezone.now().isoformat()
@@ -441,20 +439,27 @@ def check_order_status(self, order_id):
             # Still pending, check again later
             logger.info(f"⏳ Order {order.id} still PENDING")
             
-            # Check jika sudah lebih dari 30 menit, schedule check lagi
-            if (timezone.now() - order.created_at).total_seconds() < 1800:  # 30 min
-                check_order_status.apply_async(
-                    args=[str(order.id)],
-                    countdown=300  # Check again in 5 minutes
-                )
-            else:
+            # Check if transaction is expired (>90 days)
+            if client.is_transaction_expired(df_transaction.created_at):
+                order.status = OrderStatus.EXPIRED
+                order.failure_reason = "Transaction expired after 90 days"
+                logger.warning(f"Order {order.id} expired")
+            # Check if timed out (>30 minutes for immediate check)
+            elif (timezone.now() - order.created_at).total_seconds() > 1800:
                 # Timeout after 30 minutes
-                order.status = 'FAILED'
+                order.status = OrderStatus.FAILED
                 order.failure_reason = "Transaction timeout (pending > 30 minutes)"
                 logger.warning(f"Order {order.id} timeout")
+            else:
+                # Schedule check with appropriate delay
+                delay_minutes = client.get_retry_delay_minutes(status_result.get('rc', ''))
+                check_order_status.apply_async(
+                    args=[str(order.id)],
+                    countdown=delay_minutes * 60
+                )
                 
         else:
-            order.status = 'FAILED'
+            order.status = OrderStatus.FAILED
             order.failure_reason = status_result['message']
             logger.warning(f"❌ Order {order.id} FAILED after status check")
         
@@ -551,3 +556,145 @@ def cleanup_old_api_logs(days=30):
         'success': True,
         'deleted_count': deleted_count
     }
+
+
+@shared_task(bind=True, max_retries=5)
+def check_digiflazz_transaction_status(self, transaction_id):
+    """
+    Check status transaksi Digiflazz secara async
+    
+    Task ini akan:
+    1. Cek status transaksi via API Digiflazz
+    2. Update status di database
+    3. Schedule retry jika masih pending
+    4. Stop jika sudah final (success/failed) atau expired
+    
+    Args:
+        transaction_id: ID DigiflazzTransaction
+        
+    Returns:
+        dict: Status check result
+    """
+    try:
+        from main.models import DigiflazzTransaction, OrderStatus
+        from main.integrations.digiflazz import get_digiflazz_client
+        
+        # Get transaction
+        try:
+            df_transaction = DigiflazzTransaction.objects.get(id=transaction_id)
+            order = df_transaction.order
+        except DigiflazzTransaction.DoesNotExist:
+            logger.error(f"DigiflazzTransaction {transaction_id} not found")
+            return {'success': False, 'error': 'Transaction not found'}
+        
+        client = get_digiflazz_client()
+        
+        # Check if transaction is expired (>90 days)
+        if client.is_transaction_expired(df_transaction.created_at):
+            logger.warning(f"Transaction {transaction_id} is expired (>90 days), stopping status checks")
+            
+            # Mark as expired if still pending
+            if order.status in [OrderStatus.PENDING, OrderStatus.PROCESSING]:
+                order.status = OrderStatus.EXPIRED
+                order.failure_reason = "Transaction expired after 90 days"
+                order.save()
+                
+                df_transaction.status = "Expired"
+                df_transaction.message = "Transaction expired after 90 days"
+                df_transaction.save()
+            
+            return {'success': True, 'status': 'expired'}
+        
+        logger.info(f"Checking status for transaction {df_transaction.ref_id}")
+        
+        # Check status via API (using same ref_id as original topup)
+        try:
+            status_response = client.check_transaction_status(
+                buyer_sku_code=df_transaction.sku_code,
+                customer_no=df_transaction.customer_no,
+                ref_id=df_transaction.ref_id
+            )
+            
+            logger.info(
+                f"Status check result for {df_transaction.ref_id}: "
+                f"Status={status_response.get('status')}, RC={status_response.get('rc')}"
+            )
+            
+        except Exception as e:
+            logger.warning(f"Status check failed for {df_transaction.ref_id}: {e}")
+            
+            # Retry with exponential backoff
+            retry_count = self.request.retries
+            if retry_count < self.max_retries:
+                countdown = 60 * (2 ** retry_count)  # 1min, 2min, 4min, 8min, 16min
+                logger.info(f"Retrying status check in {countdown/60} minutes (retry {retry_count + 1}/{self.max_retries})")
+                raise self.retry(countdown=countdown)
+            else:
+                logger.error(f"Max retries reached for status check of {df_transaction.ref_id}")
+                return {'success': False, 'error': 'Max retries reached'}
+        
+        # Update transaction data
+        df_transaction.status = status_response.get('status', df_transaction.status)
+        df_transaction.message = status_response.get('message', df_transaction.message)
+        df_transaction.serial_number = status_response.get('sn', df_transaction.serial_number)
+        df_transaction.response_data = status_response
+        df_transaction.save()
+        
+        # Update order status based on result
+        if client.is_transaction_success(status_response.get('status', ''), status_response.get('rc', '')):
+            # Transaction completed successfully
+            order.status = OrderStatus.COMPLETED
+            order.completion_data = {
+                'serial_number': status_response.get('sn', ''),
+                'completed_at': timezone.now().isoformat(),
+                'buyer_last_saldo': status_response.get('buyer_last_saldo'),
+                'price': status_response.get('price')
+            }
+            order.save()
+            
+            logger.info(f"✅ Order {order.id} COMPLETED via status check - SN: {status_response.get('sn')}")
+            return {'success': True, 'status': 'completed'}
+            
+        elif client.is_transaction_failed(status_response.get('status', ''), status_response.get('rc', '')):
+            # Transaction failed
+            order.status = OrderStatus.FAILED
+            order.failure_reason = status_response.get('message', 'Transaction failed')
+            order.save()
+            
+            logger.warning(f"❌ Order {order.id} FAILED via status check - {order.failure_reason}")
+            return {'success': True, 'status': 'failed'}
+            
+        elif client.needs_status_check(status_response.get('status', ''), status_response.get('rc', '')):
+            # Still needs checking - schedule next check
+            delay_minutes = client.get_retry_delay_minutes(status_response.get('rc', ''))
+            
+            # Cap maximum delay at 30 minutes
+            delay_minutes = min(delay_minutes, 30)
+            
+            logger.info(f"🔄 Scheduling next status check for Order {order.id} in {delay_minutes} minutes")
+            check_digiflazz_transaction_status.apply_async(
+                args=[transaction_id],
+                countdown=delay_minutes * 60
+            )
+            
+            return {'success': True, 'status': 'pending', 'next_check_minutes': delay_minutes}
+        
+        else:
+            # Unknown status - log and don't retry
+            logger.warning(
+                f"Unknown status for transaction {df_transaction.ref_id}: "
+                f"Status={status_response.get('status')}, RC={status_response.get('rc')}"
+            )
+            return {'success': True, 'status': 'unknown'}
+        
+    except Exception as e:
+        logger.exception(f"Error checking Digiflazz transaction status: {e}")
+        
+        # Retry with exponential backoff for unexpected errors
+        retry_count = self.request.retries
+        if retry_count < self.max_retries:
+            countdown = 300 * (2 ** retry_count)  # 5min, 10min, 20min, 40min, 80min
+            logger.info(f"Retrying status check in {countdown/60} minutes due to error")
+            raise self.retry(countdown=countdown, exc=e)
+        
+        return {'success': False, 'error': str(e)}

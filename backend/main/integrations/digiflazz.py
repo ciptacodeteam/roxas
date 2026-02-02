@@ -485,16 +485,32 @@ class DigiflazzClient:
     
     def is_transaction_pending(self, status: str, rc: str) -> bool:
         """
-        Check apakah transaksi pending
+        Check apakah transaksi pending (termasuk timeout yang perlu dicek ulang)
         
         Args:
             status: Status string dari response
             rc: Response code dari response
             
         Returns:
-            True jika transaksi pending
+            True jika transaksi pending atau perlu dicek ulang
         """
-        return status.lower() == "pending" or rc == "03"
+        # Codes that indicate pending or need status checking
+        pending_codes = {
+            "03",  # Transaksi Pending
+            "01",  # Timeout - needs retry checking
+            "70",  # Timeout Dari Biller - needs retry
+            "85",  # Rate limited - needs retry
+            "86",  # PLN inquiry limit - needs retry
+            "99",  # DF Router Issue - needs monitoring
+            "50",  # Transaksi Tidak Ditemukan - might be processing
+            "53",  # Produk Seller Sedang Tidak Tersedia - temporary
+            "55",  # Produk Sedang Gangguan - temporary
+            "58",  # Sedang Cut Off - temporary
+            "60",  # Tagihan belum tersedia - might come later
+            "71"   # Produk Sedang Tidak Stabil - temporary
+        }
+        
+        return status.lower() == "pending" or rc in pending_codes
     
     def is_transaction_failed(self, status: str, rc: str) -> bool:
         """
@@ -507,7 +523,85 @@ class DigiflazzClient:
         Returns:
             True jika transaksi gagal
         """
-        return status.lower() == "gagal" or rc in ["01", "39"]
+        # Final failure codes - no retry needed
+        failure_codes = {
+            "02",  # Transaksi Gagal
+            "40", "41", "42", "43", "44", "45", "47", "49",  # Configuration/Auth errors
+            "51", "52", "54", "56", "57", "59", "61", "62", "63", "64", "65", "66", "67", "68", "69",  # Product/Target errors
+            "72", "73", "74", "80", "81", "82", "84", "87"  # Business logic errors
+        }
+        
+        return status.lower() == "gagal" or rc in failure_codes
+    
+    def needs_status_check(self, status: str, rc: str) -> bool:
+        """
+        Check apakah transaksi perlu dicek status ulang
+        
+        Args:
+            status: Status string dari response
+            rc: Response code dari response
+            
+        Returns:
+            True jika perlu dicek status ulang
+        """
+        # Codes that might resolve with status checking
+        retry_codes = {
+            "01",  # Timeout - could be processed later
+            "70",  # Timeout Dari Biller - could be processed later
+            "99",  # DF Router Issue - system issue, might resolve
+            "50",  # Transaksi Tidak Ditemukan - might be processing
+            "53",  # Produk Seller Sedang Tidak Tersedia - temporary issue
+            "55",  # Produk Sedang Gangguan - temporary issue
+            "58",  # Sedang Cut Off - temporary issue
+            "71"   # Produk Sedang Tidak Stabil - temporary issue
+        }
+        
+        return (status.lower() in ["pending", "timeout"]) or rc in retry_codes
+    
+    def get_retry_delay_minutes(self, rc: str) -> int:
+        """
+        Get recommended delay in minutes before retrying status check
+        
+        Args:
+            rc: Response code
+            
+        Returns:
+            Delay in minutes
+        """
+        # Specific delays based on error type
+        delay_map = {
+            "01": 3,    # Timeout - check in 3 minutes
+            "70": 5,    # Timeout Dari Biller - check in 5 minutes
+            "99": 2,    # DF Router Issue - check in 2 minutes
+            "50": 1,    # Not found - check in 1 minute
+            "53": 10,   # Product unavailable - check in 10 minutes
+            "55": 15,   # Product disrupted - check in 15 minutes
+            "58": 30,   # Cut off - check in 30 minutes
+            "71": 5,    # Product unstable - check in 5 minutes
+            "85": 2,    # Rate limited - check in 2 minutes
+            "86": 5     # PLN limit - check in 5 minutes
+        }
+        
+        return delay_map.get(rc, 1)  # Default 1 minute
+    
+    def is_transaction_expired(self, created_at) -> bool:
+        """
+        Check if transaction is beyond 90-day limit for status checking
+        
+        Args:
+            created_at: DateTime when transaction was created
+            
+        Returns:
+            True if transaction is expired (>90 days)
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        if not created_at:
+            return False
+            
+        expiry_date = created_at + timedelta(days=90)
+        return timezone.now() > expiry_date
 
 
 # Singleton instance untuk convenience

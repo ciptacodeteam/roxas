@@ -927,6 +927,39 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             # Create Payment record
             if payment_response:
+                # Extract VA number with multiple fallbacks
+                va_number = None
+                if payment_response.get('va_numbers'):
+                    # Standard format: va_numbers array
+                    va_number = payment_response['va_numbers'][0].get('va_number')
+                elif payment_response.get('permata_va_number'):
+                    # Permata specific field
+                    va_number = payment_response.get('permata_va_number')
+                elif payment_response.get('biller_code'):
+                    # Mandiri specific: biller_code + bill_key
+                    va_number = f"{payment_response.get('biller_code')}{payment_response.get('bill_key', '')}"
+                
+                # Extract QRIS
+                qris_string = None
+                if payment_response.get('actions'):
+                    qris_string = payment_response['actions'][0].get('url')
+                elif payment_response.get('qr_string'):
+                    qris_string = payment_response.get('qr_string')
+                
+                # Extract deeplink
+                deeplink_url = None
+                if payment_response.get('actions'):
+                    for action in payment_response.get('actions', []):
+                        if action.get('name') in ['deeplink-redirect', 'generate-qr-code']:
+                            deeplink_url = action.get('url')
+                            break
+                
+                logger.info(
+                    f"Creating payment for {order.order_number}: "
+                    f"VA={va_number}, QRIS={bool(qris_string)}, "
+                    f"Deeplink={bool(deeplink_url)}"
+                )
+                
                 payment = Payment.objects.create(
                     order=order,
                     external_id=order.order_number,
@@ -935,9 +968,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                     amount=order.total_amount,
                     status='pending',
                     payment_url=payment_response.get('payment_url'),
-                    va_number=payment_response.get('va_numbers', [{}])[0].get('va_number') if payment_response.get('va_numbers') else None,
-                    qris_string=payment_response.get('actions', [{}])[0].get('url') if payment_response.get('actions') else None,
-                    deeplink_url=payment_response.get('actions', [{}])[0].get('url') if payment_response.get('actions') else None,
+                    va_number=va_number,
+                    qris_string=qris_string,
+                    deeplink_url=deeplink_url,
                     expires_at=order.payment_expires_at,
                     webhook_data=payment_response,
                 )

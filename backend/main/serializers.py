@@ -403,6 +403,7 @@ class OrderSerializer(serializers.ModelSerializer):
     product_item = ProductItemSerializer(read_only=True)
     payment_method = PaymentMethodPublicSerializer(read_only=True)
     payment = serializers.SerializerMethodField()
+    digiflazz_transaction = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -410,7 +411,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'user', 'user_email', 'product_item',
             'customer_data', 'original_price', 'final_price',
             'payment_fee', 'vat_amount', 'total_amount', 'payment_method',
-            'payment_expires_at', 'status', 'payment',
+            'payment_expires_at', 'status', 'payment', 'digiflazz_transaction',
             'refund_amount', 'refund_reason', 'refunded_at',
             'created_at', 'updated_at', 'paid_at', 'completed_at'
         ]
@@ -437,6 +438,23 @@ class OrderSerializer(serializers.ModelSerializer):
                 'expires_at': obj.payment.expires_at,
                 'paid_at': obj.payment.paid_at,
                 'created_at': obj.payment.created_at,
+            }
+        return None
+    
+    def get_digiflazz_transaction(self, obj):
+        """Get Digiflazz transaction details if exists."""
+        if hasattr(obj, 'digiflazz_transaction'):
+            tx = obj.digiflazz_transaction
+            return {
+                'ref_id': tx.ref_id,
+                'trx_id': tx.trx_id,
+                'status': tx.status,
+                'message': tx.message,
+                'serial_number': tx.serial_number,
+                'sku_code': tx.sku_code,
+                'customer_no': tx.customer_no,
+                'created_at': tx.created_at,
+                'updated_at': tx.updated_at,
             }
         return None
 

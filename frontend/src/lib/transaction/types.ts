@@ -68,6 +68,21 @@ export interface PaymentDetail {
 }
 
 /**
+ * Digiflazz transaction details
+ */
+export interface DigiflazzTransaction {
+  ref_id: string;
+  trx_id: string;
+  status: "Pending" | "Sukses" | "Gagal" | "Expired";
+  message: string;
+  serial_number: string;
+  sku_code: string;
+  customer_no: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Detailed order information
  */
 export interface OrderDetail {
@@ -92,6 +107,7 @@ export interface OrderDetail {
   paid_at: string | null;
   completed_at: string | null;
   payment?: PaymentDetail;
+  digiflazz_transaction?: DigiflazzTransaction;
 }
 
 /**

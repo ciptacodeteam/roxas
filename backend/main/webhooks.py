@@ -135,11 +135,12 @@ def handle_prepaid_webhook(event):
         
         # Update transaction data
         df_transaction.status = data['status']
-        df_transaction.rc = data['rc']
         df_transaction.message = data['message']
-        df_transaction.sn = data.get('sn', '')
-        df_transaction.price = data.get('price', df_transaction.price)
-        df_transaction.raw_response = data
+        df_transaction.serial_number = data.get('sn', '')
+        # Store the raw response data including RC
+        if not df_transaction.response_data:
+            df_transaction.response_data = {}
+        df_transaction.response_data.update(data)
         df_transaction.save()
         
         # Update order based on status
@@ -147,7 +148,7 @@ def handle_prepaid_webhook(event):
         
         if client.is_transaction_success(data['status'], data['rc']):
             # Transaction SUCCESS
-            order.status = Order.OrderStatus.COMPLETED
+            order.status = OrderStatus.COMPLETED
             order.completion_data = {
                 'serial_number': data.get('sn', ''),
                 'completed_at': timezone.now().isoformat(),
@@ -158,18 +159,33 @@ def handle_prepaid_webhook(event):
             logger.info(f"✅ Order {order.id} COMPLETED - SN: {data.get('sn')}")
             
         elif client.is_transaction_pending(data['status'], data['rc']):
-            # Transaction PENDING
-            if order.status != Order.OrderStatus.PROCESSING:
-                order.status = Order.OrderStatus.PROCESSING
+            # Transaction PENDING or needs status check
+            if order.status != OrderStatus.PROCESSING:
+                order.status = OrderStatus.PROCESSING
             
-            logger.info(f"⏳ Order {order.id} still PENDING - {data['message']}")
+            logger.info(f"⏳ Order {order.id} still PENDING - {data['message']} (RC: {data['rc']})")
+            
+            # Schedule status check if needed
+            if client.needs_status_check(data['status'], data['rc']):
+                # Don't schedule if transaction is expired (>90 days)
+                if not client.is_transaction_expired(df_transaction.created_at):
+                    from main.tasks import check_digiflazz_transaction_status
+                    delay_minutes = client.get_retry_delay_minutes(data['rc'])
+                    
+                    logger.info(f"📅 Scheduling status check for Order {order.id} in {delay_minutes} minutes")
+                    check_digiflazz_transaction_status.apply_async(
+                        args=[str(df_transaction.id)],
+                        countdown=delay_minutes * 60
+                    )
+                else:
+                    logger.warning(f"⚠️ Order {order.id} is expired (>90 days), not scheduling status check")
             
         elif client.is_transaction_failed(data['status'], data['rc']):
             # Transaction FAILED
-            order.status = Order.OrderStatus.FAILED
+            order.status = OrderStatus.FAILED
             order.failure_reason = data['message']
             
-            logger.warning(f"❌ Order {order.id} FAILED - {data['message']}")
+            logger.warning(f"❌ Order {order.id} FAILED - {data['message']} (RC: {data['rc']})")
             
             # TODO: Refund payment jika sudah dibayar
             # if order.payment and order.payment.status == 'success':
@@ -428,7 +444,7 @@ def handle_midtrans_notification(notification: dict) -> str:
             logger.info(f"Status updated: Order {order_id} → {order.status}, Payment → {payment.status}")
             
             # Trigger top-up process only on first success transition to PROCESSING
-            if new_order_status == Order.OrderStatus.PROCESSING and current_priority < new_priority:
+            if new_order_status == OrderStatus.PROCESSING and current_priority < new_priority:
                 from main.tasks import process_order_topup
                 logger.info(f"Triggering Digiflazz top-up process for Order {order_id}")
                 process_order_topup.delay(str(order.id))
