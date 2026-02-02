@@ -123,7 +123,8 @@ def send_email_verification(self, user_id):
         from account.utils import generate_verification_token
         uidb64, token = generate_verification_token(user)
         
-        verification_url = f"{settings.FRONTEND_URL}/verify-email/{uidb64}/{token}/"
+        # Use locale-aware URL (default to 'id' for Indonesian)
+        verification_url = f"{settings.FRONTEND_URL}/id/verify-email/{uidb64}/{token}/"
         logger.info(f"Generated verification URL for user {user.email}")
         
         subject = "Verify your email address"

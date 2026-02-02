@@ -206,23 +206,38 @@ def process_order_topup(self, order_id):
         if not order.product_item.sku_code:
             raise ValueError("Product tidak memiliki SKU code")
         
-        # Extract customer_no from customer_data based on game type
-        # Mobile Legends format: userId + serverId (concatenated)
-        # Other games: just userId
+        # Extract customer_no from customer_data based on product type
+        # Different product types require different field combinations:
+        # - Games with server: userId + serverId (concatenated, e.g., Mobile Legends)
+        # - Games without server: userId only (e.g., Free Fire, PUBG)
+        # - Pulsa: phoneNumber
+        # - PLN: meterNumber
+        # - Voucher: userId (can be email or account ID)
         customer_data = order.customer_data or {}
+        
+        # Try different field types based on what's available
+        # Priority: phoneNumber > meterNumber > userId (with optional serverId)
+        phone_number = customer_data.get('phoneNumber') or customer_data.get('phone_number')
+        meter_number = customer_data.get('meterNumber') or customer_data.get('meter_number')
         user_id = customer_data.get('userId') or customer_data.get('user_id') or customer_data.get('gameId')
         
-        if not user_id:
-            raise ValueError("Customer data tidak memiliki userId")
-        
-        # For Mobile Legends, combine userId and serverId
-        server_id = customer_data.get('serverId') or customer_data.get('server_id') or customer_data.get('zoneId')
-        if server_id:
-            # Mobile Legends format
-            customer_no = f"{user_id}{server_id}"
+        if phone_number:
+            # Pulsa products
+            customer_no = str(phone_number)
+        elif meter_number:
+            # PLN products
+            customer_no = str(meter_number)
+        elif user_id:
+            # Game or Voucher products
+            server_id = customer_data.get('serverId') or customer_data.get('server_id') or customer_data.get('zoneId')
+            if server_id:
+                # Games with server (e.g., Mobile Legends)
+                customer_no = f"{user_id}{server_id}"
+            else:
+                # Games without server or vouchers
+                customer_no = str(user_id)
         else:
-            # Other games - just userId
-            customer_no = str(user_id)
+            raise ValueError("Customer data tidak memiliki field yang diperlukan (userId, phoneNumber, atau meterNumber)")
         
         logger.info(f"Processing top-up for customer_no: {customer_no}")
         

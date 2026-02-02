@@ -17,6 +17,8 @@ export interface User {
   is_superuser: boolean;
   is_active: boolean;
   date_joined: string;
+  email_verified?: boolean;
+  roles_display?: string[];
 }
 
 // Auth response types

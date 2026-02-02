@@ -40,7 +40,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import logo from "public/img/logo1.webp";
 import Indonesia from "public/img/indonesia-logo.webp";
 import uk from "public/img/uk-logo.webp";
-import { flattenProducts } from "@/lib/data/flattenProducts";
+import { useProductSearch } from "@/lib/products/queries";
+import { useDebounce } from "@/hooks/useDebounce";
+import { getProductImage } from "@/lib/utils";
 
 type NavItem = {
   key: string; // key i18n
@@ -60,7 +62,7 @@ const Navigationbar = () => {
   const pathname = usePathname();
   const { session, isLoading: isPending, isAdmin } = useAuth();
   const { logout } = useLogout({ redirectTo: `/${pathname.split("/")[1] || "id"}` });
-  
+
   // Fetch profile data for avatar and name
   const { data: profile } = useProfile({
     enabled: !!session?.user && !isAdmin,
@@ -99,13 +101,18 @@ const Navigationbar = () => {
 
   const toggleMenu = () => setOpen((s) => !s);
 
-  const allProducts = flattenProducts();
-
   const [query, setQuery] = useState("");
   const [showResult, setShowResult] = useState(false);
 
-  const results = allProducts.filter((item) =>
-    item.title.toLowerCase().includes(query.toLowerCase()),
+  // Debounce search query to reduce API calls
+  const debouncedQuery = useDebounce(query, 300);
+
+  // Fetch search results from backend
+  const { data: searchResults = [], isLoading: isSearching } = useProductSearch(
+    debouncedQuery,
+    {
+      enabled: debouncedQuery.length >= 2, // Only search when 2+ characters
+    }
   );
 
   return (
@@ -136,11 +143,13 @@ const Navigationbar = () => {
             {/* RESULT */}
             {showResult && query && (
               <div className="absolute top-full z-50 mt-2 w-full rounded-xl bg-[#141414] p-2 shadow-2xl">
-                {results.length > 0 ? (
-                  results.slice(0, 6).map((item, i) => (
+                {isSearching ? (
+                  <p className="p-3 text-sm text-gray-400">Mencari...</p>
+                ) : searchResults.length > 0 ? (
+                  searchResults.slice(0, 6).map((product) => (
                     <Link
-                      key={i}
-                      href={`/${locale}/product/${item.slug}`}
+                      key={product.id}
+                      href={`/${locale}/product/${product.slug}`}
                       onClick={() => {
                         setQuery("");
                         setShowResult(false);
@@ -148,26 +157,30 @@ const Navigationbar = () => {
                       className="hover:bg-primary/30 flex items-center gap-3 rounded-lg p-3"
                     >
                       <Image
-                        src={item.image}
-                        alt={item.title}
+                        src={getProductImage(product.image, product.slug)}
+                        alt={product.name}
                         width={40}
                         height={40}
-                        className="rounded-md"
+                        className="rounded-md object-cover"
                       />
 
                       <div>
                         <p className="text-sm font-semibold text-white">
-                          {item.title}
+                          {product.name}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {item.subtitle} • {item.category}
+                          {product.category_name}
                         </p>
                       </div>
                     </Link>
                   ))
-                ) : (
+                ) : debouncedQuery.length >= 2 ? (
                   <p className="p-3 text-sm text-gray-400">
                     Produk tidak ditemukan
+                  </p>
+                ) : (
+                  <p className="p-3 text-sm text-gray-400">
+                    Ketik minimal 2 karakter untuk mencari
                   </p>
                 )}
               </div>
@@ -259,11 +272,13 @@ const Navigationbar = () => {
             {/* SEARCH RESULT (MOBILE) */}
             {showResult && query && (
               <div className="mt-2 rounded-xl bg-[#141414] p-2 shadow-xl">
-                {results.length > 0 ? (
-                  results.slice(0, 6).map((item, i) => (
+                {isSearching ? (
+                  <p className="p-3 text-sm text-gray-400">Mencari...</p>
+                ) : searchResults.length > 0 ? (
+                  searchResults.slice(0, 6).map((product) => (
                     <Link
-                      key={i}
-                      href={`/${locale}/product/${item.slug}`}
+                      key={product.id}
+                      href={`/${locale}/product/${product.slug}`}
                       onClick={() => {
                         setQuery("");
                         setShowResult(false);
@@ -272,25 +287,29 @@ const Navigationbar = () => {
                       className="flex items-center gap-3 rounded-lg p-3 hover:bg-rose-500/10"
                     >
                       <Image
-                        src={item.image}
-                        alt={item.title}
+                        src={getProductImage(product.image, product.slug)}
+                        alt={product.name}
                         width={40}
                         height={40}
-                        className="rounded-md"
+                        className="rounded-md object-cover"
                       />
                       <div>
                         <p className="text-sm font-semibold text-white">
-                          {item.title}
+                          {product.name}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {item.subtitle} • {item.category}
+                          {product.category_name}
                         </p>
                       </div>
                     </Link>
                   ))
-                ) : (
+                ) : debouncedQuery.length >= 2 ? (
                   <p className="p-3 text-sm text-gray-400">
                     Produk tidak ditemukan
+                  </p>
+                ) : (
+                  <p className="p-3 text-sm text-gray-400">
+                    Ketik minimal 2 karakter untuk mencari
                   </p>
                 )}
               </div>
@@ -319,11 +338,10 @@ const Navigationbar = () => {
                     {/* TRIGGER (BUKAN LINK) */}
                     <button
                       type="button"
-                      className={`relative flex cursor-pointer items-center gap-2 text-sm transition ${
-                        isCalculatorActive
-                          ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
-                          : "text-gray-300 hover:text-white"
-                      }`}
+                      className={`relative flex cursor-pointer items-center gap-2 text-sm transition ${isCalculatorActive
+                        ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                        : "text-gray-300 hover:text-white"
+                        }`}
                     >
                       <Calculator className="h-5 w-5" />
                       {t("calculator")}
@@ -364,11 +382,10 @@ const Navigationbar = () => {
                 <Link
                   key={item.href}
                   href={`/${locale}${item.href}`}
-                  className={`relative flex items-center gap-2 text-sm transition ${
-                    active
-                      ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
-                      : "text-gray-300 hover:text-white"
-                  }`}
+                  className={`relative flex items-center gap-2 text-sm transition ${active
+                    ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                    : "text-gray-300 hover:text-white"
+                    }`}
                 >
                   {Icon && <Icon className="h-5 w-5" />}
                   {t(item.key)}
@@ -494,11 +511,10 @@ const Navigationbar = () => {
 
       {/* MOBILE SIDEBAR */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${
-          open
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
+        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${open
+          ? "pointer-events-auto opacity-100"
+          : "pointer-events-none opacity-0"
+          }`}
       >
         {/* OVERLAY */}
         <div

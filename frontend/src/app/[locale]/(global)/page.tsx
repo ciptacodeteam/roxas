@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
 import FavoriteSection from "@/components/section/homeSection/FavoriteSection";
 import FlashSaleSection from "@/components/section/homeSection/FlashSaleSection";
 import HeroSection from "@/components/section/homeSection/HeroSection";
@@ -8,6 +11,23 @@ import GameSection from "@/components/section/homeSection/ProductSection/GameSec
 
 
 export default function IndexPage() {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    // Show email verification reminder if user is logged in but email not verified
+    if (session?.user && !session.user.email_verified) {
+      // Use a persistent toast that doesn't auto-dismiss
+      toast.warning("Email Belum Diverifikasi", {
+        description: "Silakan verifikasi email Anda untuk keamanan akun. Cek profil Anda untuk mengirim ulang link verifikasi.",
+        duration: Infinity, // Don't auto-dismiss
+        id: "email-verification-toast", // Prevent duplicates
+      });
+    } else {
+      // Dismiss the toast if email is verified
+      toast.dismiss("email-verification-toast");
+    }
+  }, [session]);
+
   return (
     <>
       <HeroSection />

@@ -445,11 +445,80 @@ class AdminPriceSyncViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CouponViewSet(viewsets.GenericViewSet):
     """
-    Public API for coupon validation.
+    Public API for coupon validation and listing.
+    GET /api/v1/coupons/ - List all active coupons
     POST /api/v1/coupons/validate/ - Validate a coupon code
+    POST /api/v1/coupons/applicable/ - Get applicable coupons for an order
     """
     permission_classes = [permissions.AllowAny]
     serializer_class = CouponValidationSerializer
+    
+    def list(self, request):
+        """List all active coupons."""
+        coupons = Coupon.objects.filter(
+            is_active=True
+        ).order_by('-created_at')
+        
+        # Filter by date if coupons have start/end dates
+        now = timezone.now()
+        coupons = coupons.filter(
+            Q(start_date__isnull=True) | Q(start_date__lte=now)
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=now)
+        )
+        
+        serializer = CouponSerializer(coupons, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def applicable(self, request):
+        """Get applicable coupons for a given order amount."""
+        order_amount = request.data.get('order_amount', 0)
+        user_id = request.data.get('user_id')
+        
+        # Get all active coupons
+        coupons = Coupon.objects.filter(is_active=True)
+        
+        # Filter by date
+        now = timezone.now()
+        coupons = coupons.filter(
+            Q(start_date__isnull=True) | Q(start_date__lte=now)
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=now)
+        )
+        
+        applicable_ids = []
+        all_coupons_data = []
+        
+        for coupon in coupons:
+            # Check usage limit
+            if coupon.usage_limit and coupon.usage_count >= coupon.usage_limit:
+                continue
+            
+            # Check user limit
+            is_applicable = True
+            if user_id and coupon.user_limit:
+                user_usage_count = CouponUsage.objects.filter(
+                    coupon=coupon,
+                    user_id=user_id
+                ).count()
+                if user_usage_count >= coupon.user_limit:
+                    is_applicable = False
+            
+            # Check minimum purchase
+            if coupon.min_purchase and order_amount < coupon.min_purchase:
+                is_applicable = False
+            
+            coupon_data = CouponSerializer(coupon).data
+            all_coupons_data.append(coupon_data)
+            
+            if is_applicable:
+                applicable_ids.append(str(coupon.id))
+        
+        return Response({
+            'coupons': all_coupons_data,
+            'applicable_ids': applicable_ids
+        })
     
     @action(detail=False, methods=['post'])
     def validate(self, request):

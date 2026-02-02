@@ -242,11 +242,15 @@ ACCESS_TOKEN_MINUTES = int(os.environ.get("ACCESS_TOKEN_LIFETIME_MINUTES", "5"))
 REFRESH_TOKEN_DAYS = int(os.environ.get("REFRESH_TOKEN_LIFETIME_DAYS", "7"))
 
 # Determine SameSite cookie policy based on environment
-# In development (DEBUG=True), use "None" to allow cross-origin cookies (frontend:3000 -> backend:8000)
-# In production (DEBUG=False), use "None" if CORS_ALLOWED_ORIGINS is set (cross-domain setup)
-# Otherwise use "Lax" for same-domain production setup
-COOKIE_SAMESITE = "None"  # Always use None to support both same-domain and cross-domain
-COOKIE_SECURE = not DEBUG  # Secure cookies in production (HTTPS required)
+# In development (DEBUG=True), use "Lax" for localhost-to-localhost (different ports are same-site)
+# In production (DEBUG=False), use "None" for cross-domain setups (requires Secure=True)
+# Note: SameSite=None REQUIRES Secure=True (browsers enforce this)
+if DEBUG:
+    COOKIE_SAMESITE = "Lax"  # Development: localhost:3000 <-> localhost:8000
+    COOKIE_SECURE = False
+else:
+    COOKIE_SAMESITE = "None"  # Production: cross-domain support
+    COOKIE_SECURE = True  # Required when SameSite=None
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=ACCESS_TOKEN_MINUTES),

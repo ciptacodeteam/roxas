@@ -186,6 +186,8 @@ export default function ProductDetailClient({
   const [userId, setUserId] = useState("");
   const [serverId, setServerId] = useState("");
   const [zoneId, setZoneId] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [meterNumber, setMeterNumber] = useState("");
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(
@@ -489,8 +491,8 @@ export default function ProductDetailClient({
     }
   };
 
-  // Check if this is Mobile Legends product
-  // Check by slug or by input fields (userId and serverId/zoneId)
+  // Check if this product supports account verification
+  // Currently only Mobile Legends has nickname check API
   const inputFields = product?.inputFields || [];
   const hasUserIdField =
     inputFields?.some((field: any) => field.name === "userId") || false;
@@ -498,10 +500,41 @@ export default function ProductDetailClient({
     inputFields?.some(
       (field: any) => field.name === "serverId" || field.name === "zoneId",
     ) || false;
+
+  // Only Mobile Legends supports verification
   const isMobileLegends =
     slug.includes("mobile-legends") ||
-    productData?.slug?.includes("mobile-legends") ||
-    (hasUserIdField && hasServerField);
+    productData?.slug?.includes("mobile-legends");
+
+  // Check if product explicitly supports verification (can be added to product data)
+  const supportsVerification =
+    isMobileLegends ||
+    (product as any)?.supportsVerification ||
+    false;
+
+  // Check if all required fields are filled
+  const areRequiredFieldsFilled = () => {
+    if (!inputFields || inputFields.length === 0) return true;
+
+    return inputFields.every((field: any) => {
+      if (!field.required) return true;
+
+      switch (field.name) {
+        case "userId":
+          return !!userId;
+        case "serverId":
+          return !!serverId;
+        case "zoneId":
+          return !!zoneId;
+        case "phoneNumber":
+          return !!phoneNumber;
+        case "meterNumber":
+          return !!meterNumber;
+        default:
+          return true;
+      }
+    });
+  };
 
   const selectedItemData = selectedItem
     ? items.find((item: any) => item.id === selectedItem)
@@ -522,25 +555,38 @@ export default function ProductDetailClient({
       setLoadingCoupons(true);
       try {
         const baseAmount = productPrice * quantity;
-        // TODO: Implement Django coupon API endpoint
-        // const response = await fetch(`/api/coupons?orderAmount=${baseAmount}`);
-        // const data = await response.json();
-        // if (data.success && data.data) {
-        //   setAvailableCoupons(data.data);
-        //   if (data.applicable) {
-        //     setApplicableCouponIds(data.applicable);
-        //   }
-        // }
-        setAvailableCoupons([]);
-        setApplicableCouponIds([]);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+        // Fetch applicable coupons from backend
+        const response = await fetch(`${apiUrl}/api/v1/coupons/applicable/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_amount: baseAmount,
+            user_id: (session?.user as any)?.id,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableCoupons(data.coupons || []);
+          setApplicableCouponIds(data.applicable_ids || []);
+        } else {
+          setAvailableCoupons([]);
+          setApplicableCouponIds([]);
+        }
       } catch (error) {
         console.error("Failed to fetch coupons:", error);
+        setAvailableCoupons([]);
+        setApplicableCouponIds([]);
       } finally {
         setLoadingCoupons(false);
       }
     };
     fetchCoupons();
-  }, [selectedItemData, productPrice, quantity]);
+  }, [selectedItemData, productPrice, quantity, session]);
 
   // Fetch product ratings
   useEffect(() => {
@@ -689,14 +735,59 @@ export default function ProductDetailClient({
                   className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2"
                   data-verification-section
                 >
-                  {/* ID */}
-                  {inputFields?.map((field: any) => (
-                    <div key={field.name}>
-                      <Label className="mb-2 flex items-center gap-2 text-sm text-white">
-                        {field.label}
-                        {field.name === "userId" &&
-                          field.dialog &&
-                          isMounted && (
+                  {/* Dynamic Input Fields */}
+                  {inputFields?.map((field: any) => {
+                    // Determine the value and setter for each field type
+                    const getFieldValue = () => {
+                      switch (field.name) {
+                        case "userId":
+                          return userId;
+                        case "serverId":
+                          return serverId;
+                        case "zoneId":
+                          return zoneId;
+                        case "phoneNumber":
+                          return phoneNumber;
+                        case "meterNumber":
+                          return meterNumber;
+                        default:
+                          return "";
+                      }
+                    };
+
+                    const handleFieldChange = (value: string) => {
+                      switch (field.name) {
+                        case "userId":
+                          setUserId(value);
+                          setIsVerified(false);
+                          break;
+                        case "serverId":
+                          setServerId(value);
+                          setIsVerified(false);
+                          break;
+                        case "zoneId":
+                          setZoneId(value);
+                          setServerId(value);
+                          setIsVerified(false);
+                          break;
+                        case "phoneNumber":
+                          setPhoneNumber(value);
+                          break;
+                        case "meterNumber":
+                          setMeterNumber(value);
+                          break;
+                      }
+                    };
+
+                    // Determine input type and mode
+                    const inputType = field.type || "text";
+                    const inputMode = field.name === "phoneNumber" || field.name === "meterNumber" ? "numeric" : "text";
+
+                    return (
+                      <div key={field.name}>
+                        <Label className="mb-2 flex items-center gap-2 text-sm text-white">
+                          {field.label}
+                          {field.dialog && isMounted && (
                             <Dialog>
                               <DialogTrigger asChild>
                                 <button
@@ -713,15 +804,22 @@ export default function ProductDetailClient({
                                     {field.dialog.title}
                                   </DialogTitle>
                                 </DialogHeader>
-                                <p className="text-sm text-gray-600">
-                                  {field.dialog.content}
-                                </p>
+                                {field.dialog.content && (
+                                  <p className="text-sm text-gray-600">
+                                    {field.dialog.content}
+                                  </p>
+                                )}
+                                {field.dialog.steps && (
+                                  <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+                                    {field.dialog.steps.map((step: string, idx: number) => (
+                                      <li key={idx}>{step}</li>
+                                    ))}
+                                  </ol>
+                                )}
                               </DialogContent>
                             </Dialog>
                           )}
-                        {field.name === "userId" &&
-                          field.dialog &&
-                          !isMounted && (
+                          {field.dialog && !isMounted && (
                             <button
                               type="button"
                               className="cursor-pointer text-xs text-gray-400"
@@ -730,43 +828,22 @@ export default function ProductDetailClient({
                               ⓘ
                             </button>
                           )}
-                      </Label>
-                      <Input
-                        placeholder={field.label}
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          field.name === "userId"
-                            ? userId
-                            : field.name === "serverId" ||
-                              field.name === "zoneId"
-                              ? field.name === "serverId"
-                                ? serverId
-                                : zoneId
-                              : ""
-                        }
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (field.name === "userId") {
-                            setUserId(value);
-                            setIsVerified(false);
-                          } else if (field.name === "serverId") {
-                            setServerId(value);
-                            setIsVerified(false);
-                          } else if (field.name === "zoneId") {
-                            setZoneId(value);
-                            setServerId(value);
-                            setIsVerified(false);
-                          }
-                        }}
-                        className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400"
-                      />
-                    </div>
-                  ))}
+                        </Label>
+                        <Input
+                          placeholder={field.placeholder || field.label}
+                          type={inputType}
+                          inputMode={inputMode}
+                          value={getFieldValue()}
+                          onChange={(e) => handleFieldChange(e.target.value)}
+                          className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Verify Button for Mobile Legends */}
-                {isMobileLegends && (
+                {/* Verify Button - Only for products that support verification */}
+                {supportsVerification && (
                   <div className="px-4 pb-4">
                     <Button
                       type="button"
@@ -813,8 +890,13 @@ export default function ProductDetailClient({
                   </div>
                 )}
 
+                {/* Instruction text - dynamic based on field types */}
                 <p className="px-4 pb-4 text-sm text-gray-300">
-                  Pastikan User ID dan Server ID yang Anda masukkan sudah benar.
+                  {inputFields.some((f: any) => f.name === "phoneNumber")
+                    ? "Pastikan nomor HP yang Anda masukkan sudah benar."
+                    : inputFields.some((f: any) => f.name === "meterNumber")
+                      ? "Pastikan nomor meter PLN yang Anda masukkan sudah benar."
+                      : "Pastikan User ID dan Server ID yang Anda masukkan sudah benar."}
                 </p>
               </div>
 
@@ -1176,6 +1258,7 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
+              {/* Step 3: Masukkan Jumlah Pembelian */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
@@ -1193,7 +1276,7 @@ export default function ProductDetailClient({
                   <div className="flex items-center gap-4">
                     <div className="flex w-full items-center gap-4">
                       <Input
-                        placeholder="Ketik kode promo Kamu"
+                        placeholder="Jumlah"
                         className="bg-foreground w-full border-0 p-5 text-white placeholder:text-gray-400"
                         value={quantity}
                         min={1}
@@ -1227,7 +1310,7 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 3: Pilih Metode Pembayaran */}
+              {/* Step 4: Pilih Metode Pembayaran */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
@@ -1921,7 +2004,7 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 5: Kode Promo */}
+              {/* Step 6: Kode Promo */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
@@ -2051,26 +2134,26 @@ export default function ProductDetailClient({
                             const isApplied =
                               appliedCoupon?.code === coupon.code;
                             const discountText =
-                              coupon.discountType === "PERCENTAGE"
-                                ? `${coupon.discountValue}%`
-                                : `Rp ${coupon.discountValue.toLocaleString("id-ID")}`;
+                              coupon.discount_type === "PERCENTAGE"
+                                ? `${coupon.discount_value}%`
+                                : `Rp ${coupon.discount_value.toLocaleString("id-ID")}`;
 
                             // Calculate potential discount for display
                             let potentialDiscount = 0;
                             if (selectedItemData) {
                               const baseAmount = productPrice * quantity;
-                              if (coupon.discountType === "PERCENTAGE") {
+                              if (coupon.discount_type === "PERCENTAGE") {
                                 potentialDiscount = Math.round(
-                                  (baseAmount * coupon.discountValue) / 100,
+                                  (baseAmount * coupon.discount_value) / 100,
                                 );
                                 if (
-                                  coupon.maxDiscount &&
-                                  potentialDiscount > coupon.maxDiscount
+                                  coupon.max_discount &&
+                                  potentialDiscount > coupon.max_discount
                                 ) {
-                                  potentialDiscount = coupon.maxDiscount;
+                                  potentialDiscount = coupon.max_discount;
                                 }
                               } else {
-                                potentialDiscount = coupon.discountValue;
+                                potentialDiscount = coupon.discount_value;
                               }
                               potentialDiscount = Math.min(
                                 potentialDiscount,
@@ -2130,10 +2213,10 @@ export default function ProductDetailClient({
                                             </span>
                                           )}
                                       </div>
-                                      {coupon.minPurchase && (
+                                      {coupon.min_purchase && (
                                         <p className="text-xs text-gray-500">
                                           Min. belanja: Rp{" "}
-                                          {coupon.minPurchase.toLocaleString(
+                                          {coupon.min_purchase.toLocaleString(
                                             "id-ID",
                                           )}
                                         </p>
@@ -2561,17 +2644,41 @@ export default function ProductDetailClient({
                             isLoading ||
                             !selectedItemData ||
                             !selectedPaymentMethod ||
-                            (isMobileLegends && !isVerified)
+                            !areRequiredFieldsFilled() ||
+                            (supportsVerification && !isVerified)
                           }
                           onClick={async () => {
                             if (!selectedItemData || !selectedPaymentMethod)
                               return;
 
-                            // Validate Mobile Legends account verification
-                            if (isMobileLegends && !isVerified) {
+                            // Validate account verification for products that require it
+                            if (supportsVerification && !isVerified) {
                               toast.error("Verifikasi Akun Diperlukan", {
                                 description:
-                                  "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum membuat pesanan.",
+                                  "Silakan verifikasi akun Anda terlebih dahulu sebelum membuat pesanan.",
+                              });
+                              return;
+                            }
+
+                            // Validate required fields are filled
+                            if (!areRequiredFieldsFilled()) {
+                              const missingFields = inputFields
+                                .filter((field: any) => {
+                                  if (!field.required) return false;
+                                  switch (field.name) {
+                                    case "userId": return !userId;
+                                    case "serverId": return !serverId;
+                                    case "zoneId": return !zoneId;
+                                    case "phoneNumber": return !phoneNumber;
+                                    case "meterNumber": return !meterNumber;
+                                    default: return false;
+                                  }
+                                })
+                                .map((field: any) => field.label)
+                                .join(", ");
+
+                              toast.error("Data Belum Lengkap", {
+                                description: `Mohon lengkapi: ${missingFields}`,
                               });
                               return;
                             }
@@ -2613,17 +2720,28 @@ export default function ProductDetailClient({
                             setOpenConfirm(false);
 
                             try {
-                              // Prepare customer data
+                              // Prepare customer data based on input fields
                               const customerData: any = {};
                               (product?.inputFields || []).forEach((field) => {
-                                if (field.name === "userId") {
-                                  customerData.userId = userId;
-                                } else if (field.name === "serverId") {
-                                  customerData.serverId = serverId;
-                                } else if (field.name === "zoneId") {
-                                  customerData.zoneId = zoneId;
+                                switch (field.name) {
+                                  case "userId":
+                                    if (userId) customerData.userId = userId;
+                                    break;
+                                  case "serverId":
+                                    if (serverId) customerData.serverId = serverId;
+                                    break;
+                                  case "zoneId":
+                                    if (zoneId) customerData.zoneId = zoneId;
+                                    break;
+                                  case "phoneNumber":
+                                    if (phoneNumber) customerData.phoneNumber = phoneNumber;
+                                    break;
+                                  case "meterNumber":
+                                    if (meterNumber) customerData.meterNumber = meterNumber;
+                                    break;
                                 }
                               });
+                              // Add phone if available (for contact purposes)
                               if (phone) {
                                 customerData.phone = phone;
                               }

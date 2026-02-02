@@ -106,7 +106,7 @@ export async function getSessionApi(): Promise<SessionResponse> {
   // Backend returns user data with profile info
   // Derive is_staff from role since backend doesn't return it directly
   const isStaff = data.role === 'STAFF';
-  
+
   const sessionData = {
     user: {
       id: data.id,
@@ -120,9 +120,11 @@ export async function getSessionApi(): Promise<SessionResponse> {
       is_superuser: isStaff, // Assume superuser same as staff
       is_active: true, // Assume active if endpoint returns data
       date_joined: new Date().toISOString(), // Backend doesn't return this
+      email_verified: data.email_verified, // Email verification status
+      roles_display: data.roles_display,
     },
   };
-  
+
   return sessionData;
 }
 

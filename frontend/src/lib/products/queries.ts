@@ -134,3 +134,19 @@ export function useDeleteProduct(
         ...options,
     });
 }
+
+/**
+ * Search products with debouncing for navbar
+ */
+export function useProductSearch(
+    searchQuery: string,
+    options?: Omit<UseQueryOptions<Product[], ProductsApiError>, "queryKey" | "queryFn">
+) {
+    return useQuery({
+        queryKey: productsQueryKeys.active({ search: searchQuery }),
+        queryFn: () => getActiveProducts({ search: searchQuery }),
+        enabled: searchQuery.length > 0,
+        staleTime: 30000, // 30 seconds
+        ...options,
+    });
+}

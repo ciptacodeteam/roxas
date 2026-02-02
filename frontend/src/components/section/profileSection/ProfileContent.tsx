@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProfile, useUpdateProfile, useChangePassword } from "@/lib/profile";
+import { useSendEmailVerification } from "@/lib/users";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
@@ -11,13 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInputWithCountry } from "@/components/ui/phone-input-with-country";
-import { User, Mail, Phone, Edit2, Save, X, Lock, Eye, EyeOff, Loader } from "lucide-react";
+import { User, Mail, Phone, Edit2, Save, X, Lock, Eye, EyeOff, Loader, AlertCircle, CheckCircle2, Send } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoogleLogin } from "@react-oauth/google";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // ==================== VALIDATION SCHEMAS ====================
 
@@ -88,6 +90,20 @@ export default function ProfileContent() {
     onError: (error) => {
       toast.error("Gagal Mengubah Kata Sandi", {
         description: error.message || "Terjadi kesalahan saat mengubah kata sandi.",
+      });
+    },
+  });
+
+  // Send email verification mutation
+  const sendVerificationMutation = useSendEmailVerification({
+    onSuccess: () => {
+      toast.success("Email Verifikasi Terkirim", {
+        description: "Silakan cek inbox atau folder spam email Anda.",
+      });
+    },
+    onError: (error: any) => {
+      toast.error("Gagal Mengirim Email", {
+        description: error.message || "Terjadi kesalahan saat mengirim email verifikasi.",
       });
     },
   });
@@ -297,6 +313,60 @@ export default function ProfileContent() {
 
           {/* Profile Info Section */}
           <div className="flex-1 space-y-6">
+            {/* Email Verification Alert */}
+            {profile.user_data && !profile.user_data.email_verified && (
+              <Alert className="bg-yellow-500/10 border-yellow-500/50">
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                <AlertTitle className="text-yellow-500 font-semibold">
+                  Email Belum Diverifikasi
+                </AlertTitle>
+                <AlertDescription className="text-yellow-200 mt-2">
+                  <p className="mb-3">
+                    Akun Anda belum diverifikasi. Silakan verifikasi email untuk keamanan akun Anda.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => sendVerificationMutation.mutate(profile.user_data.id)}
+                    disabled={sendVerificationMutation.isPending}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                  >
+                    {sendVerificationMutation.isPending ? (
+                      <>
+                        <Loader className="h-4 w-4 mr-2 animate-spin" />
+                        Mengirim...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Kirim Email Verifikasi
+                      </>
+                    )}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Email Verified Success */}
+            {profile.user_data && profile.user_data.email_verified && (
+              <Alert className="bg-green-500/10 border-green-500/50">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <AlertTitle className="text-green-500 font-semibold">
+                  Email Terverifikasi
+                </AlertTitle>
+                <AlertDescription className="text-green-200">
+                  Email Anda telah berhasil diverifikasi pada{" "}
+                  {profile.user_data.email_verified_at
+                    ? new Date(profile.user_data.email_verified_at).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "sebelumnya"}
+                  .
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Basic Info Card */}
             <Card className="bg-card border-border/50 p-6">
               <div className="flex items-center justify-between mb-4">

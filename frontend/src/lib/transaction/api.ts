@@ -1,41 +1,10 @@
 import { env } from "@/env";
+import type { Order, OrderDetail, OrderFilters, OrderListResponse } from "./types";
 
 const API_BASE_URL = env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8000";
 
-// ==================== TYPES ====================
-
-export interface Order {
-  id: string;
-  order_number: string;
-  product_item_name: string;
-  total_amount: number;
-  payment_method_name: string | null;
-  status: OrderStatus;
-  created_at: string;
-}
-
-export type OrderStatus =
-  | "PENDING"
-  | "PAID"
-  | "PROCESSING"
-  | "COMPLETED"
-  | "FAILED"
-  | "REFUNDED"
-  | "EXPIRED";
-
-export interface OrderFilters {
-  status?: OrderStatus;
-  search?: string;
-  page?: number;
-  page_size?: number;
-}
-
-export interface OrderListResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: Order[];
-}
+// Re-export types for convenience
+export type { Order, OrderDetail, OrderFilters, OrderListResponse } from "./types";
 
 // ==================== API FUNCTIONS ====================
 
@@ -69,9 +38,9 @@ export async function getUserOrdersApi(filters?: OrderFilters): Promise<OrderLis
 }
 
 /**
- * Get single order details
+ * Get single order details with full information
  */
-export async function getOrderDetailsApi(orderId: string): Promise<Order> {
+export async function getOrderDetailsApi(orderId: string): Promise<OrderDetail> {
   const response = await fetch(`${API_BASE_URL}/api/v1/orders/${orderId}/`, {
     method: "GET",
     headers: {
@@ -81,6 +50,9 @@ export async function getOrderDetailsApi(orderId: string): Promise<Order> {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Transaction not found");
+    }
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || "Failed to fetch order details");
   }

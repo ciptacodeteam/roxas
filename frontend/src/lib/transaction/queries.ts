@@ -1,5 +1,12 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { getUserOrdersApi, type Order, type OrderFilters, type OrderListResponse } from "./api";
+import {
+  getUserOrdersApi,
+  getOrderDetailsApi,
+  type Order,
+  type OrderDetail,
+  type OrderFilters,
+  type OrderListResponse,
+} from "./api";
 
 // ==================== QUERY KEYS ====================
 
@@ -23,6 +30,22 @@ export function useUserTransactions(
   return useQuery<OrderListResponse, Error>({
     queryKey: transactionKeys.list(filters),
     queryFn: () => getUserOrdersApi(filters),
+    staleTime: 30 * 1000, // 30 seconds
+    ...options,
+  });
+}
+
+/**
+ * Hook to get single order/transaction details
+ */
+export function useOrderDetail(
+  orderId: string | null,
+  options?: Omit<UseQueryOptions<OrderDetail, Error>, "queryKey" | "queryFn">
+) {
+  return useQuery<OrderDetail, Error>({
+    queryKey: transactionKeys.detail(orderId || ""),
+    queryFn: () => getOrderDetailsApi(orderId!),
+    enabled: !!orderId,
     staleTime: 30 * 1000, // 30 seconds
     ...options,
   });

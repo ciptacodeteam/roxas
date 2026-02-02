@@ -157,3 +157,53 @@ export async function deleteCoupon(id: string): Promise<void> {
     );
   }
 }
+/**
+ * Validate a coupon code for an order
+ */
+export async function validateCoupon(params: {
+  code: string;
+  order_amount: number;
+  user_id?: string;
+}): Promise<{
+  valid: boolean;
+  error?: string;
+  coupon?: Coupon;
+  discount_amount?: number;
+  final_amount?: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/coupons/validate/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+
+  const data = await response.json();
+  return data;
+}
+
+/**
+ * Get applicable coupons for an order
+ */
+export async function getApplicableCoupons(params: {
+  order_amount: number;
+  user_id?: string;
+}): Promise<{
+  coupons: Coupon[];
+  applicable_ids: string[];
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/coupons/applicable/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    throw new CouponsApiError("Failed to fetch applicable coupons");
+  }
+
+  return response.json();
+}

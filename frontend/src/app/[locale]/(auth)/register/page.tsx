@@ -159,8 +159,7 @@ export default function RegisterPage() {
     const newErrors: any = {};
 
     if (!form.firstName.trim()) newErrors.firstName = "Nama depan wajib diisi.";
-    if (!form.lastName.trim())
-      newErrors.lastName = "Nama belakang wajib diisi.";
+    // Last name is optional
 
     if (!form.phone.trim()) newErrors.phone = "Nomor telepon wajib diisi.";
 
@@ -278,7 +277,7 @@ export default function RegisterPage() {
                           htmlFor="lastName"
                           className="text-sm text-white"
                         >
-                          Nama Belakang
+                          Nama Belakang <span className="text-gray-400">(opsional)</span>
                         </Label>
                         <Input
                           type="text"
