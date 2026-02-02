@@ -26,14 +26,14 @@ export default function GameTabs({ categories, active, setActive }: any) {
             ))}
           </div>
 
-          <div>
+          {/* <div>
             <Link
               href={""}
               className="hidden text-white hover:text-gray-200 lg:block"
             >
               Selengkapnya
             </Link>
-          </div>
+          </div> */}
         </div>
       </div>
     </>
