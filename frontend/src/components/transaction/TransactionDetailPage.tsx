@@ -7,7 +7,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useOrderDetail } from "@/lib/transaction/queries";
-import { TransactionStatusCard, OrderInformationCard, PaymentInformationCard } from "@/components/transaction/TransactionDetailCards";
+import { TransactionStatusCard, OrderInformationCard, PaymentInformationCard, DigiflazzTransactionCard } from "@/components/transaction/TransactionDetailCards";
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -84,6 +84,7 @@ export default function TransactionDetailPage() {
                     <div className="space-y-6 lg:col-span-2">
                         <OrderInformationCard order={order} />
                         <TransactionStatusCard order={order} />
+                        <DigiflazzTransactionCard order={order} />
                     </div>
 
                     {/* Right Column */}
