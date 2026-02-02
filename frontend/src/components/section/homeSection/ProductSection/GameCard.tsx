@@ -28,7 +28,7 @@ export default function GameCard({ item }: GameCardProps) {
 
           {/* Gradient muncul saat hover */}
           <div className="absolute right-0 bottom-0 left-0 flex h-40 translate-y-10 flex-col justify-end bg-linear-to-t from-black to-transparent p-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-            <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+            <h3 className="text-lg font-semibold text-white capitalize">{item.title}</h3>
             <p className="text-sm text-white/70">{item.subtitle}</p>
           </div>
         </div>
