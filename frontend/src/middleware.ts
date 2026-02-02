@@ -48,12 +48,6 @@ export default async function middleware(request: NextRequest) {
       if (session?.role === 'STAFF') {
         return NextResponse.redirect(new URL('/admin', request.url));
       }
-      // If logged in as customer, logout and show error
-      if (session?.role === 'CUSTOMER') {
-        const url = new URL('/admin/login', request.url);
-        url.searchParams.set('error', 'customer_account');
-        return NextResponse.redirect(url);
-      }
       return NextResponse.next();
     }
     
@@ -63,21 +57,6 @@ export default async function middleware(request: NextRequest) {
     }
     
     return NextResponse.next();
-  }
-  
-  // Check role-based access for public routes
-  const session = await getSession(request);
-  
-  // If STAFF user tries to access public auth pages, redirect to admin
-  if (session?.role === 'STAFF') {
-    const publicAuthRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
-    const isPublicAuthRoute = publicAuthRoutes.some(route => 
-      pathname.includes(route)
-    );
-    
-    if (isPublicAuthRoute) {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
   }
   
   // Cek apakah URL sudah mengandung locale (misalnya /en, /id, dst)

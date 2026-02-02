@@ -118,24 +118,41 @@ def sync_digiflazz_products(self, category_filter=None, brand_filter=None):
                         product.save()
                 
                 # Create or update product item (from 'product_name' field, e.g., "Mobile Legends 100 Diamonds")
-                product_item, item_created = ProductItem.objects.update_or_create(
-                    sku_code=df_product['buyer_sku_code'],
-                    defaults={
-                        'product': product,
-                        'name': df_product['product_name'],  # Full item name
-                        'base_price': int(df_product['price']),
-                        'normal_price': int(df_product['price']),
-                        'sell_price': int(df_product['price']),
-                        'is_active': df_product.get('buyer_product_status', True) and df_product.get('seller_product_status', True),
-                        'last_synced_at': timezone.now(),
-                        'digiflazz_status': 'ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
-                    }
-                )
+                sku_code = df_product['buyer_sku_code']
                 
-                if created or item_created:
-                    created_count += 1
-                else:
+                # Check if product item already exists
+                try:
+                    product_item = ProductItem.objects.get(sku_code=sku_code)
+                    # Product exists - only update price-related fields
+                    product_item.base_price = int(df_product['price'])
+                    product_item.normal_price = int(df_product['price'])
+                    product_item.sell_price = int(df_product['price'])
+                    product_item.last_synced_at = timezone.now()
+                    product_item.digiflazz_status = 'ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
+                    # Only update is_active if it's becoming inactive (don't accidentally activate disabled products)
+                    if not df_product.get('buyer_product_status') or not df_product.get('seller_product_status'):
+                        product_item.is_active = False
+                    product_item.save()
                     updated_count += 1
+                    item_created = False
+                    logger.info(f"Updated prices for existing product: {sku_code}")
+                    
+                except ProductItem.DoesNotExist:
+                    # Product doesn't exist - create new with all fields
+                    product_item = ProductItem.objects.create(
+                        sku_code=sku_code,
+                        product=product,
+                        name=df_product['product_name'],  # Full item name
+                        base_price=int(df_product['price']),
+                        normal_price=int(df_product['price']),
+                        sell_price=int(df_product['price']),
+                        is_active=df_product.get('buyer_product_status', True) and df_product.get('seller_product_status', True),
+                        last_synced_at=timezone.now(),
+                        digiflazz_status='ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
+                    )
+                    created_count += 1
+                    item_created = True
+                    logger.info(f"Created new product: {sku_code}")
                     
             except Exception as e:
                 sku = df_product.get('buyer_sku_code', 'unknown') if isinstance(df_product, dict) else 'unknown'
@@ -190,7 +207,7 @@ def process_order_topup(self, order_id):
         logger.info(f"Processing top-up for Order {order.id}")
         
         # Validasi order
-        if order.status != Order.OrderStatus.PROCESSING:
+        if order.status != 'PROCESSING':
             error_msg = f"Order {order.id} bukan dalam status PROCESSING (current: {order.status})"
             logger.warning(error_msg)
             return {
@@ -268,7 +285,7 @@ def process_order_topup(self, order_id):
         
         # Update order based on transaction status
         if client.is_transaction_success(transaction['status'], transaction['rc']):
-            order.status = Order.OrderStatus.COMPLETED
+            order.status = 'COMPLETED'
             order.completion_data = {
                 'serial_number': transaction['sn'],
                 'completed_at': timezone.now().isoformat(),
@@ -278,7 +295,7 @@ def process_order_topup(self, order_id):
             logger.info(f"✅ Order {order.id} COMPLETED - SN: {transaction['sn']}")
             
         elif client.is_transaction_pending(transaction['status'], transaction['rc']):
-            order.status = Order.OrderStatus.PROCESSING
+            order.status = 'PROCESSING'
             logger.info(f"⏳ Order {order.id} PENDING - Will check status later")
             
             # Schedule status check after 2 minutes
@@ -288,7 +305,7 @@ def process_order_topup(self, order_id):
             )
             
         else:
-            order.status = Order.OrderStatus.FAILED
+            order.status = 'FAILED'
             order.failure_reason = transaction['message']
             logger.warning(f"❌ Order {order.id} FAILED - {transaction['message']}")
         
@@ -334,7 +351,7 @@ def process_order_topup(self, order_id):
             # Max retries reached, mark as failed
             try:
                 order = Order.objects.get(id=order_id)
-                order.status = Order.OrderStatus.FAILED
+                order.status = 'FAILED'
                 order.failure_reason = f"Max retries reached: {str(e)}"
                 order.save()
             except:
@@ -352,7 +369,7 @@ def process_order_topup(self, order_id):
         # Update order status
         try:
             order = Order.objects.get(id=order_id)
-            order.status = Order.OrderStatus.FAILED
+            order.status = 'FAILED'
             order.failure_reason = str(e)
             order.save()
         except:
@@ -378,7 +395,7 @@ def check_order_status(self, order_id):
         logger.info(f"Checking status for Order {order.id}")
         
         # Skip jika order sudah completed atau failed
-        if order.status in [Order.OrderStatus.COMPLETED, Order.OrderStatus.FAILED]:
+        if order.status in ['COMPLETED', 'FAILED']:
             logger.info(f"Order {order.id} already {order.status}, skipping status check")
             return {
                 'success': True,
@@ -413,7 +430,7 @@ def check_order_status(self, order_id):
         
         # Update order
         if client.is_transaction_success(status_result['status'], status_result['rc']):
-            order.status = Order.OrderStatus.COMPLETED
+            order.status = 'COMPLETED'
             order.completion_data = {
                 'serial_number': status_result['sn'],
                 'completed_at': timezone.now().isoformat()
@@ -432,12 +449,12 @@ def check_order_status(self, order_id):
                 )
             else:
                 # Timeout after 30 minutes
-                order.status = Order.OrderStatus.FAILED
+                order.status = 'FAILED'
                 order.failure_reason = "Transaction timeout (pending > 30 minutes)"
                 logger.warning(f"Order {order.id} timeout")
                 
         else:
-            order.status = Order.OrderStatus.FAILED
+            order.status = 'FAILED'
             order.failure_reason = status_result['message']
             logger.warning(f"❌ Order {order.id} FAILED after status check")
         

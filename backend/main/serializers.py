@@ -105,6 +105,7 @@ class CategoryListSerializer(serializers.ModelSerializer):
 
 class ProductItemSerializer(serializers.ModelSerializer):
     """Serializer for ProductItem model."""
+    product = serializers.SerializerMethodField()
     product_details = serializers.SerializerMethodField()
     
     class Meta:
@@ -116,6 +117,15 @@ class ProductItemSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'product_details'
         ]
         read_only_fields = ['id', 'last_synced_at', 'digiflazz_status', 'created_at', 'updated_at']
+    
+    def get_product(self, obj):
+        """Get product information."""
+        if obj.product:
+            return {
+                'id': str(obj.product.id),
+                'name': obj.product.name,
+            }
+        return None
     
     def get_product_details(self, obj):
         """Get product name and category details."""
@@ -134,7 +144,7 @@ class ProductItemPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductItem
         fields = [
-            'id', 'name', 'sku_code', 'icon_image', 'group',
+            'id', 'name', 'icon_image', 'group',
             'sell_price', 'normal_price', 'discounted_price', 'is_active', 'sort_order'
         ]
         read_only_fields = ['id']
@@ -166,9 +176,11 @@ class MobileLegendValidationSerializer(serializers.Serializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     """Serializer for Product with items."""
-    items = ProductItemPublicSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
+    category = CategoryListSerializer(read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_details = serializers.SerializerMethodField()
+    supports_validation = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -176,9 +188,18 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 'category', 'category_name', 'category_details', 'name', 'slug',
             'description', 'image', 'banner_image', 'input_fields',
             'instructions', 'is_active', 'sort_order', 'items',
-            'created_at', 'updated_at'
+            'supports_validation', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_items(self, obj):
+        """Get product items excluding validation items."""
+        items = obj.items.filter(is_active=True, is_validation_item=False).order_by('sort_order', 'name')
+        return ProductItemPublicSerializer(items, many=True).data
+    
+    def get_supports_validation(self, obj):
+        """Check if product has a validation item configured."""
+        return obj.items.filter(is_active=True, is_validation_item=True).exists()
     
     def get_category_details(self, obj):
         """Get category details including instruction images."""
@@ -379,16 +400,17 @@ class MarketingBannerSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model."""
     user_email = serializers.CharField(source='user.email', read_only=True)
-    product_item_name = serializers.CharField(source='product_item.name', read_only=True)
-    payment_method_name = serializers.CharField(source='payment_method.name', read_only=True)
+    product_item = ProductItemSerializer(read_only=True)
+    payment_method = PaymentMethodPublicSerializer(read_only=True)
+    payment = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'order_number', 'user', 'user_email', 'product_item',
-            'product_item_name', 'customer_data', 'original_price', 'final_price',
+            'customer_data', 'original_price', 'final_price',
             'payment_fee', 'vat_amount', 'total_amount', 'payment_method',
-            'payment_method_name', 'payment_expires_at', 'status',
+            'payment_expires_at', 'status', 'payment',
             'refund_amount', 'refund_reason', 'refunded_at',
             'created_at', 'updated_at', 'paid_at', 'completed_at'
         ]
@@ -396,6 +418,27 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'created_at', 'updated_at',
             'paid_at', 'completed_at'
         ]
+    
+    def get_payment(self, obj):
+        """Get payment details if exists."""
+        if hasattr(obj, 'payment'):
+            return {
+                'id': str(obj.payment.id),
+                'external_id': obj.payment.external_id,
+                'transaction_id': obj.payment.transaction_id,
+                'payment_method': PaymentMethodPublicSerializer(obj.payment.payment_method).data if obj.payment.payment_method else None,
+                'amount': obj.payment.amount,
+                'status': obj.payment.status,
+                'payment_url': obj.payment.payment_url,
+                'va_number': obj.payment.va_number,
+                'qris_string': obj.payment.qris_string,
+                'deeplink_url': obj.payment.deeplink_url,
+                'redirect_url': obj.payment.redirect_url,
+                'expires_at': obj.payment.expires_at,
+                'paid_at': obj.payment.paid_at,
+                'created_at': obj.payment.created_at,
+            }
+        return None
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
@@ -581,7 +624,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
 class OrderListSerializer(serializers.ModelSerializer):
     """Simplified order serializer for lists."""
-    product_item_name = serializers.CharField(source='product_item.name', read_only=True)
+    product_item_name = serializers.SerializerMethodField()
     payment_method_name = serializers.CharField(source='payment_method.name', read_only=True)
     
     class Meta:
@@ -591,6 +634,14 @@ class OrderListSerializer(serializers.ModelSerializer):
             'payment_method_name', 'status', 'created_at'
         ]
         read_only_fields = ['id']
+    
+    def get_product_item_name(self, obj):
+        """Get combined product and product item name."""
+        if obj.product_item:
+            if obj.product_item.product:
+                return f"{obj.product_item.product.name} - {obj.product_item.name}"
+            return obj.product_item.name
+        return "Unknown Product"
 
 
 # ============================================

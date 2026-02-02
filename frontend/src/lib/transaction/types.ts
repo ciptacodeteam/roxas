@@ -16,10 +16,13 @@ export type OrderStatus =
 
 export type PaymentStatus =
   | "PENDING"
+  | "SETTLEMENT"
   | "SUCCESS"
   | "FAILED"
   | "EXPIRED"
-  | "REFUNDED";
+  | "REFUNDED"
+  | "CANCEL"
+  | "DENY";
 
 export type PaymentType =
   | "QRIS"
@@ -47,7 +50,11 @@ export interface CustomerData {
 export interface PaymentDetail {
   id: string;
   external_id: string;
-  payment_method_name: string;
+  transaction_id: string | null;
+  payment_method: {
+    name: string;
+    type: PaymentType;
+  } | null;
   amount: number;
   status: PaymentStatus;
   payment_url: string | null;
@@ -56,6 +63,7 @@ export interface PaymentDetail {
   deeplink_url: string | null;
   redirect_url: string | null;
   expires_at: string | null;
+  paid_at: string | null;
   created_at: string;
 }
 

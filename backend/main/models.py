@@ -345,6 +345,10 @@ class Product(UUIDModel):
     
     def __str__(self):
         return f"{self.name} ({self.category.name})"
+    
+    def get_validation_item(self):
+        """Get the validation item for this product (if any)."""
+        return self.items.filter(is_validation_item=True, is_active=True).first()
 
 
 class ProductItem(UUIDModel):
@@ -406,6 +410,11 @@ class ProductItem(UUIDModel):
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("Is Active"),
+    )
+    is_validation_item = models.BooleanField(
+        default=False,
+        verbose_name=_("Is Validation Item"),
+        help_text=_("Items used for validation (e.g., 'Cek Username') - hidden from public listings"),
     )
     sort_order = models.IntegerField(
         default=0,
@@ -966,28 +975,33 @@ class Payment(UUIDModel):
     payment_url = models.CharField(
         max_length=500,
         blank=True,
+        null=True,
         verbose_name=_("Payment URL"),
     )
     va_number = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         verbose_name=_("VA Number"),
         help_text=_("Virtual Account number (for bank_transfer)"),
     )
     qris_string = models.TextField(
         blank=True,
+        null=True,
         verbose_name=_("QRIS String"),
         help_text=_("QRIS payment string (for qris)"),
     )
     deeplink_url = models.CharField(
         max_length=500,
         blank=True,
+        null=True,
         verbose_name=_("Deep link URL"),
         help_text=_("Deep link for e-wallets"),
     )
     redirect_url = models.CharField(
         max_length=500,
         blank=True,
+        null=True,
         verbose_name=_("Redirect URL"),
         help_text=_("Redirect URL for credit card"),
     )

@@ -10,6 +10,7 @@ import set from 'lodash/set';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { RoleGuard } from '@/components/auth/role-guard';
 
 function transformMessages(messages: Record<string, unknown>) {
   const transformed: Record<string, unknown> = {};
@@ -41,6 +42,7 @@ export default async function LocaleLayout({
   return (
     <div>
       <NextIntlClientProvider locale={locale} messages={messages}>
+        <RoleGuard type="public" />
         <main>
           <Navbar />
           {children}

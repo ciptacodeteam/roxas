@@ -11,6 +11,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 export default function AdminLayout({
   children,
@@ -157,6 +158,7 @@ export default function AdminLayout({
         '--sidebar-ring': 'oklch(0.556 0 0)',
       } as React.CSSProperties}
     >
+      <RoleGuard type="admin" />
       <div className="min-h-screen bg-[#151a22] text-white">
         {children}
       </div>

@@ -16,29 +16,32 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def _get_profile_info(cls, user):
         """
-        Get profile information (full name and photo URL) based on user profiles.
+        Get profile information (full name, photo URL, and contact phone) based on user profiles.
         Supports dual roles - checks both supplier and reseller profiles.
         Prioritizes primary role's profile, but checks both.
-        Returns tuple: (full_name, photo_url)
+        Returns tuple: (full_name, photo_url, contact_phone)
         """
         full_name = None
         photo_url = None
+        contact_phone = None
         
         try:
             if user.role == UserRole.STAFF and hasattr(user, "staff_profile"):
                 profile = user.staff_profile
                 full_name = profile.full_name
+                contact_phone = profile.contact_phone
                 if profile.photo:
                     photo_url = profile.photo.url
             elif user.role == UserRole.CUSTOMER and hasattr(user, "customer_profile"):
                 profile = user.customer_profile
                 full_name = profile.full_name
+                contact_phone = profile.contact_phone
                 if profile.photo:
                     photo_url = profile.photo.url
         except Exception:
             pass
         
-        return full_name or user.email, photo_url
+        return full_name or user.email, photo_url, contact_phone
 
     @classmethod
     def _build_absolute_url(cls, relative_url):
@@ -77,8 +80,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # These flags help frontend determine which profiles the user has
         token["has_customer_profile"] = hasattr(user, "customer_profile")
 
-        # Get full name and profile picture URL
-        full_name, photo_url = cls._get_profile_info(user)
+        # Get full name, profile picture URL, and contact phone
+        full_name, photo_url, contact_phone = cls._get_profile_info(user)
         
         token["full_name"] = full_name
         
@@ -87,6 +90,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             absolute_url = cls._build_absolute_url(photo_url)
             if absolute_url:
                 token["profile_picture_url"] = absolute_url
+        
+        if contact_phone:
+            token["phone"] = contact_phone
 
         return token
 

@@ -19,9 +19,9 @@ import { Copy, Package, CreditCard, Calendar, CheckCircle2, XCircle, Clock } fro
 
 // ==================== CONSTANTS ====================
 
-const CARD_STYLES = "rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 backdrop-blur-sm";
-const SECTION_STYLES = "rounded-lg border border-white/10 bg-white/[0.02] p-4";
-const CARD_HEADER_STYLES = "flex items-center gap-3 border-b border-white/10 pb-4";
+const CARD_STYLES = "rounded-2xl bg-slate-800/70 backdrop-blur-sm p-6 border border-white/10";
+const SECTION_STYLES = "rounded-xl bg-slate-900/50 p-4 border border-white/5";
+const CARD_HEADER_STYLES = "flex items-center gap-3 border-b border-white/10 pb-4 mb-6";
 
 // ==================== HOOKS ====================
 
@@ -49,24 +49,25 @@ export function TransactionStatusCard({ order }: { order: OrderDetail }) {
 
     return (
         <div className={CARD_STYLES}>
+            <CardHeader icon={Package} iconColor="purple" title="Status Pesanan" />
+            
             <div className="flex items-start justify-between">
                 <div className="flex-1">
-                    <p className="text-sm text-white/60">Status Pesanan</p>
-                    <div className="mt-2 flex items-center gap-3">
-                        <span className="text-3xl">{statusInfo.icon}</span>
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className="text-2xl">{statusInfo.icon}</span>
                         <div>
-                            <h3 className="text-xl font-semibold text-white">{statusInfo.label}</h3>
-                            <p className="text-sm text-white/50">{statusInfo.description}</p>
+                            <h3 className="text-lg font-semibold text-white">{statusInfo.label}</h3>
+                            <p className="text-sm text-white/60">{statusInfo.description}</p>
                         </div>
                     </div>
                 </div>
-                <div className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${statusInfo.color}`}>
+                <div className={`rounded-lg px-3 py-1.5 text-sm font-medium ${statusInfo.color}`}>
                     {order.status}
                 </div>
             </div>
 
             {/* Timeline */}
-            <div className="mt-6 space-y-3 border-t border-white/10 pt-6">
+            <div className="space-y-3">
                 <TimelineItem
                     icon={<Calendar className="h-4 w-4" />}
                     label="Dibuat"
@@ -122,18 +123,18 @@ export function OrderInformationCard({ order }: { order: OrderDetail }) {
 
     return (
         <div className={CARD_STYLES}>
-            <CardHeader icon={Package} iconColor="purple" title="Informasi Pesanan" />
+            <CardHeader icon={Package} iconColor="purple" title="Detail Pembelian" />
 
-            <div className="mt-6 space-y-4">
-                <InfoRow label="Nomor Pesanan" value={order.order_number} copyable onCopy={() => handleCopy(order.order_number, "Nomor pesanan")} />
+            <div className="space-y-4">
                 <InfoRow label="Produk" value={order.product_item_name} />
+                <InfoRow label="Nomor Pesanan" value={order.order_number} copyable onCopy={() => handleCopy(order.order_number, "Nomor pesanan")} />
                 <InfoRow label="Email" value={order.user_email} />
 
                 {/* Customer Data */}
                 {order.customer_data && (
                     <div className={SECTION_STYLES}>
-                        <p className="mb-3 text-sm font-medium text-white/70">Data Customer</p>
-                        <div className="space-y-2">
+                        <p className="mb-3 text-sm font-medium text-white">Data Customer</p>
+                        <div className="space-y-3">
                             {order.customer_data.userId && (
                                 <InfoRow label="User ID" value={order.customer_data.userId} copyable onCopy={() => handleCopy(order.customer_data.userId!, "User ID")} />
                             )}
@@ -167,17 +168,18 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
         <div className={CARD_STYLES}>
             <CardHeader icon={CreditCard} iconColor="green" title="Informasi Pembayaran" />
 
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
                 <InfoRow label="Metode Pembayaran" value={order.payment_method_name} />
 
                 {/* Payment Details */}
                 {order.payment && (
-                    <div className="space-y-3">
-                        {order.payment.va_number && (
+                    <div className="space-y-4">
+                        {/* Virtual Account */}
+                        {order.payment.va_number && order.payment.payment_method?.type === "BANK_TRANSFER" && (
                             <div className={SECTION_STYLES}>
-                                <p className="mb-2 text-sm font-medium text-white/70">Nomor Virtual Account</p>
+                                <p className="mb-3 text-sm font-medium text-white">Nomor Virtual Account</p>
                                 <div className="flex items-center gap-2">
-                                    <code className="flex-1 rounded bg-black/30 px-3 py-2 font-mono text-lg text-white">
+                                    <code className="flex-1 rounded-lg bg-slate-950 border border-white/10 px-3 py-2 font-mono text-lg text-white">
                                         {order.payment.va_number}
                                     </code>
                                     <button
@@ -190,41 +192,74 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                             </div>
                         )}
 
-                        {order.payment.qris_string && (
+                        {/* QRIS */}
+                        {order.payment.qris_string && order.payment.payment_method?.type === "QRIS" && (
                             <div className={SECTION_STYLES}>
-                                <p className="mb-2 text-sm font-medium text-white/70">QRIS</p>
+                                <p className="mb-3 text-sm font-medium text-white">QRIS</p>
                                 <p className="text-sm text-white/60">Scan kode QR untuk pembayaran</p>
                             </div>
                         )}
 
-                        <div className={`rounded-lg border px-3 py-2 ${getPaymentStatusInfo(order.payment.status).color}`}>
-                            <p className="text-sm font-medium">
-                                Status: {getPaymentStatusInfo(order.payment.status).label}
+                        {/* E-Wallet (ShopeePay, GoPay, etc.) */}
+                        {order.payment.deeplink_url && order.payment.payment_method?.type === "E_WALLET" && (
+                            <div className={SECTION_STYLES}>
+                                <p className="mb-3 text-sm font-medium text-white">Pembayaran {order.payment.payment_method.name}</p>
+                                <p className="text-sm text-white/60 mb-3">Pembayaran telah diproses melalui {order.payment.payment_method.name}</p>
+                                {order.payment.status === "PENDING" && order.payment.deeplink_url && (
+                                    <a
+                                        href={order.payment.deeplink_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition-colors"
+                                    >
+                                        Buka {order.payment.payment_method.name}
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Credit Card */}
+                        {order.payment.redirect_url && order.payment.payment_method?.type === "CREDIT_CARD" && (
+                            <div className={SECTION_STYLES}>
+                                <p className="mb-3 text-sm font-medium text-white">Pembayaran Kartu Kredit</p>
+                                <p className="text-sm text-white/60">Pembayaran telah diproses</p>
+                            </div>
+                        )}
+
+                        {/* Payment Status */}
+                        <div className={`rounded-lg px-4 py-3 ${getPaymentStatusInfo(order.payment.status).color}`}>
+                            <p className="text-sm font-medium mb-1">
+                                Status Pembayaran: {getPaymentStatusInfo(order.payment.status).label}
                             </p>
+                            {order.payment.paid_at && (
+                                <p className="text-xs text-white/60">
+                                    Dibayar: {new Date(order.payment.paid_at).toLocaleString("id-ID")}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}
 
                 {/* Price Breakdown */}
                 <div className={SECTION_STYLES}>
-                    <p className="mb-3 text-sm font-medium text-white/70">Rincian Harga</p>
-                    <div className="space-y-2">
+                    <p className="mb-4 text-sm font-medium text-white">Rincian Harga</p>
+                    <div className="space-y-3">
                         <PriceRow label="Harga Produk" amount={order.original_price} />
                         {order.final_price !== order.original_price && (
                             <PriceRow label="Harga Setelah Diskon" amount={order.final_price} highlight />
                         )}
                         {order.payment_fee > 0 && <PriceRow label="Biaya Pembayaran" amount={order.payment_fee} />}
                         {order.vat_amount > 0 && <PriceRow label="PPN" amount={order.vat_amount} />}
-                        <div className="border-t border-white/10 pt-2">
+                        <div className="border-t border-white/20 pt-3">
                             <PriceRow label="Total" amount={order.total_amount} total />
                         </div>
                     </div>
                 </div>
 
                 {order.refund_amount && (
-                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+                    <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4">
                         <p className="mb-2 text-sm font-medium text-red-400">Dana Dikembalikan</p>
-                        <p className="text-2xl font-bold text-white">{formatCurrency(order.refund_amount)}</p>
+                        <p className="text-xl font-bold text-white">{formatCurrency(order.refund_amount)}</p>
                         {order.refund_reason && <p className="mt-1 text-sm text-white/60">{order.refund_reason}</p>}
                     </div>
                 )}
@@ -253,13 +288,13 @@ function TimelineItem({
 }) {
     return (
         <div className="flex items-start gap-3">
-            <div className={`rounded-lg p-2 ${active ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-white/40"}`}>
+            <div className={`rounded-lg p-2 ${active ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "bg-white/5 text-white/40 border border-white/10"}`}>
                 {icon}
             </div>
             <div className="flex-1">
                 <p className="text-sm font-medium text-white">{label}</p>
-                <p className="text-sm text-white/60">{value}</p>
-                {sublabel && <p className="text-xs text-white/40">{sublabel}</p>}
+                <p className="text-sm text-white/70">{value}</p>
+                {sublabel && <p className="text-xs text-white/50">{sublabel}</p>}
             </div>
         </div>
     );
@@ -280,14 +315,14 @@ function InfoRow({
     onCopy?: () => void;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-white/60">{label}</span>
+        <div className="flex items-center justify-between gap-4 py-2">
+            <span className="text-sm text-white/70">{label}</span>
             <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-white">{value}</span>
                 {copyable && onCopy && (
                     <button
                         onClick={onCopy}
-                        className="rounded p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                        className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
                     >
                         <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -337,8 +372,8 @@ function CardHeader({
     title: string;
 }) {
     const colorClasses = {
-        purple: "bg-purple-500/20 text-purple-400",
-        green: "bg-green-500/20 text-green-400",
+        purple: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+        green: "bg-green-500/20 text-green-400 border border-green-500/30",
     };
 
     return (

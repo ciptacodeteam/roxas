@@ -34,7 +34,10 @@ export async function getUserOrdersApi(filters?: OrderFilters): Promise<OrderLis
     throw new Error(error.detail || "Failed to fetch orders");
   }
 
-  return response.json();
+  const data = await response.json();
+  
+  // Backend already provides product_item_name and payment_method_name
+  return data;
 }
 
 /**
@@ -57,5 +60,33 @@ export async function getOrderDetailsApi(orderId: string): Promise<OrderDetail> 
     throw new Error(error.detail || "Failed to fetch order details");
   }
 
-  return response.json();
+  const data = await response.json();
+  
+  // Transform backend response to match frontend OrderDetail interface
+  return {
+    ...data,
+    product_item_name: data.product_item?.product?.name && data.product_item?.name
+      ? `${data.product_item.product.name} - ${data.product_item.name}`
+      : data.product_item?.name || "Unknown Product",
+    payment_method_name: data.payment_method?.name || "Unknown Payment Method",
+    payment: data.payment ? {
+      id: data.payment.id,
+      external_id: data.payment.external_id,
+      transaction_id: data.payment.transaction_id,
+      payment_method: data.payment.payment_method ? {
+        name: data.payment.payment_method.name,
+        type: data.payment.payment_method.type,
+      } : null,
+      amount: data.payment.amount,
+      status: data.payment.status?.toUpperCase() || "PENDING",
+      payment_url: data.payment.payment_url,
+      va_number: data.payment.va_number,
+      qris_string: data.payment.qris_string,
+      deeplink_url: data.payment.deeplink_url,
+      redirect_url: data.payment.redirect_url,
+      expires_at: data.payment.expires_at,
+      paid_at: data.payment.paid_at,
+      created_at: data.payment.created_at,
+    } : undefined,
+  };
 }

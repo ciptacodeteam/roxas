@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@radix-ui/react-label";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
+import { PhoneInputAuth } from "@/components/ui/phone-input-auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -294,15 +294,20 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6">
-                      <CountryPhoneInput
+                    <div className="mt-6 grid w-full gap-1">
+                      <Label htmlFor="phone" className="text-sm text-white">
+                        Nomor WhatsApp
+                      </Label>
+                      <PhoneInputAuth
+                        id="phone"
                         value={form.phone}
                         onChange={(val: string) =>
                           setForm({ ...form, phone: val })
                         }
+                        placeholder="812 3456 7890"
                       />
                       {errors.phone && (
-                        <p className="mt-1 text-xs text-red-400">
+                        <p className="text-xs text-red-400">
                           {errors.phone}
                         </p>
                       )}

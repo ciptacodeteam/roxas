@@ -340,6 +340,7 @@ class CurrentUserView(APIView):
         # Get profile info - now supports dual roles
         full_name = user.email
         photo_url = None
+        contact_phone = None
         
         # Check for staff profile
         if user.role == UserRole.STAFF and hasattr(user, "staff_profile"):
@@ -349,6 +350,8 @@ class CurrentUserView(APIView):
                     full_name = profile.full_name
                 if not photo_url and profile.photo:
                     photo_url = request.build_absolute_uri(profile.photo.url) if request else profile.photo.url
+                if not contact_phone:
+                    contact_phone = profile.contact_phone
             except Exception:
                 pass
         
@@ -360,6 +363,8 @@ class CurrentUserView(APIView):
                     full_name = profile.full_name
                 if not photo_url and profile.photo:
                     photo_url = request.build_absolute_uri(profile.photo.url) if request else profile.photo.url
+                if not contact_phone:
+                    contact_phone = profile.contact_phone
             except Exception:
                 pass
         
@@ -371,6 +376,7 @@ class CurrentUserView(APIView):
             'profile_picture_url': photo_url,
             'email_verified': user.email_verified,
             'roles_display': user.get_roles_display(),
+            'phone': contact_phone or '',  # Include phone number from profile
         })
 
 

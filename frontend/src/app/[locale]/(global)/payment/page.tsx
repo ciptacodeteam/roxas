@@ -19,16 +19,23 @@ export default function PaymentPage() {
     if (!orderId) return;
     
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/api/v1/orders/${orderId}/`, {
+        credentials: 'include',
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
         },
       });
-      const data = await response.json();
-      if (data.success) {
-        setOrder(data.data);
+      
+      if (!response.ok) {
+        console.error("Failed to fetch order:", response.status);
+        setLoading(false);
+        return;
       }
+      
+      const data = await response.json();
+      setOrder(data);
     } catch (error) {
       console.error("Failed to fetch order:", error);
     } finally {
@@ -54,9 +61,13 @@ export default function PaymentPage() {
 
   // Separate effect for countdown timer
   useEffect(() => {
-    if (!order?.payment?.expiresAt) return;
+    if (!order?.payment?.expires_at) {
+      console.log("No expires_at found:", order?.payment);
+      return;
+    }
 
-    const expiresAt = new Date(order.payment.expiresAt);
+    console.log("Setting up countdown for:", order.payment.expires_at);
+    const expiresAt = new Date(order.payment.expires_at);
     const updateTimeLeft = () => {
       const now = new Date();
       const diff = expiresAt.getTime() - now.getTime();
@@ -76,7 +87,7 @@ export default function PaymentPage() {
     updateTimeLeft();
     const interval = setInterval(updateTimeLeft, 1000);
     return () => clearInterval(interval);
-  }, [order?.payment?.expiresAt]);
+  }, [order?.payment?.expires_at]);
 
   if (loading) {
     return (
@@ -101,11 +112,11 @@ export default function PaymentPage() {
   }
 
   const payment = order.payment;
-  const paymentMethod = payment?.paymentMethod;
-  const customerData = order.customerData as any;
+  const paymentMethod = payment?.payment_method;
+  const customerData = order.customer_data as any;
 
   // Generate QR code if QRIS string exists
-  const qrCodeValue = payment?.qrisString || payment?.paymentUrl;
+  const qrCodeValue = payment?.qris_string || payment?.payment_url;
 
   return (
     <div className="from-card via-muted-foreground to-foreground/20 min-h-screen bg-linear-to-b text-white">
@@ -117,7 +128,7 @@ export default function PaymentPage() {
           <p className="mt-2 text-sm text-gray-400">
             Pesanan kamu{" "}
             <span className="font-medium text-white">
-              {order.orderNumber}
+              {order.order_number}
             </span>{" "}
             menunggu pembayaran sebelum dikirim.
           </p>
@@ -131,10 +142,10 @@ export default function PaymentPage() {
 
             <div className="space-y-3 text-sm">
               <Row label="Pembelian produk">
-                {order.productItem?.product?.name} - {order.productItem?.name}
+                {order.product_item?.product?.name} - {order.product_item?.name}
               </Row>
 
-              <Row label="Nomor Invoice">{order.orderNumber}</Row>
+              <Row label="Nomor Invoice">{order.order_number}</Row>
 
               <Row label="Status Transaksi">
                 <Badge className={order.status === "PENDING" ? "bg-yellow-400 text-black" : "bg-green-500"}>
@@ -157,21 +168,28 @@ export default function PaymentPage() {
               {/* RINCIAN PEMBAYARAN */}
               <div className="space-y-2 border-t border-white/10 pt-3">
                 <div className="flex justify-between text-gray-400">
-                  <span>Harga Item</span>
-                  <span>Rp {order.finalPrice.toLocaleString("id-ID")}</span>
+                  <span>Harga Produk</span>
+                  <span>Rp {order.original_price.toLocaleString("id-ID")}</span>
                 </div>
 
-                {order.paymentFee > 0 && (
+                {order.original_price !== order.final_price && (
                   <div className="flex justify-between text-gray-400">
-                    <span>Biaya Layanan</span>
-                    <span>Rp {order.paymentFee.toLocaleString("id-ID")}</span>
+                    <span>Harga Setelah Diskon</span>
+                    <span>Rp {order.final_price.toLocaleString("id-ID")}</span>
                   </div>
                 )}
 
-                {order.vatAmount > 0 && (
+                {order.payment_fee > 0 && (
+                  <div className="flex justify-between text-gray-400">
+                    <span>Biaya Pembayaran</span>
+                    <span>Rp {order.payment_fee.toLocaleString("id-ID")}</span>
+                  </div>
+                )}
+
+                {order.vat_amount > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>PPN</span>
-                    <span>Rp {order.vatAmount.toLocaleString("id-ID")}</span>
+                    <span>Rp {order.vat_amount.toLocaleString("id-ID")}</span>
                   </div>
                 )}
               </div>
@@ -180,7 +198,7 @@ export default function PaymentPage() {
               <div className="border-t border-white/10 pt-4">
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total Pembayaran</span>
-                  <span>Rp {order.totalAmount.toLocaleString("id-ID")}</span>
+                  <span>Rp {order.total_amount.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             </div>
@@ -188,7 +206,7 @@ export default function PaymentPage() {
 
           {/* RIGHT - PAYMENT */}
           <div className="space-y-4 rounded-2xl bg-slate-800/70 p-6">
-            {payment?.expiresAt && (
+            {payment?.expires_at && (
               <div>
                 <p className="mb-2 text-sm text-gray-400">
                   Pesanan ini akan kedaluwarsa pada
@@ -197,7 +215,7 @@ export default function PaymentPage() {
                   {timeLeft || "Calculating..."}
                 </div>
                 <p className="mt-2 text-xs text-gray-500 text-center">
-                  {new Date(payment.expiresAt).toLocaleString("id-ID")}
+                  {new Date(payment.expires_at).toLocaleString("id-ID")}
                 </p>
               </div>
             )}
@@ -211,9 +229,9 @@ export default function PaymentPage() {
             {qrCodeValue && paymentMethod?.type === "QRIS" && (
               <>
                 <div className="flex justify-center rounded-xl bg-white p-4">
-                  {payment.paymentUrl ? (
+                  {payment.payment_url ? (
                     <Image
-                      src={payment.paymentUrl}
+                      src={payment.payment_url}
                       alt="QR Code"
                       width={220}
                       height={220}
@@ -234,8 +252,8 @@ export default function PaymentPage() {
                 <Button
                   className="w-full bg-primary text-white cursor-pointer"
                   onClick={() => {
-                    if (payment.paymentUrl) {
-                      window.open(payment.paymentUrl, "_blank");
+                    if (payment.payment_url) {
+                      window.open(payment.payment_url, "_blank");
                     } else {
                       navigator.clipboard.writeText(qrCodeValue);
                       alert("QR Code string telah disalin!");
@@ -248,18 +266,18 @@ export default function PaymentPage() {
             )}
 
             {/* Virtual Account Number */}
-            {payment?.vaNumber && (
+            {payment?.va_number && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-400">Nomor Virtual Account</p>
                 <div className="rounded-lg bg-gray-700 p-4">
                   <p className="text-center text-xl font-mono font-semibold">
-                    {payment.vaNumber}
+                    {payment.va_number}
                   </p>
                 </div>
                 <Button
                   className="w-full bg-primary text-white cursor-pointer"
                   onClick={() => {
-                    navigator.clipboard.writeText(payment.vaNumber);
+                    navigator.clipboard.writeText(payment.va_number);
                     alert("Nomor VA telah disalin!");
                   }}
                 >
@@ -269,23 +287,27 @@ export default function PaymentPage() {
             )}
 
             {/* Deep Link for E-Wallets */}
-            {payment?.deeplinkUrl && (
-              <Button
-                className="w-full bg-primary text-white cursor-pointer"
-                onClick={() => {
-                  window.open(payment.deeplinkUrl, "_blank");
-                }}
-              >
-                Buka Aplikasi Pembayaran
-              </Button>
+            {payment?.deeplink_url && paymentMethod?.type === "E_WALLET" && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Pembayaran E-Wallet</p>
+                <p className="text-xs text-gray-500">Klik tombol di bawah untuk membuka aplikasi pembayaran dan menyelesaikan transaksi</p>
+                <Button
+                  className="w-full bg-primary text-white cursor-pointer"
+                  onClick={() => {
+                    window.open(payment.deeplink_url, "_blank");
+                  }}
+                >
+                  Buka {paymentMethod?.name || "Aplikasi Pembayaran"}
+                </Button>
+              </div>
             )}
 
             {/* Redirect URL for Credit Card */}
-            {payment?.redirectUrl && paymentMethod?.type === "CREDIT_CARD" && (
+            {payment?.redirect_url && paymentMethod?.type === "CREDIT_CARD" && (
               <Button
                 className="w-full bg-primary text-white cursor-pointer"
                 onClick={() => {
-                  window.open(payment.redirectUrl, "_blank");
+                  window.open(payment.redirect_url, "_blank");
                 }}
               >
                 Lanjutkan Pembayaran

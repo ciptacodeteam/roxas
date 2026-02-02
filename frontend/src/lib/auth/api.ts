@@ -112,7 +112,7 @@ export async function getSessionApi(): Promise<SessionResponse> {
       id: data.id,
       email: data.email,
       name: data.full_name, // Use full_name as name
-      phone: '', // Backend doesn't return phone in this endpoint
+      phone: data.phone || '', // Phone from profile
       full_name: data.full_name,
       profile_picture_url: data.profile_picture_url,
       role: data.role,

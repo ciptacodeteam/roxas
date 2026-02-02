@@ -56,41 +56,49 @@ export default function TransactionDetailPage() {
 
     // Success state - Display transaction details
     return (
-        <div className="mx-auto max-w-5xl px-4 pb-12 pt-40">
-            {/* Header */}
-            <div className="mb-8">
-                <Button
-                    variant="ghost"
-                    onClick={() => router.push("/id/transaction")}
-                    className="mb-4 gap-2 text-white/70 hover:text-white"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Kembali
-                </Button>
-                <h1 className="text-3xl font-bold text-white">Detail Transaksi</h1>
-                <p className="mt-2 text-white/60">Informasi lengkap tentang pesanan Anda</p>
-            </div>
-
-            {/* Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-2">
-                {/* Left Column */}
-                <div className="space-y-6">
-                    <TransactionStatusCard order={order} />
-                    <OrderInformationCard order={order} />
+        <div className="min-h-screen bg-gradient-to-b from-card via-muted-foreground to-foreground/20 text-white">
+            <div className="mx-auto max-w-7xl px-4 pb-14 pt-40">
+                {/* Header */}
+                <div className="mb-10">
+                    <Button
+                        variant="ghost"
+                        onClick={() => router.push("/id/transaction")}
+                        className="mb-6 gap-2 text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Kembali
+                    </Button>
+                    <div className="text-center">
+                        <p className="mb-2 text-sm text-gray-400">Detail Transaksi</p>
+                        <h1 className="text-2xl font-semibold">Informasi lengkap tentang pesanan Anda</h1>
+                        <p className="mt-2 text-sm text-gray-400">
+                            Nomor Pesanan:{" "}
+                            <span className="font-medium text-white">{order.order_number}</span>
+                        </p>
+                    </div>
                 </div>
 
-                {/* Right Column */}
-                <div className="space-y-6">
-                    <PaymentInformationCard order={order} />
-                </div>
-            </div>
+                {/* Content Grid */}
+                <div className="grid gap-6 lg:grid-cols-3">
+                    {/* Left Column - Spans 2 columns */}
+                    <div className="space-y-6 lg:col-span-2">
+                        <OrderInformationCard order={order} />
+                        <TransactionStatusCard order={order} />
+                    </div>
 
-            {/* Footer Note */}
-            <div className="mt-8 rounded-lg border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-white/50">
-                    💡 <strong className="text-white/70">Tips:</strong> Simpan nomor pesanan Anda untuk referensi di masa mendatang.
-                    Jika ada kendala, hubungi customer service dengan menyertakan nomor pesanan.
-                </p>
+                    {/* Right Column */}
+                    <div className="space-y-6">
+                        <PaymentInformationCard order={order} />
+                    </div>
+                </div>
+
+                {/* Footer Note */}
+                <div className="mt-8 rounded-2xl bg-slate-800/70 p-4 border border-white/10">
+                    <p className="text-sm text-white/60">
+                        💡 <strong className="text-white">Tips:</strong> Simpan nomor pesanan Anda untuk referensi di masa mendatang.
+                        Jika ada kendala, hubungi customer service dengan menyertakan nomor pesanan.
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -8,17 +8,6 @@ from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Validate environment variables (only in production or when explicitly enabled)
-if not os.environ.get("SKIP_ENV_VALIDATION", "").lower() in ("1", "true", "yes"):
-    try:
-        from backend.env_validator import validate_env_vars, print_env_summary
-        validate_env_vars()
-        print_env_summary()
-    except ImportError:
-        # env_validator not yet created - skip validation
-        pass
-
-
 def get_env_list(key: str) -> list[str]:
     """
     Return a list for comma-separated env vars while gracefully handling blanks.

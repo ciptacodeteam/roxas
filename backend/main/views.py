@@ -214,6 +214,96 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         
         serializer = ProductRatingSerializer(ratings, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], url_path='validate-account')
+    def validate_account(self, request, slug=None):
+        """
+        Validate user account for a product using its validation item.
+        
+        POST /api/v1/products/{slug}/validate-account/
+        {
+            "user_id": "123456789",
+            "server_id": "1234"  // optional, depends on product
+        }
+        """
+        from .integrations.digiflazz import DigiflazzClient, DigiflazzException
+        import uuid
+        
+        product = self.get_object()
+        validation_item = product.get_validation_item()
+        
+        if not validation_item:
+            return Response({
+                'valid': False,
+                'error': 'Validasi akun tidak tersedia untuk produk ini',
+                'message': 'No validation item configured for this product'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get user_id and server_id from request
+        user_id = request.data.get('user_id', '').strip()
+        server_id = request.data.get('server_id', '').strip()
+        
+        if not user_id:
+            return Response({
+                'valid': False,
+                'error': 'User ID wajib diisi'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Construct customer_no based on product requirements
+        # For Mobile Legends: userid+serverid
+        # For others: might be just userid
+        if server_id:
+            customer_no = f"{user_id}{server_id}"
+        else:
+            customer_no = user_id
+        
+        # Call Digiflazz to validate
+        client = DigiflazzClient()
+        temp_ref_id = f"CHECK-{uuid.uuid4().hex[:12].upper()}"
+        
+        try:
+            result = client.create_transaction(
+                buyer_sku_code=validation_item.sku_code,
+                customer_no=customer_no,
+                ref_id=temp_ref_id,
+                testing=True  # Use testing mode for validation only
+            )
+            
+            # Check if validation successful
+            transaction_status = result.get('status', '')
+            account_name = result.get('sn', '') or result.get('customer_name', '') or result.get('message', '')
+            rc = result.get('rc', '')
+            
+            # Status "Pending" or "Sukses" means the account exists
+            if transaction_status in ['Pending', 'Sukses'] or rc in ['', '00']:
+                return Response({
+                    'valid': True,
+                    'user_id': user_id,
+                    'server_id': server_id if server_id else None,
+                    'account_name': account_name if account_name else f"Player {user_id}",
+                    'message': 'Akun valid'
+                })
+            else:
+                return Response({
+                    'valid': False,
+                    'error': result.get('message', 'User ID tidak valid'),
+                    'message': 'Account not found'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except DigiflazzException as e:
+            logger.error(f"Digiflazz validation error: {str(e)}")
+            return Response({
+                'valid': False,
+                'error': str(e),
+                'message': 'Validation service error'
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as e:
+            logger.error(f"Unexpected validation error: {str(e)}")
+            return Response({
+                'valid': False,
+                'error': 'Terjadi kesalahan saat validasi',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminProductViewSet(viewsets.ModelViewSet):
@@ -245,11 +335,10 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['name', 'sell_price', 'sort_order']
     
     def get_queryset(self):
-        """Filter out MLCU items from public listing."""
+        """Filter out validation items (like MLCU) from public listing."""
         return ProductItem.objects.filter(
-            is_active=True
-        ).exclude(
-            sku_code__icontains='MLCU'
+            is_active=True,
+            is_validation_item=False
         ).select_related('product', 'product__category')
     
     @action(detail=False, methods=['post'], url_path='validate-ml-id')
@@ -719,10 +808,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'STAFF':
             return Order.objects.all().select_related(
-                'user', 'product_item', 'payment_method'
+                'user', 'product_item__product', 'payment_method'
             ).order_by('-created_at')
         return Order.objects.filter(user=user).select_related(
-            'product_item', 'payment_method'
+            'product_item__product', 'payment_method'
         ).order_by('-created_at')
     
     def get_serializer_class(self):
@@ -743,11 +832,25 @@ class OrderViewSet(viewsets.ModelViewSet):
             # Initialize Midtrans client
             midtrans_client = MidtransClient()
             
+            # Get phone and name from user profile
+            user_phone = ''
+            user_name = 'Customer'
+            try:
+                from account.models import UserRole
+                if self.request.user.role == UserRole.STAFF and hasattr(self.request.user, "staff_profile"):
+                    user_phone = self.request.user.staff_profile.contact_phone or ''
+                    user_name = self.request.user.staff_profile.full_name or 'Customer'
+                elif self.request.user.role == UserRole.CUSTOMER and hasattr(self.request.user, "customer_profile"):
+                    user_phone = self.request.user.customer_profile.contact_phone or ''
+                    user_name = self.request.user.customer_profile.full_name or 'Customer'
+            except Exception:
+                pass
+            
             # Prepare customer details
             customer_details = {
                 "email": self.request.user.email,
-                "first_name": self.request.user.name or "Customer",
-                "phone": getattr(self.request.user, 'phone', ''),
+                "first_name": user_name,
+                "phone": user_phone,
             }
             
             # Prepare item details

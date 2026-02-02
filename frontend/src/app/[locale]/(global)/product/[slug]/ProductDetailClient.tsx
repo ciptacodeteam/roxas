@@ -50,7 +50,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import CountryPhoneInput from "@/components/section/register/CountryPhoneInput";
+import { PhoneInputAuth } from "@/components/ui/phone-input-auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -73,6 +73,7 @@ type ProductData = {
   image: string;
   canvas?: string;
   banner_image?: string | null;
+  supports_validation?: boolean;
   inputFields?: Array<{
     name: string;
     label: string;
@@ -90,7 +91,6 @@ type ProductData = {
     base_price?: number;
     normal_price?: number;
     discounted_price?: number;
-    sku_code?: string;
     group?: string;
   }>;
   denominations?: Array<{
@@ -126,9 +126,11 @@ const StarIcon = () => (
 
 export default function ProductDetailClient({
   slug,
+  locale,
   productData,
 }: {
   slug: string;
+  locale: string;
   productData: ProductData | null;
 }) {
   // Use database data if available, otherwise fall back to hardcoded data
@@ -264,26 +266,11 @@ export default function ProductDetailClient({
     return priceA - priceB;
   });
 
-  // Group items by group field from database, with fallback to SKU pattern matching
+  // Group items by group field from database
   const groupedItemsMap = new Map<string, any[]>();
 
   allItems.forEach((item: any) => {
-    let groupName = item.group || "";
-
-    // Fallback: If no group field, try to infer from SKU code (for backward compatibility)
-    if (!groupName) {
-      const skuCode = item.sku_code || "";
-      if (skuCode.startsWith("MLID") || skuCode.includes("DIAMOND")) {
-        groupName = "Diamond";
-      } else if (skuCode.includes("WEEK") || skuCode.includes("PASS")) {
-        groupName = "Weekly Pass";
-      }
-    }
-
-    // If still no group, put in "Other" group
-    if (!groupName) {
-      groupName = "Other";
-    }
+    let groupName = item.group || "Other";
 
     if (!groupedItemsMap.has(groupName)) {
       groupedItemsMap.set(groupName, []);
@@ -442,7 +429,17 @@ export default function ProductDetailClient({
     // Use zoneId if available, otherwise use serverId
     const serverOrZoneId = zoneId || serverId;
 
-    if (!userId || !serverOrZoneId) {
+    if (!userId) {
+      setVerificationError("User ID harus diisi");
+      return;
+    }
+
+    // Some products require server ID, some don't
+    const requiresServerId = inputFields?.some(
+      (field: any) => (field.name === "serverId" || field.name === "zoneId") && field.required
+    );
+    
+    if (requiresServerId && !serverOrZoneId) {
       setVerificationError("User ID dan Server ID harus diisi");
       return;
     }
@@ -451,15 +448,16 @@ export default function ProductDetailClient({
     setVerificationError(null);
 
     try {
-      // Call Django backend ML account verification API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/product-items/validate-ml-id/`, {
+      // Call the new generic validation endpoint based on product slug
+      const productSlug = productData?.slug || slug;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/${productSlug}/validate-account/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           user_id: userId.trim(),
-          server_id: serverOrZoneId.trim(),
+          server_id: serverOrZoneId ? serverOrZoneId.trim() : undefined,
         }),
       });
 
@@ -469,7 +467,7 @@ export default function ProductDetailClient({
         setIsVerified(true);
         setVerifiedAccount({
           userId: userId.trim(),
-          serverId: serverOrZoneId.trim(),
+          serverId: serverOrZoneId ? serverOrZoneId.trim() : "",
           username: data.account_name,
         });
         setVerificationError(null);
@@ -492,7 +490,7 @@ export default function ProductDetailClient({
   };
 
   // Check if this product supports account verification
-  // Currently only Mobile Legends has nickname check API
+  // Uses the supports_validation field from API (products with "Cek" validation items)
   const inputFields = product?.inputFields || [];
   const hasUserIdField =
     inputFields?.some((field: any) => field.name === "userId") || false;
@@ -501,16 +499,8 @@ export default function ProductDetailClient({
       (field: any) => field.name === "serverId" || field.name === "zoneId",
     ) || false;
 
-  // Only Mobile Legends supports verification
-  const isMobileLegends =
-    slug.includes("mobile-legends") ||
-    productData?.slug?.includes("mobile-legends");
-
-  // Check if product explicitly supports verification (can be added to product data)
-  const supportsVerification =
-    isMobileLegends ||
-    (product as any)?.supportsVerification ||
-    false;
+  // Use API field to determine if product supports verification
+  const supportsVerification = productData?.supports_validation || false;
 
   // Check if all required fields are filled
   const areRequiredFieldsFilled = () => {
@@ -979,29 +969,6 @@ export default function ProductDetailClient({
                                     <Card
                                       key={item.id}
                                       onClick={() => {
-                                        // For Mobile Legends, prompt account validation before selecting nominal
-                                        if (isMobileLegends && !isVerified) {
-                                          toast.error(
-                                            "Verifikasi Akun Diperlukan",
-                                            {
-                                              description:
-                                                "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum memilih nominal.",
-                                              action: {
-                                                label: "Verifikasi Sekarang",
-                                                onClick: () => {
-                                                  document
-                                                    .querySelector(
-                                                      "[data-verification-section]",
-                                                    )
-                                                    ?.scrollIntoView({
-                                                      behavior: "smooth",
-                                                    });
-                                                },
-                                              },
-                                            },
-                                          );
-                                          return;
-                                        }
                                         setSelectedItem(item.id);
                                       }}
                                       className={cn(
@@ -1148,29 +1115,6 @@ export default function ProductDetailClient({
                                 <Card
                                   key={item.id}
                                   onClick={() => {
-                                    // For Mobile Legends, prompt account validation before selecting nominal
-                                    if (isMobileLegends && !isVerified) {
-                                      toast.error(
-                                        "Verifikasi Akun Diperlukan",
-                                        {
-                                          description:
-                                            "Silakan verifikasi akun Mobile Legends Anda terlebih dahulu sebelum memilih nominal.",
-                                          action: {
-                                            label: "Verifikasi Sekarang",
-                                            onClick: () => {
-                                              document
-                                                .querySelector(
-                                                  "[data-verification-section]",
-                                                )
-                                                ?.scrollIntoView({
-                                                  behavior: "smooth",
-                                                });
-                                            },
-                                          },
-                                        },
-                                      );
-                                      return;
-                                    }
                                     setSelectedItem(item.id);
                                   }}
                                   className={cn(
@@ -1984,7 +1928,7 @@ export default function ProductDetailClient({
                 <div className="p-4">
                   <div className="flex flex-col gap-3">
                     <div>
-                      <CountryPhoneInput value={phone} onChange={setPhone} />
+                      <PhoneInputAuth value={phone} onChange={setPhone} placeholder="812 3456 7890" />
                     </div>
 
                     <p className="text-xs text-gray-400">
@@ -2380,14 +2324,6 @@ export default function ProductDetailClient({
                             </div>
                           )}
 
-                          {paymentFee > 0 && (
-                            <div className="flex justify-between text-gray-300">
-                              <span>Biaya Layanan</span>
-                              <span>
-                                Rp {paymentFee.toLocaleString("id-ID")}
-                              </span>
-                            </div>
-                          )}
                           {vatAmount > 0 && (
                             <div className="flex justify-between text-gray-300">
                               <span>PPN</span>
@@ -2396,14 +2332,6 @@ export default function ProductDetailClient({
                               </span>
                             </div>
                           )}
-
-                          <div className="flex items-center justify-between text-gray-300">
-                            <span className="flex items-center gap-2">
-                              <Image alt="" src={lightning} className="w-4" />
-                              Pengiriman Instan
-                            </span>
-                            <span className="text-green-400">✓</span>
-                          </div>
                         </div>
 
                         <div className="border-t border-dashed border-white/20" />
@@ -2487,15 +2415,6 @@ export default function ProductDetailClient({
                               <span>{quantity}</span>
                             </div>
 
-                            {paymentFee > 0 && (
-                              <div className="flex justify-between text-gray-300">
-                                <span>Biaya Layanan</span>
-                                <span>
-                                  Rp {paymentFee.toLocaleString("id-ID")}
-                                </span>
-                              </div>
-                            )}
-
                             {couponDiscount > 0 && (
                               <div className="flex justify-between text-green-400">
                                 <span>Diskon Promo</span>
@@ -2532,14 +2451,64 @@ export default function ProductDetailClient({
 
                 {isMounted ? (
                   <Dialog open={openConfirm} onOpenChange={setOpenConfirm}>
-                    <DialogTrigger asChild>
-                      <Button
-                        className="bg-primary hidden w-full cursor-pointer py-6 text-lg font-medium lg:flex"
-                        disabled={!selectedItemData || !selectedPaymentMethod}
-                      >
-                        Bayar Sekarang
-                      </Button>
-                    </DialogTrigger>
+                    <Button
+                      onClick={() => {
+                        // Check if user is logged in
+                        if (!session?.user) {
+                          toast.error("Login Diperlukan", {
+                            description: "Silakan login terlebih dahulu untuk melanjutkan pembelian",
+                          });
+                          router.push(`/${locale}/auth/login`);
+                          return;
+                        }
+
+                        // Validate account verification if required
+                        if (productData?.supports_validation && !isVerified) {
+                          toast.error("Verifikasi Diperlukan", {
+                            description: "Silakan verifikasi akun Anda terlebih dahulu",
+                          });
+                          return;
+                        }
+
+                        // Validate required fields are filled
+                        const requiredFields = product?.inputFields?.filter((f: any) => f.required) || [];
+                        const missingFields = requiredFields
+                          .filter((field: any) => {
+                            switch (field.name) {
+                              case "userId": return !userId;
+                              case "serverId": return !serverId;
+                              case "zoneId": return !zoneId;
+                              case "phoneNumber": return !phoneNumber;
+                              case "meterNumber": return !meterNumber;
+                              default: return false;
+                            }
+                          })
+                          .map((field: any) => field.label)
+                          .join(", ");
+
+                        if (missingFields) {
+                          toast.error("Data Belum Lengkap", {
+                            description: `Mohon lengkapi: ${missingFields}`,
+                          });
+                          return;
+                        }
+
+                        // Validate WhatsApp phone number
+                        if (!phone) {
+                          toast.error("Nomor WhatsApp Diperlukan", {
+                            description: "Mohon masukkan nomor WhatsApp Anda",
+                          });
+                          return;
+                        }
+
+                        // All validations passed, open payment modal
+                        setOpenConfirm(true);
+                      }}
+                      className="bg-primary hidden w-full cursor-pointer py-6 text-lg font-medium lg:flex"
+                      disabled={!selectedItemData || !selectedPaymentMethod}
+                    >
+                      Bayar Sekarang
+                    </Button>
 
                     <DialogContent className="bg-foreground rounded-2xl border-0 text-white lg:max-w-md">
                       <DialogHeader className="text-center">
@@ -2644,8 +2613,7 @@ export default function ProductDetailClient({
                             isLoading ||
                             !selectedItemData ||
                             !selectedPaymentMethod ||
-                            !areRequiredFieldsFilled() ||
-                            (supportsVerification && !isVerified)
+                            !areRequiredFieldsFilled()
                           }
                           onClick={async () => {
                             if (!selectedItemData || !selectedPaymentMethod)
@@ -2656,6 +2624,18 @@ export default function ProductDetailClient({
                               toast.error("Verifikasi Akun Diperlukan", {
                                 description:
                                   "Silakan verifikasi akun Anda terlebih dahulu sebelum membuat pesanan.",
+                                action: {
+                                  label: "Verifikasi Sekarang",
+                                  onClick: () => {
+                                    document
+                                      .querySelector(
+                                        "[data-verification-section]",
+                                      )
+                                      ?.scrollIntoView({
+                                        behavior: "smooth",
+                                      });
+                                  },
+                                },
                               });
                               return;
                             }
@@ -2752,6 +2732,7 @@ export default function ProductDetailClient({
                                 `${apiUrl}/api/v1/orders/`,
                                 {
                                   method: "POST",
+                                  credentials: "include",
                                   headers: {
                                     "Content-Type": "application/json",
                                   },

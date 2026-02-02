@@ -11,11 +11,12 @@ import GameSection from "@/components/section/homeSection/ProductSection/GameSec
 
 
 export default function IndexPage() {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
 
   useEffect(() => {
     // Show email verification reminder if user is logged in but email not verified
-    if (session?.user && !session.user.email_verified) {
+    // Skip for admin users (they are auto-verified)
+    if (session?.user && !session.user.email_verified && !isAdmin) {
       // Use a persistent toast that doesn't auto-dismiss
       toast.warning("Email Belum Diverifikasi", {
         description: "Silakan verifikasi email Anda untuk keamanan akun. Cek profil Anda untuk mengirim ulang link verifikasi.",
@@ -26,7 +27,7 @@ export default function IndexPage() {
       // Dismiss the toast if email is verified
       toast.dismiss("email-verification-toast");
     }
-  }, [session]);
+  }, [session, isAdmin]);
 
   return (
     <>

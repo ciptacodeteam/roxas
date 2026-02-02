@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from main.integrations.digiflazz import DigiflazzClient, get_digiflazz_client
 from main.integrations.midtrans import MidtransClient, get_midtrans_client
-from main.models import DigiflazzTransaction, Order, Payment
+from main.models import DigiflazzTransaction, Order, OrderStatus, Payment, PaymentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +325,10 @@ def handle_midtrans_notification(notification: dict) -> str:
     """
     Handle Midtrans payment notification
     
+    Implements idempotency and proper status transition handling as per Midtrans best practices:
+    - Prevents duplicate/out-of-order notifications from causing issues
+    - Only allows valid status transitions (e.g., can't go from PROCESSING back to PENDING)
+    
     Args:
         notification: Notification data dari Midtrans
         
@@ -339,8 +343,8 @@ def handle_midtrans_notification(notification: dict) -> str:
     gross_amount = notification.get('gross_amount')
     
     try:
-        # Find order by ID
-        order = Order.objects.get(id=order_id)
+        # Find order by order_number (not UUID id)
+        order = Order.objects.get(order_number=order_id)
         
         logger.info(f"Processing payment notification for Order {order_id}")
         
@@ -348,61 +352,99 @@ def handle_midtrans_notification(notification: dict) -> str:
         payment, created = Payment.objects.get_or_create(
             order=order,
             defaults={
-                'payment_method_id': None,  # Will be updated
+                'payment_method': order.payment_method,
                 'amount': int(float(gross_amount)),
                 'status': 'pending',
-                'transaction_id': transaction_id
+                'transaction_id': transaction_id,
+                'external_id': order_id,
             }
         )
         
-        # Update payment data
+        # Update payment data (always update these fields)
         payment.transaction_id = transaction_id
-        payment.payment_type = payment_type
         payment.raw_response = notification
         
         # Get Midtrans client
         client = get_midtrans_client()
         
-        # Update payment and order status based on transaction status
-        if client.is_transaction_success(transaction_status, fraud_status):
+        # Define status priority to prevent downgrade (higher = more final)
+        STATUS_PRIORITY = {
+            OrderStatus.PENDING: 1,
+            OrderStatus.PAID: 2,
+            OrderStatus.PROCESSING: 3,
+            OrderStatus.COMPLETED: 5,
+            OrderStatus.FAILED: 2,
+            OrderStatus.REFUNDED: 2,
+            OrderStatus.EXPIRED: 2,
+        }
+        
+        # Determine new status based on transaction
+        new_order_status = None
+        new_payment_status = None
+        
+        if client.is_transaction_success(notification):
             # Payment SUCCESS
-            payment.status = 'success'
-            payment.paid_at = timezone.now()
+            new_payment_status = PaymentStatus.SETTLEMENT
+            new_order_status = OrderStatus.PROCESSING
             
-            order.status = Order.OrderStatus.PROCESSING
+            # Set paid_at only if not already set (idempotency)
+            if not payment.paid_at:
+                payment.paid_at = timezone.now()
             
             logger.info(f"✅ Payment SUCCESS for Order {order_id}")
             
-            # TODO: Trigger top-up process
-            # from main.tasks import process_order_topup
-            # process_order_topup.delay(str(order.id))
-            
-        elif client.is_transaction_pending(transaction_status):
+        elif client.is_transaction_pending(notification):
             # Payment PENDING
-            payment.status = 'pending'
-            order.status = Order.OrderStatus.PENDING
+            new_payment_status = PaymentStatus.PENDING
+            new_order_status = OrderStatus.PENDING
             
             logger.info(f"⏳ Payment PENDING for Order {order_id}")
             
-        elif client.is_transaction_failed(transaction_status):
+        elif client.is_transaction_failed(notification):
             # Payment FAILED
-            payment.status = 'failed'
-            payment.failure_reason = client.get_transaction_status_message(
-                transaction_status, fraud_status
-            )
+            new_payment_status = PaymentStatus.DENY
+            new_order_status = OrderStatus.FAILED
             
-            order.status = Order.OrderStatus.FAILED
-            order.failure_reason = payment.failure_reason
+            failure_reason = client.get_transaction_status_message(notification)
+            payment.failure_reason = failure_reason
+            order.failure_reason = failure_reason
             
-            logger.warning(f"❌ Payment FAILED for Order {order_id} - {payment.failure_reason}")
+            logger.warning(f"❌ Payment FAILED for Order {order_id} - {failure_reason}")
         
-        payment.save()
-        order.save()
+        # Apply status updates only if it's a valid transition (prevents out-of-order updates)
+        current_priority = STATUS_PRIORITY.get(order.status, 0)
+        new_priority = STATUS_PRIORITY.get(new_order_status, 0)
+        
+        if new_priority >= current_priority:
+            # Valid transition - apply updates
+            if new_payment_status:
+                payment.status = new_payment_status
+            if new_order_status:
+                order.status = new_order_status
+            
+            payment.save()
+            order.save()
+            
+            logger.info(f"Status updated: Order {order_id} → {order.status}, Payment → {payment.status}")
+            
+            # Trigger top-up process only on first success transition to PROCESSING
+            if new_order_status == Order.OrderStatus.PROCESSING and current_priority < new_priority:
+                from main.tasks import process_order_topup
+                logger.info(f"Triggering Digiflazz top-up process for Order {order_id}")
+                process_order_topup.delay(str(order.id))
+        else:
+            # Invalid transition - ignore this notification (out of order)
+            logger.warning(
+                f"Ignoring out-of-order notification for Order {order_id}: "
+                f"Current status={order.status} (priority={current_priority}), "
+                f"New status={new_order_status} (priority={new_priority})"
+            )
+            payment.save()  # Still save payment to update transaction_id and raw_response
         
         # TODO: Send notification to user
         # send_payment_status_notification(order, payment)
         
-        return f"Order {order_id} updated to {order.status}"
+        return f"Order {order_id} status: {order.status}"
         
     except Order.DoesNotExist:
         logger.error(f"Order not found: {order_id}")

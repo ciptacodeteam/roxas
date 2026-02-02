@@ -94,7 +94,7 @@ def update_products():
     
     # Update Games (except Mobile Legends which already has fields)
     if games_cat:
-        game_products = Product.objects.filter(category=games_cat).exclude(name='MOBILE LEGENDS')
+        game_products = Product.objects.filter(category=games_cat)
         for product in game_products:
             if not product.input_fields or product.input_fields == []:
                 product.input_fields = GAME_FIELDS

@@ -5,9 +5,9 @@ import { getActiveProductBySlug } from "@/lib/products/api";
 export default async function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; locale: string }>;
 }) {
-  const { slug } = await params;
+  const { slug, locale } = await params;
 
   let product: any = null;
   try {
@@ -65,6 +65,7 @@ export default async function ProductDetailPage({
       image: product.image || "/img/ffcover.webp",
       banner_image: product.banner_image,
       inputFields: inputFields,
+      supports_validation: product.supports_validation || false,
       items: (product.items || [])
         .filter((item: any) => item.is_active)
         .map((item: any) => ({
@@ -75,7 +76,6 @@ export default async function ProductDetailPage({
           base_price: item.base_price,
           normal_price: item.normal_price,
           discounted_price: item.discounted_price,
-          sku_code: item.sku_code,
           group: item.group,
         }))
         .sort((a: any, b: any) => a.price - b.price),
@@ -87,5 +87,5 @@ export default async function ProductDetailPage({
     };
   }
 
-  return <ProductDetailClient slug={slug} productData={productData} />;
+  return <ProductDetailClient slug={slug} locale={locale} productData={productData} />;
 }

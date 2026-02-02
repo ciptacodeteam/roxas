@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Loader2, RefreshCw } from "lucide-react";
+import { Search, Loader2, RefreshCw, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useUserTransactions } from "@/lib/transaction/queries";
 import {
   getStatusColor,
@@ -109,6 +110,9 @@ export default function UserTransactionTable() {
                 <th className="border border-gray-700 px-4 py-3 text-left">
                   Status
                 </th>
+                <th className="border border-gray-700 px-4 py-3 text-left">
+                  Aksi
+                </th>
               </tr>
             </thead>
 
@@ -136,19 +140,31 @@ export default function UserTransactionTable() {
                     </td>
                     <td className="border border-gray-700 px-4 py-3">
                       <span
-                        className={`rounded px-2 py-1 text-xs font-semibold ${getStatusColor(
-                          transaction.status
-                        )}`}
+                        className={`rounded px-2 py-1 text-xs font-semibold ${
+                          getStatusColor(transaction.status)
+                        }`}
                       >
                         {getStatusLabel(transaction.status)}
                       </span>
+                    </td>
+                    <td className="border border-gray-700 px-4 py-3">
+                      <Link href={`/id/transaction/${transaction.id}`}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-transparent border-gray-600 text-white hover:bg-gray-700 hover:border-gray-500"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="border border-gray-700 py-6 text-center text-gray-400"
                   >
                     {search

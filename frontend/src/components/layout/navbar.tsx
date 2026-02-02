@@ -38,13 +38,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import logo from "public/img/logo1.webp";
 import Indonesia from "public/img/indonesia-logo.webp";
 import uk from "public/img/uk-logo.webp";
-<<<<<<< HEAD
 import { useProductSearch } from "@/lib/products/queries";
 import { useDebounce } from "@/hooks/useDebounce";
 import { getProductImage } from "@/lib/utils";
-=======
-import { useProducts } from "@/lib/queries";
->>>>>>> 43896da67c84f31b7323606e57113d0a2acaf03f
 
 type NavItem = {
   key: string; // key i18n
@@ -63,13 +59,7 @@ const Navigationbar = () => {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { session, isLoading: isPending, isAdmin } = useAuth();
-<<<<<<< HEAD
   const { logout } = useLogout({ redirectTo: `/${pathname.split("/")[1] || "id"}` });
-=======
-  const { logout } = useLogout({
-    redirectTo: `/${pathname.split("/")[1] || "id"}`,
-  });
->>>>>>> 43896da67c84f31b7323606e57113d0a2acaf03f
 
   // Fetch profile data for avatar and name
   const { data: profile } = useProfile({
@@ -110,7 +100,6 @@ const Navigationbar = () => {
 
   const toggleMenu = () => setOpen((s) => !s);
 
-<<<<<<< HEAD
   const [query, setQuery] = useState("");
   const [showResult, setShowResult] = useState(false);
 
@@ -123,22 +112,6 @@ const Navigationbar = () => {
     {
       enabled: debouncedQuery.length >= 2, // Only search when 2+ characters
     }
-=======
-  const { data: products = [] } = useProducts({});
-
-  const mappedProducts = products.map((product: any) => ({
-    title: product.name,
-    slug: product.slug,
-    image: product.image,
-    subtitle: product.category_name,
-  }));
-
-  const [query, setQuery] = useState("");
-  const [showResult, setShowResult] = useState(false);
-
-  const results = mappedProducts.filter((item) =>
-    item.title?.toLowerCase().includes(query.toLowerCase()),
->>>>>>> 43896da67c84f31b7323606e57113d0a2acaf03f
   );
 
   return (
@@ -195,11 +168,7 @@ const Navigationbar = () => {
                           {product.name}
                         </p>
                         <p className="text-xs text-gray-400">
-<<<<<<< HEAD
                           {product.category_name}
-=======
-                          {item.subtitle} 
->>>>>>> 43896da67c84f31b7323606e57113d0a2acaf03f
                         </p>
                       </div>
                     </Link>
@@ -328,11 +297,7 @@ const Navigationbar = () => {
                           {product.name}
                         </p>
                         <p className="text-xs text-gray-400">
-<<<<<<< HEAD
                           {product.category_name}
-=======
-                          {item.subtitle} 
->>>>>>> 43896da67c84f31b7323606e57113d0a2acaf03f
                         </p>
                       </div>
                     </Link>
