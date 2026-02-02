@@ -26,7 +26,10 @@ export default function FavoriteSection() {
     isLoading,
     isError,
     error,
-  } = useProducts({ limit: 6 });
+  } = useProducts({
+    categorySlug: "games",
+    limit: 6,
+  });
 
   // Transform products to match expected format (Django returns snake_case)
   const games: Product[] = Array.isArray(productsData)
@@ -70,19 +73,21 @@ export default function FavoriteSection() {
 
   return (
     <section>
-      <div className="mx-auto mb-16 lg:max-w-7xl w-11/12 lg:mt-12 mt-8">
+      <div className="mx-auto mt-8 mb-16 w-11/12 lg:mt-12 lg:max-w-7xl">
         <div>
-          <div className="mb-2 flex gap-2 lg:text-3xl items-center text-xl">
+          <div className="mb-2 flex items-center gap-2 text-xl lg:text-3xl">
             <span>
-              <Image src={fire} alt="fire" className="lg:w-8 w-6" />
+              <Image src={fire} alt="fire" className="w-6 lg:w-8" />
             </span>
-            <p className="font-medium text-white">POPULER SEKARANG !</p>
+            <p className="font-medium text-white">GAMES POPULER SEKARANG !</p>
           </div>
-          <p className="text-white lg:text-base text-sm">Silahkan Temukan Game Kamu.</p>
+          <p className="text-sm text-white lg:text-base">
+            Silahkan Temukan Game Kamu.
+          </p>
         </div>
 
         {games && games.length > 0 ? (
-          <div className="mt-8 grid grid-cols-2 lg:gap-4 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
             {games.map((game: Product) => (
               <Link
                 key={game.id}
@@ -93,17 +98,17 @@ export default function FavoriteSection() {
                   {/* overlay */}
                   <div className="absolute inset-0 bg-rose-950/60"></div>
 
-                  <CardContent className="relative z-10 lg:flex items-center gap-4 lg:p-4 p-3">
+                  <CardContent className="relative z-10 items-center gap-4 p-3 lg:flex lg:p-4">
                     <Image
                       src={game.image || "/img/icon1.webp"}
                       alt={game.title || "Product"}
                       width={80}
                       height={80}
-                      className="h-30 w-full lg:h-20 lg:w-20 rounded-lg object-cover object-top"
+                      className="h-30 w-full rounded-lg object-cover object-top lg:h-20 lg:w-20"
                     />
 
                     <div className="flex flex-col justify-center">
-                      <p className="lg:text-xl text-base font-semibold text-white lg:mt-0 mt-3">
+                      <p className="mt-3 text-base font-semibold text-white lg:mt-0 lg:text-xl">
                         {game.title}
                       </p>
                       <p className="text-sm text-white/70">{game.subtitle}</p>
