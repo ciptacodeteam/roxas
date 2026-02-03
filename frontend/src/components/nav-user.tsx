@@ -42,7 +42,7 @@ export function NavUser() {
   const userData = useMemo(() => {
     const email = user?.email || "admin@roxas.com";
     const name = user?.full_name || user?.name || email.split('@')[0] || "Admin";
-    const avatar = user?.profile_picture_url || "/avatars/shadcn.jpg";
+    const avatar = user?.profile_picture_url || undefined;
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     
     return { name, email, avatar, initials };
