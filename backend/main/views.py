@@ -258,6 +258,30 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             customer_no = user_id
         
+        # Check if validation already exists for this customer_no (within last 24 hours)
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        recent_check = DigiflazzAccountCheck.objects.filter(
+            customer_no=customer_no,
+            product=product,
+            created_at__gte=timezone.now() - timedelta(hours=24)
+        ).order_by('-created_at').first()
+        
+        # If recent valid check exists, return cached result
+        if recent_check and recent_check.is_valid:
+            logger.info(f"Using cached validation for {customer_no}")
+            return Response({
+                'valid': True,
+                'user_id': user_id,
+                'server_id': server_id if server_id else None,
+                'account_name': recent_check.account_name,
+                'status': recent_check.status,
+                'check_id': str(recent_check.id),
+                'message': 'Akun valid (dari cache)',
+                'cached': True
+            })
+        
         # Call Digiflazz to validate
         client = DigiflazzClient()
         temp_ref_id = f"CHECK-{uuid.uuid4().hex[:12].upper()}"
@@ -287,6 +311,20 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             account_name = result.get('sn', '') or result.get('customer_name', '')
             rc = result.get('rc', '')
             message = result.get('message', '')
+            
+            # If account_name is empty, try to extract from message
+            # Format: "User ID 29180822 Zone 2043 / Username ♡+"
+            if not account_name and message and 'Username' in message:
+                try:
+                    # Extract text after "Username "
+                    username_part = message.split('Username')[-1].strip()
+                    # Get text until first space (or end of string)
+                    extracted_name = username_part.split()[0] if username_part else ''
+                    if extracted_name:
+                        account_name = extracted_name
+                        logger.info(f"Extracted username from message: {account_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to extract username from message: {e}")
             
             # Update account check record
             account_check.status = transaction_status
@@ -445,6 +483,28 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
             client = DigiflazzClient()
             customer_no = f"{user_id}{server_id}"  # ML format: userid+serverid
             
+            # Check if validation already exists for this customer_no (within last 24 hours)
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            recent_check = DigiflazzAccountCheck.objects.filter(
+                customer_no=customer_no,
+                sku_code__icontains='MLCU',
+                created_at__gte=timezone.now() - timedelta(hours=24)
+            ).order_by('-created_at').first()
+            
+            # If recent valid check exists, return cached result
+            if recent_check and recent_check.is_valid:
+                logger.info(f"Using cached ML validation for {customer_no}")
+                return Response({
+                    'valid': True,
+                    'user_id': user_id,
+                    'server_id': server_id,
+                    'account_name': recent_check.account_name if recent_check.account_name else f"Player {user_id}",
+                    'message': 'Akun Mobile Legends valid (dari cache)',
+                    'cached': True
+                })
+            
             # Generate temporary ref_id for validation
             import uuid
             temp_ref_id = f"MLCHECK-{uuid.uuid4().hex[:12].upper()}"
@@ -477,12 +537,27 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
                 # Digiflazz client already unwraps 'data' key, so result IS the transaction data
                 # Check status - Pending means account is valid (waiting for callback)
                 transaction_status = result.get('status', '')
-                account_name = result.get('sn', '') or result.get('customer_name', '') or result.get('message', '')
+                account_name = result.get('sn', '') or result.get('customer_name', '')
                 rc = result.get('rc', '')
+                message = result.get('message', '')
+                
+                # If account_name is empty, try to extract from message
+                # Format: "User ID 29180822 Zone 2043 / Username ♡+"
+                if not account_name and message and 'Username' in message:
+                    try:
+                        # Extract text after "Username "
+                        username_part = message.split('Username')[-1].strip()
+                        # Get text until first space (or end of string)
+                        extracted_name = username_part.split()[0] if username_part else ''
+                        if extracted_name:
+                            account_name = extracted_name
+                            logger.info(f"Extracted username from message: {account_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to extract username from message: {e}")
                 
                 # Update account check record
                 account_check.status = transaction_status
-                account_check.message = result.get('message', '')
+                account_check.message = message
                 account_check.rc = rc
                 account_check.response_data = result
                 account_check.account_name = account_name or ''

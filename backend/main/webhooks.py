@@ -241,6 +241,21 @@ def handle_validation_webhook(data, ref_id):
         
         # Extract account name from webhook
         account_name = data.get('sn', '') or data.get('customer_name', '')
+        
+        # If account_name is empty, try to extract from message
+        # Format: "User ID 29180822 Zone 2043 / Username ♡+"
+        if not account_name and data.get('message') and 'Username' in data['message']:
+            try:
+                # Extract text after "Username "
+                username_part = data['message'].split('Username')[-1].strip()
+                # Get text until first space (or end of string)
+                extracted_name = username_part.split()[0] if username_part else ''
+                if extracted_name:
+                    account_name = extracted_name
+                    logger.info(f"Extracted username from webhook message: {account_name}")
+            except Exception as e:
+                logger.warning(f"Failed to extract username from webhook message: {e}")
+        
         if account_name:
             account_check.account_name = account_name
         
