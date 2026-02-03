@@ -178,6 +178,12 @@ class ProductSerializer(serializers.ModelSerializer):
     """Serializer for Product with items."""
     items = serializers.SerializerMethodField()
     category = CategoryListSerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        source='category',
+        write_only=True,
+        required=False
+    )
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_details = serializers.SerializerMethodField()
     supports_validation = serializers.SerializerMethodField()
@@ -185,7 +191,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'category', 'category_name', 'category_details', 'name', 'slug',
+            'id', 'category', 'category_id', 'category_name', 'category_details', 'name', 'slug',
             'description', 'image', 'banner_image', 'input_fields',
             'instructions', 'is_active', 'sort_order', 'items',
             'supports_validation', 'created_at', 'updated_at'

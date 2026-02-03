@@ -1,6 +1,6 @@
 export interface Product {
     id: string;
-    category: string;
+    category: string | { id: string; name: string; slug: string; product_count: number };
     category_name: string;
     category_details?: {
         id: string;

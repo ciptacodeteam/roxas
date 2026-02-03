@@ -70,14 +70,22 @@ export default function ProductEditPage() {
 
     const { data: categories = [] } = useCategories();
 
-    // Update form data when product data changes
+    // Update form data when product data AND categories are loaded
     useEffect(() => {
-        if (productData) {
+        if (productData && categories.length > 0) {
+            // Extract category ID - handle both object and string formats
+            let categoryId = "";
+            if (typeof productData.category === 'object' && productData.category !== null) {
+                categoryId = String(productData.category.id);
+            } else if (typeof productData.category === 'string') {
+                categoryId = productData.category;
+            }
+
             setFormData({
                 name: productData.name,
                 slug: productData.slug,
                 description: productData.description || "",
-                category: productData.category || "",
+                category: categoryId,
                 image: productData.image || "",
                 banner_image: productData.banner_image || "",
                 is_active: productData.is_active,
@@ -86,7 +94,7 @@ export default function ProductEditPage() {
             setImagePreview(productData.image || null);
             setBannerPreview(productData.banner_image || null);
         }
-    }, [productData]);
+    }, [productData, categories]);
 
     const updateProductMutation = useUpdateProduct({
         onSuccess: () => {
@@ -312,9 +320,8 @@ export default function ProductEditPage() {
                                                             Category <span className="text-red-400">*</span>
                                                         </Label>
                                                         <Select
-                                                            value={formData.category || undefined}
+                                                            value={formData.category || ""}
                                                             onValueChange={(value) => {
-                                                                if (!value?.trim()) return;
                                                                 setFormData({ ...formData, category: value });
                                                             }}
                                                             required

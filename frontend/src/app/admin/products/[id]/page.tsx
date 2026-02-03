@@ -59,28 +59,38 @@ export default function ProductEditPage() {
 
   // Use React Query to fetch product data
   const { data: productData, isLoading: loading, error } = useProduct(productId, {
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   const { data: categories = [] } = useCategories();
 
-  // Update form data when product data changes
+  // Update form data when product data AND categories are loaded
   useEffect(() => {
-    if (productData) {
+    if (productData && categories.length > 0) {
+      // Extract category ID - handle both object and string formats
+      let categoryId = "";
+      if (typeof productData.category === 'object' && productData.category !== null) {
+        categoryId = String(productData.category.id);
+      } else if (typeof productData.category === 'string') {
+        categoryId = productData.category;
+      }
+
+      console.log('Setting category to:', categoryId);
+      console.log('Available categories:', categories.map(c => ({ id: String(c.id), name: c.name })));
+
       setFormData({
         name: productData.name,
         slug: productData.slug,
         description: productData.description || "",
-        category: productData.category || "",
+        category: categoryId,
         is_active: productData.is_active,
         sort_order: productData.sort_order,
       });
       setImagePreview(productData.image || null);
       setBannerPreview(productData.banner_image || null);
     }
-  }, [productData]);
+  }, [productData, categories]);
 
   const updateProductMutation = useUpdateProduct({
     onSuccess: () => {
@@ -122,7 +132,12 @@ export default function ProductEditPage() {
 
     setSaving(true);
     const submitData: any = {
-      ...formData,
+      name: formData.name,
+      slug: formData.slug,
+      description: formData.description,
+      category_id: formData.category,  // Send as category_id for backend
+      is_active: formData.is_active,
+      sort_order: formData.sort_order,
     };
 
     // Only include files if they were changed
@@ -286,25 +301,32 @@ export default function ProductEditPage() {
                               <Package className="h-4 w-4" />
                               Category <span className="text-red-400">*</span>
                             </Label>
-                            <Select
-                              value={formData.category || undefined}
-                              onValueChange={(value) => {
-                                if (!value?.trim()) return;
-                                setFormData({ ...formData, category: value });
-                              }}
-                              required
-                            >
-                              <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                {categories.map((cat) => (
-                                  <SelectItem key={cat.id} value={String(cat.id)} className="hover:bg-gray-700">
-                                    {cat.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            {formData.category && categories.length > 0 ? (
+                              <Select
+                                key={productId}
+                                value={formData.category}
+                                onValueChange={(value) => {
+                                  console.log('Category selected:', value);
+                                  setFormData({ ...formData, category: value });
+                                }}
+                                required
+                              >
+                                <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                                  {categories.map((cat) => (
+                                    <SelectItem key={cat.id} value={String(cat.id)} className="hover:bg-gray-700">
+                                      {cat.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="h-10 bg-gray-800 border border-gray-700 rounded-md flex items-center px-3">
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                              </div>
+                            )}
                           </div>
 
                           {/* Description */}

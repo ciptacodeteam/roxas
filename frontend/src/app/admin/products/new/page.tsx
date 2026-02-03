@@ -96,7 +96,12 @@ export default function ProductAddPage() {
 
     setSaving(true);
     const submitData: any = {
-      ...formData,
+      name: formData.name,
+      slug: formData.slug,
+      description: formData.description,
+      category_id: formData.category,  // Send as category_id for backend
+      is_active: formData.is_active,
+      sort_order: formData.sort_order,
       image: imageFile || undefined,
       banner_image: bannerFile || undefined,
     };

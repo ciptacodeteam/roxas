@@ -71,7 +71,7 @@ export async function getActiveProducts(params?: {
     search?: string;
 }): Promise<Product[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.category) queryParams.append("category", params.category);
     if (params?.search) queryParams.append("search", params.search);
 
@@ -152,7 +152,7 @@ export async function createProduct(data: CreateProductRequest): Promise<Product
         body = JSON.stringify(data);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/products/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -199,7 +199,7 @@ export async function updateProduct(
         body = JSON.stringify(data);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/products/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/${id}/`, {
         method: "PATCH",
         credentials: "include",
         headers,
@@ -210,7 +210,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/admin/products/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/${id}/`, {
         method: "DELETE",
         credentials: "include",
     });
