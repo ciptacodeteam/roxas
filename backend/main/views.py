@@ -28,6 +28,7 @@ from .models import (
     Order,
     Payment,
     DigiflazzTransaction,
+    DigiflazzAccountCheck,
     ProductRating,
     ApiLog,
     AuditLog,
@@ -261,6 +262,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         client = DigiflazzClient()
         temp_ref_id = f"CHECK-{uuid.uuid4().hex[:12].upper()}"
         
+        # Create account check record
+        account_check = DigiflazzAccountCheck.objects.create(
+            ref_id=temp_ref_id,
+            product=product,
+            sku_code=validation_item.sku_code,
+            customer_no=customer_no,
+            user_id=user_id,
+            server_id=server_id,
+            status='PENDING'
+        )
+        
         try:
             result = client.create_transaction(
                 buyer_sku_code=validation_item.sku_code,
@@ -276,8 +288,18 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             rc = result.get('rc', '')
             message = result.get('message', '')
             
+            # Update account check record
+            account_check.status = transaction_status
+            account_check.message = message
+            account_check.rc = rc
+            account_check.response_data = result
+            account_check.account_name = account_name or ''
+            
             # Status "Pending" or "Sukses" means the account exists
             if transaction_status in ['Pending', 'Sukses'] or rc in ['', '00']:
+                account_check.is_valid = True
+                account_check.save()
+                
                 # If account_name is empty and status is Pending, use a better default
                 if not account_name and transaction_status == 'Pending':
                     account_name = None  # Let frontend handle pending state
@@ -293,6 +315,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     'message': 'Akun valid' if transaction_status == 'Sukses' else message
                 })
             else:
+                account_check.is_valid = False
+                account_check.save()
+                
                 return Response({
                     'valid': False,
                     'error': result.get('message', 'User ID tidak valid'),
@@ -392,6 +417,20 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
             import uuid
             temp_ref_id = f"MLCHECK-{uuid.uuid4().hex[:12].upper()}"
             
+            # Get the Mobile Legends product for reference
+            ml_product = mlcu_item.product if hasattr(mlcu_item, 'product') else None
+            
+            # Create account check record
+            account_check = DigiflazzAccountCheck.objects.create(
+                ref_id=temp_ref_id,
+                product=ml_product,
+                sku_code=mlcu_item.sku_code,
+                customer_no=customer_no,
+                user_id=user_id,
+                server_id=server_id,
+                status='PENDING'
+            )
+            
             try:
                 # Create a test transaction to validate the account
                 # In testing mode, it will validate without actually processing
@@ -409,9 +448,19 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
                 account_name = result.get('sn', '') or result.get('customer_name', '') or result.get('message', '')
                 rc = result.get('rc', '')
                 
+                # Update account check record
+                account_check.status = transaction_status
+                account_check.message = result.get('message', '')
+                account_check.rc = rc
+                account_check.response_data = result
+                account_check.account_name = account_name or ''
+                
                 # Status "Pending" or "Sukses" means the account exists
                 # RC empty or "00" means success
                 if transaction_status in ['Pending', 'Sukses'] or rc in ['', '00']:
+                    account_check.is_valid = True
+                    account_check.save()
+                    
                     return Response({
                         'valid': True,
                         'user_id': user_id,
@@ -420,6 +469,9 @@ class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
                         'message': 'Akun Mobile Legends valid'
                     })
                 else:
+                    account_check.is_valid = False
+                    account_check.save()
+                    
                     return Response({
                         'valid': False,
                         'error': result.get('message', 'User ID atau Server ID tidak valid'),

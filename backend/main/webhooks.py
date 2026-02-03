@@ -123,11 +123,10 @@ def handle_prepaid_webhook(event):
     ref_id = data.get('ref_id')
     event_type = event['event_type']
     
-    # Skip validation transactions (CHECK-*, MLCHECK-*, etc.)
-    # These are temporary account validation requests, not actual orders
+    # Handle validation transactions (CHECK-*, MLCHECK-*, etc.)
+    # These are account validation requests, not actual orders
     if ref_id and (ref_id.startswith('CHECK-') or ref_id.startswith('MLCHECK-')):
-        logger.info(f"Skipping webhook for validation transaction: {ref_id}")
-        return f"Validation transaction ignored: {ref_id}"
+        return handle_validation_webhook(data, ref_id)
     
     try:
         # Find transaction by ref_id
@@ -210,6 +209,64 @@ def handle_prepaid_webhook(event):
         
     except Exception as e:
         logger.exception(f"Error handling prepaid webhook: {e}")
+        raise
+
+
+def handle_validation_webhook(data, ref_id):
+    """
+    Handle webhook untuk validation transactions (CHECK-*, MLCHECK-*)
+    
+    Args:
+        data: Webhook data dari Digiflazz
+        ref_id: Reference ID (CHECK-* atau MLCHECK-*)
+        
+    Returns:
+        Result message
+    """
+    from main.models import DigiflazzAccountCheck
+    
+    try:
+        account_check = DigiflazzAccountCheck.objects.get(ref_id=ref_id)
+        
+        logger.info(
+            f"Processing validation webhook for {ref_id} - "
+            f"Status: {data['status']}, RC: {data['rc']}"
+        )
+        
+        # Update account check with webhook data
+        account_check.status = data['status']
+        account_check.message = data['message']
+        account_check.rc = data.get('rc', '')
+        account_check.webhook_data = data
+        
+        # Extract account name from webhook
+        account_name = data.get('sn', '') or data.get('customer_name', '')
+        if account_name:
+            account_check.account_name = account_name
+        
+        # Update validation status
+        client = get_digiflazz_client()
+        if client.is_transaction_success(data['status'], data['rc']):
+            account_check.is_valid = True
+            logger.info(f"✓ Validation {ref_id} CONFIRMED - Account: {account_name}")
+        elif client.is_transaction_failed(data['status'], data['rc']):
+            account_check.is_valid = False
+            logger.info(f"✗ Validation {ref_id} FAILED - {data['message']}")
+        # For PENDING, keep current is_valid value
+        
+        account_check.save()
+        
+        return f"Validation check {ref_id} updated: {data['status']}"
+        
+    except DigiflazzAccountCheck.DoesNotExist:
+        logger.warning(
+            f"Account check not found for ref_id: {ref_id}. "
+            f"Webhook data: Status={data['status']}, Message={data['message']}"
+        )
+        return f"Account check not found: {ref_id}"
+        
+    except Exception as e:
+        logger.exception(f"Error handling validation webhook: {e}")
         raise
 
 

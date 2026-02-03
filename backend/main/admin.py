@@ -16,6 +16,7 @@ from .models import (
     Order,
     Payment,
     DigiflazzTransaction,
+    DigiflazzAccountCheck,
     ProductRating,
     ApiLog,
     AuditLog,
@@ -327,6 +328,34 @@ class DigiflazzTransactionAdmin(admin.ModelAdmin):
         }),
         ("Result", {
             "fields": ("message", "serial_number")
+        }),
+        ("Raw Data", {
+            "fields": ("response_data", "webhook_data"),
+            "classes": ("collapse",)
+        }),
+        ("Timestamps", {
+            "fields": ("id", "created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(DigiflazzAccountCheck)
+class DigiflazzAccountCheckAdmin(admin.ModelAdmin):
+    list_display = ["ref_id", "product", "customer_no", "is_valid", "account_name", "status", "created_at"]
+    list_filter = ["is_valid", "status", "created_at", "product"]
+    search_fields = ["ref_id", "customer_no", "user_id", "server_id", "account_name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    
+    fieldsets = (
+        ("Validation Information", {
+            "fields": ("ref_id", "product", "sku_code", "is_valid")
+        }),
+        ("Account Details", {
+            "fields": ("customer_no", "user_id", "server_id", "account_name")
+        }),
+        ("Response", {
+            "fields": ("status", "message", "rc")
         }),
         ("Raw Data", {
             "fields": ("response_data", "webhook_data"),
