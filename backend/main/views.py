@@ -266,7 +266,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 buyer_sku_code=validation_item.sku_code,
                 customer_no=customer_no,
                 ref_id=temp_ref_id,
-                testing=True  # Use testing mode for validation only
+                testing=False  # Use production mode
             )
             
             # Check if validation successful

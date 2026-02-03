@@ -5,82 +5,120 @@ Run inside Docker: docker exec roxas-api-backend python verify_digiflazz.py
 """
 import os
 import hashlib
+import unicodedata
 
-# Get credentials from environment
-username = os.environ.get('DIGIFLAZZ_USERNAME', '')
-api_key = os.environ.get('DIGIFLAZZ_API_KEY', '')
+# Get credentials from environment - capture raw first to check for issues
+username_raw = os.environ.get('DIGIFLAZZ_USERNAME', '') or ''
+api_key_raw = os.environ.get('DIGIFLAZZ_API_KEY', '') or ''
 
-print("=" * 60)
-print("DIGIFLAZZ CREDENTIAL VERIFICATION")
-print("=" * 60)
+username = username_raw.strip()
+api_key = api_key_raw.strip()
+
+print("=" * 70)
+print("DIGIFLAZZ CREDENTIAL & SIGNATURE VERIFICATION")
+print("=" * 70)
+
+if not username or not api_key:
+    print("\nERROR: DIGIFLAZZ_USERNAME or DIGIFLAZZ_API_KEY not set!")
+    exit(1)
 
 # Check for issues
 print(f"\n1. USERNAME:")
-print(f"   Raw value: '{username}'")
+print(f"   Value: {username}")
 print(f"   Length: {len(username)}")
-print(f"   Has leading/trailing whitespace: {username != username.strip()}")
-print(f"   Contains quotes: {'\"' in username or \"'\" in username}")
-print(f"   Hex dump: {username.encode().hex()}")
+print(f"   Raw had whitespace: {username_raw != username_raw.strip()}")
+print(f"   Contains quotes: {('\"' in username_raw) or (\"'\" in username_raw)}")
 
 print(f"\n2. API KEY:")
-print(f"   First 4 chars: '{api_key[:4]}'")
-print(f"   Last 4 chars: '{api_key[-4:]}'")
-print(f"   Length: {len(api_key)}")
-print(f"   Has leading/trailing whitespace: {api_key != api_key.strip()}")
-print(f"   Contains quotes: {'\"' in api_key or \"'\" in api_key}")
+print(f"   First 8 chars: {api_key[:8]}")
+print(f"   Last 8 chars:  {api_key[-8:]}")
+print(f"   Total length: {len(api_key)}")
+print(f"   Raw had whitespace: {api_key_raw != api_key_raw.strip()}")
+print(f"   Contains quotes: {('\"' in api_key_raw) or (\"'\" in api_key_raw)}")
 print(f"   Contains dashes: {'-' in api_key}")
-print(f"   Hex dump (first 20 chars): {api_key[:20].encode().hex()}")
+print(f"   Is UUID format (36 chars): {len(api_key) == 36 and '-' in api_key}")
 
-# Generate test signature
-test_ref_id = "CHECK-A33C62745034"
-signature_string = f"{username}{api_key}{test_ref_id}"
-signature = hashlib.md5(signature_string.encode('utf-8')).hexdigest()
+# Check for invisible/control characters
+def find_suspicious_chars(s, name):
+    suspicious = []
+    for i, char in enumerate(s):
+        cat = unicodedata.category(char)
+        # Flag control chars, format chars, etc (but not normal whitespace)
+        if cat in ('Cc', 'Cf', 'Co', 'Cs', 'Zl', 'Zp') or (cat == 'Zs' and char != ' '):
+            suspicious.append((i, char, cat, hex(ord(char))))
+    if suspicious:
+        print(f"\n   ⚠️  WARNING: {name} contains suspicious characters:")
+        for pos, char, cat, hex_val in suspicious:
+            print(f"       Position {pos}: {repr(char)} (category: {cat}, code: {hex_val})")
+        return True
+    return False
 
-print(f"\n3. SIGNATURE TEST:")
-print(f"   Test ref_id: '{test_ref_id}'")
-print(f"   Signature string length: {len(signature_string)}")
-print(f"   Expected format: username + apiKey + ref_id")
-print(f"   Generated signature: {signature}")
+has_suspicious = find_suspicious_chars(username, "USERNAME")
+has_suspicious = find_suspicious_chars(api_key, "API_KEY") or has_suspicious
 
-# Check if this matches the one from your logs
-expected_signature = "ea71fa17917e22672276b3630ecc30e4"
-print(f"\n4. SIGNATURE COMPARISON:")
-print(f"   Your log signature: {expected_signature}")
-print(f"   Our calculation:    {signature}")
-print(f"   Match: {signature == expected_signature}")
+# Generate test signatures with various ref_ids
+print(f"\n3. SIGNATURE GENERATION TESTS:")
 
-# Detailed byte-by-byte check
-print(f"\n5. DETAILED SIGNATURE STRING ANALYSIS:")
-print(f"   Full signature string (first 50 chars): {repr(signature_string[:50])}")
-print(f"   Full signature string (last 50 chars): {repr(signature_string[-50:])}")
+test_cases = [
+    "CHECK-A33C62745034",
+    "some1d",  # From Digiflazz docs example
+    "TRX123456",
+]
 
-# Check for invisible characters
-import unicodedata
-invisible_chars = []
-for i, char in enumerate(signature_string):
-    if unicodedata.category(char) in ('Cc', 'Cf', 'Co', 'Cs', 'Zl', 'Zp', 'Zs') and char not in (' ', '\t', '\n'):
-        invisible_chars.append((i, repr(char), hex(ord(char))))
-if invisible_chars:
-    print(f"\n   WARNING: Found invisible/control characters:")
-    for pos, char_repr, hex_val in invisible_chars:
-        print(f"     Position {pos}: {char_repr} ({hex_val})")
+for ref_id in test_cases:
+    signature_string = f"{username}{api_key}{ref_id}"
+    signature = hashlib.md5(signature_string.encode('utf-8')).hexdigest()
+    print(f"\n   Ref ID: {ref_id}")
+    print(f"   String length: {len(signature_string)} chars")
+    print(f"   MD5 Signature: {signature}")
+
+# If API key is 36 chars (UUID), warn about development key
+if len(api_key) == 36:
+    print(f"\n   ⚠️  WARNING: API Key is 36 characters (UUID format)")
+    print(f"       This looks like a DEVELOPMENT key, not a PRODUCTION key!")
+    print(f"       Production API keys are typically 64+ characters")
+    print(f"       Check: https://member.digiflazz.com/buyer-area/connection/api")
+
+print(f"\n4. ENVIRONMENT INFO:")
+print(f"   DIGIFLAZZ_ENVIRONMENT: {os.environ.get('DIGIFLAZZ_ENVIRONMENT', 'production')}")
+print(f"   DIGIFLAZZ_API_URL: {os.environ.get('DIGIFLAZZ_API_URL', 'https://api.digiflazz.com/v1')}")
+
+print("\n" + "=" * 70)
+print("RECOMMENDATIONS")
+print("=" * 70)
+
+if len(api_key) == 36:
+    print("""
+⚠️  YOUR API KEY APPEARS TO BE A DEVELOPMENT KEY (36 chars)
+
+ACTION REQUIRED:
+1. Go to: https://member.digiflazz.com/buyer-area/connection/api
+2. Get your PRODUCTION API Key (not development)
+3. Update your .env file with the production key
+4. Restart container: docker-compose down && docker-compose up -d
+5. Re-run this script to verify
+""")
+elif has_suspicious:
+    print("""
+⚠️  SUSPICIOUS CHARACTERS DETECTED IN CREDENTIALS
+
+ACTION REQUIRED:
+1. Check your .env file for hidden characters
+2. Make sure API key has NO quotes or extra whitespace
+3. Copy-paste the key directly from Digiflazz dashboard
+4. Do NOT include any quotes in the .env file
+
+Example .env format:
+DIGIFLAZZ_USERNAME=yourname
+DIGIFLAZZ_API_KEY=yourkeyhere
+(NO quotes, NO extra spaces)
+""")
 else:
-    print(f"\n   No invisible/control characters found in signature string")
+    print("""
+✅ Credentials look valid
 
-print("\n" + "=" * 60)
-print("MANUAL VERIFICATION")
-print("=" * 60)
-print("""
-To manually verify your signature:
-
-1. Go to: https://www.md5hashgenerator.com/
-2. Enter: <your_username><your_api_key><ref_id>
-   (NO spaces or separators between them!)
-3. Compare the MD5 hash with what Digiflazz expects
-
-Common issues:
-- Using Development API Key instead of Production API Key
-- Extra whitespace in credentials
-- Invisible characters (like BOM or zero-width spaces)
-- API Key has been regenerated but old one is still cached
+Next steps:
+1. Verify the generated signatures match what you see in logs
+2. Make sure testing=True is sent for validation requests
+3. Check Digiflazz logs for detailed error messages
 """)
