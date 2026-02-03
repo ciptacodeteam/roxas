@@ -30,7 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthLoading = isPending || (isLoading && isFetching);
   
   // Automatically refresh token every 4 minutes if authenticated
-  useTokenRefresh(isAuthenticated);
+  const { error: refreshError } = useTokenRefresh(isAuthenticated);
+
+  // Monitor refresh errors
+  React.useEffect(() => {
+    if (refreshError) {
+      console.error("[Auth Provider] Token refresh failed:", refreshError);
+      // Session will be automatically cleared by the query's onError handler
+    }
+  }, [refreshError]);
 
   const value = useMemo<AuthContextValue>(() => {
     const isAdmin = user
