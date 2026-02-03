@@ -206,8 +206,22 @@ export async function refreshTokenApi(): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new AuthApiError("Token refresh failed");
+    const error = await response.json().catch(() => ({ 
+      detail: "Token refresh failed" 
+    }));
+    
+    // Log the specific error for debugging
+    console.error("[Refresh Token] Failed:", {
+      status: response.status,
+      detail: error.detail,
+    });
+
+    throw new AuthApiError(
+      error.detail || "Token refresh failed",
+      error.errors
+    );
   }
 
-  // Token is refreshed in HTTP-only cookie, no need to return anything
+  // Token is refreshed in HTTP-only cookie
+  console.log("[Refresh Token] Success");
 }
