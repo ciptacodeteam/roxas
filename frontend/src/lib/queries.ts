@@ -129,8 +129,14 @@ export const queryKeys = {
 // Helper Functions
 // ============================================
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  // If URL doesn't start with http, prepend the API_BASE_URL
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+
+  const response = await fetch(fullUrl, {
+    credentials: "include", // Include cookies for authentication
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -164,18 +170,18 @@ export function useCategories(options?: Omit<UseQueryOptions<any[]>, "queryKey" 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/categories/`, {
         method: "GET",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch categories");
       }
-      
+
       const data = await response.json();
-      
+
       // Handle paginated response from Django REST Framework
       if (data && typeof data === 'object' && 'results' in data) {
         return data.results;
       }
-      
+
       // Handle non-paginated response (array)
       return Array.isArray(data) ? data : [];
     },
@@ -209,18 +215,18 @@ export function useProducts(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/?${queryParams.toString()}`,
         { method: "GET" }
       );
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch products");
       }
-      
+
       const data = await response.json();
-      
+
       // Handle paginated response from Django REST Framework
       if (data && typeof data === 'object' && 'results' in data) {
         return data.results;
       }
-      
+
       // Handle non-paginated response (array)
       return Array.isArray(data) ? data : [];
     },
@@ -307,18 +313,18 @@ export function useMarketingBanners(options?: Omit<UseQueryOptions<any[]>, "quer
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/banners/`, {
         method: "GET",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch marketing banners");
       }
-      
+
       const data = await response.json();
-      
+
       // Handle paginated response from Django REST Framework
       if (data && typeof data === 'object' && 'results' in data) {
         return data.results;
       }
-      
+
       // Handle non-paginated response (array)
       return Array.isArray(data) ? data : [];
     },
@@ -666,18 +672,18 @@ export function useActiveFlashSales(options?: Omit<UseQueryOptions<any>, "queryK
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/flash-sales/`, {
         method: "GET",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to fetch active flash sales");
       }
-      
+
       const data = await response.json();
-      
+
       // Handle paginated response from Django REST Framework
       if (data && typeof data === 'object' && 'results' in data) {
         return data.results;
       }
-      
+
       // Handle non-paginated response (array)
       return Array.isArray(data) ? data : [];
     },
@@ -743,7 +749,7 @@ export function useAdminDashboard(
 ) {
   return useQuery({
     queryKey: queryKeys.dashboard.stats(),
-    queryFn: () => fetchJSON<any>("/api/admin/dashboard"),
+    queryFn: () => fetchJSON<any>("/api/v1/admin/dashboard/"),
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     staleTime: 0,

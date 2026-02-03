@@ -1,9 +1,11 @@
 """
 Dashboard statistics and analytics for admin panel.
+Optimized with caching and efficient queries.
 """
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Sum, Avg, Q, F
+from django.db.models import Count, Sum, Avg, Q, F, Prefetch
 from django.utils import timezone
+from django.core.cache import cache
 from datetime import timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -30,11 +32,16 @@ class IsStaffUser(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.role == 'STAFF'
 
 
+# Cache timeout in seconds (30 seconds)
+DASHBOARD_CACHE_TIMEOUT = 30
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsStaffUser])
 def dashboard_stats(request):
     """
     Get comprehensive dashboard statistics for admin panel.
+    Cached for 30 seconds to improve performance.
     
     Returns:
         - overview_stats: Total orders, revenue, users, products
@@ -44,42 +51,53 @@ def dashboard_stats(request):
         - failed_transactions: Recent failed transactions
         - api_health: API integration health status
         - audit_logs: Recent system audit logs
+        - api_logs: Recent API logs  
         - notifications: Alert notifications
     """
+    # Try to get cached data
+    cache_key = 'admin_dashboard_stats'
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        return Response(cached_data, status=status.HTTP_200_OK)
+    
     now = timezone.now()
     today = now.date()
     this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     last_24h = now - timedelta(hours=24)
     last_30d = now - timedelta(days=30)
     this_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
 
-    # Overview Statistics
-    total_orders = Order.objects.count()
-    total_revenue = Order.objects.filter(
-        status__in=['PAID', 'PROCESSING', 'COMPLETED']
-    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    # Overview Statistics - Use single aggregate query
+    order_aggregates = Order.objects.aggregate(
+        total_count=Count('id'),
+        total_revenue=Sum('total_amount', filter=Q(status__in=['PAID', 'PROCESSING', 'COMPLETED'])),
+        this_month_count=Count('id', filter=Q(created_at__gte=this_month_start)),
+        this_month_revenue=Sum('total_amount', filter=Q(
+            created_at__gte=this_month_start,
+            status__in=['PAID', 'PROCESSING', 'COMPLETED']
+        )),
+        last_month_count=Count('id', filter=Q(
+            created_at__gte=last_month_start,
+            created_at__lt=this_month_start
+        )),
+        last_month_revenue=Sum('total_amount', filter=Q(
+            created_at__gte=last_month_start,
+            created_at__lt=this_month_start,
+            status__in=['PAID', 'PROCESSING', 'COMPLETED']
+        )),
+    )
+    
+    total_orders = order_aggregates['total_count'] or 0
+    total_revenue = order_aggregates['total_revenue'] or 0
+    this_month_revenue = order_aggregates['this_month_revenue'] or 0
+    last_month_revenue = order_aggregates['last_month_revenue'] or 0
+    this_month_orders = order_aggregates['this_month_count'] or 0
+    last_month_orders = order_aggregates['last_month_count'] or 0
     
     total_users = User.objects.filter(role='CUSTOMER').count()
     total_products = Product.objects.filter(is_active=True).count()
-    
-    # Month-over-month changes
-    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
-    this_month_revenue = Order.objects.filter(
-        created_at__gte=this_month_start,
-        status__in=['PAID', 'PROCESSING', 'COMPLETED']
-    ).aggregate(total=Sum('total_amount'))['total'] or 0
-    
-    last_month_revenue = Order.objects.filter(
-        created_at__gte=last_month_start,
-        created_at__lt=this_month_start,
-        status__in=['PAID', 'PROCESSING', 'COMPLETED']
-    ).aggregate(total=Sum('total_amount'))['total'] or 0
-    
-    this_month_orders = Order.objects.filter(created_at__gte=this_month_start).count()
-    last_month_orders = Order.objects.filter(
-        created_at__gte=last_month_start,
-        created_at__lt=this_month_start
-    ).count()
     
     # Calculate percentage changes
     revenue_change = 0
@@ -143,14 +161,20 @@ def dashboard_stats(request):
     ]
 
     # Recent Orders (latest 10)
-    recent_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
+    recent_orders = Order.objects.select_related(
+        'user', 'user__staff_profile', 'user__customer_profile'
+    ).order_by('-created_at')[:10]
     recent_orders_data = [
         {
-            'id': order.id,
+            'id': str(order.id),
             'order_number': order.order_number,
             'user': {
                 'id': order.user.id,
-                'full_name': order.user.full_name,
+                'full_name': (
+                    order.user.staff_profile.full_name if hasattr(order.user, 'staff_profile') 
+                    else order.user.customer_profile.full_name if hasattr(order.user, 'customer_profile')
+                    else order.user.email
+                ),
                 'email': order.user.email,
             } if order.user else None,
             'total_amount': float(order.total_amount),
@@ -168,9 +192,9 @@ def dashboard_stats(request):
     
     failed_transactions_data = [
         {
-            'id': trans.id,
+            'id': str(trans.id),
             'ref_id': trans.ref_id,
-            'order_id': trans.order.id if trans.order else None,
+            'order_id': str(trans.order.id) if trans.order else None,
             'order_number': trans.order.order_number if trans.order else None,
             'product_name': trans.product_name,
             'amount': float(trans.amount),
@@ -180,56 +204,35 @@ def dashboard_stats(request):
         for trans in failed_transactions
     ]
 
-    # API Health Status (last 24 hours)
+    # API Health Status (last 24 hours) - Optimize with single query per provider
     api_health = {}
     
-    # Digiflazz Health
-    digiflazz_logs = ApiLog.objects.filter(
-        created_at__gte=last_24h,
-        provider='DIGIFLAZZ'
+    # Get all API logs in one query and process in memory
+    all_api_logs = ApiLog.objects.filter(
+        created_at__gte=last_24h
+    ).values('provider').annotate(
+        total=Count('id'),
+        success_count=Count('id', filter=Q(status_code__gte=200, status_code__lt=300)),
+        avg_response=Avg('response_time')
     )
-    digiflazz_total = digiflazz_logs.count()
-    digiflazz_success = digiflazz_logs.filter(status_code__gte=200, status_code__lt=300).count()
-    digiflazz_avg_response = digiflazz_logs.aggregate(avg=Avg('response_time'))['avg'] or 0
     
-    api_health['digiflazz'] = {
-        'status': 'healthy' if (digiflazz_success / digiflazz_total * 100 if digiflazz_total > 0 else 0) >= 95 else 'degraded' if digiflazz_total > 0 else 'unknown',
-        'total': digiflazz_total,
-        'success_rate': round(digiflazz_success / digiflazz_total * 100, 1) if digiflazz_total > 0 else 0,
-        'avg_response_time': round(digiflazz_avg_response, 0) if digiflazz_avg_response else 0,
-    }
+    # Convert to dictionary for easy lookup
+    api_stats = {log['provider']: log for log in all_api_logs}
     
-    # Midtrans Health
-    midtrans_logs = ApiLog.objects.filter(
-        created_at__gte=last_24h,
-        provider='MIDTRANS'
-    )
-    midtrans_total = midtrans_logs.count()
-    midtrans_success = midtrans_logs.filter(status_code__gte=200, status_code__lt=300).count()
-    midtrans_avg_response = midtrans_logs.aggregate(avg=Avg('response_time'))['avg'] or 0
-    
-    api_health['midtrans'] = {
-        'status': 'healthy' if (midtrans_success / midtrans_total * 100 if midtrans_total > 0 else 0) >= 95 else 'degraded' if midtrans_total > 0 else 'unknown',
-        'total': midtrans_total,
-        'success_rate': round(midtrans_success / midtrans_total * 100, 1) if midtrans_total > 0 else 0,
-        'avg_response_time': round(midtrans_avg_response, 0) if midtrans_avg_response else 0,
-    }
-    
-    # Mailgun Health
-    mailgun_logs = ApiLog.objects.filter(
-        created_at__gte=last_24h,
-        provider='MAILGUN'
-    )
-    mailgun_total = mailgun_logs.count()
-    mailgun_success = mailgun_logs.filter(status_code__gte=200, status_code__lt=300).count()
-    mailgun_avg_response = mailgun_logs.aggregate(avg=Avg('response_time'))['avg'] or 0
-    
-    api_health['mailgun'] = {
-        'status': 'healthy' if (mailgun_success / mailgun_total * 100 if mailgun_total > 0 else 0) >= 95 else 'degraded' if mailgun_total > 0 else 'unknown',
-        'total': mailgun_total,
-        'success_rate': round(mailgun_success / mailgun_total * 100, 1) if mailgun_total > 0 else 0,
-        'avg_response_time': round(mailgun_avg_response, 0) if mailgun_avg_response else 0,
-    }
+    # Process each provider
+    for provider in ['DIGIFLAZZ', 'MIDTRANS', 'MAILGUN']:
+        stats = api_stats.get(provider, {'total': 0, 'success_count': 0, 'avg_response': 0})
+        total = stats['total']
+        success = stats['success_count']
+        avg_response = stats['avg_response'] or 0
+        
+        success_rate = round(success / total * 100, 1) if total > 0 else 0
+        api_health[provider.lower()] = {
+            'status': 'healthy' if success_rate >= 95 else 'degraded' if total > 0 else 'unknown',
+            'total': total,
+            'success_rate': success_rate,
+            'avg_response_time': round(avg_response, 0),
+        }
     
     # Recent API Errors (last hour)
     one_hour_ago = now - timedelta(hours=1)
@@ -240,7 +243,7 @@ def dashboard_stats(request):
     
     api_health['recent_errors'] = [
         {
-            'id': log.id,
+            'id': str(log.id),
             'provider': log.provider,
             'endpoint': log.endpoint,
             'status_code': log.status_code,
@@ -251,20 +254,26 @@ def dashboard_stats(request):
     ]
 
     # Recent Audit Logs
-    audit_logs = AuditLog.objects.select_related('user').order_by('-timestamp')[:10]
+    audit_logs = AuditLog.objects.select_related(
+        'user', 'user__staff_profile', 'user__customer_profile'
+    ).order_by('-created_at')[:10]
     audit_logs_data = [
         {
-            'id': log.id,
+            'id': str(log.id),
             'action': log.action,
-            'model_name': log.model_name,
-            'object_id': log.object_id,
+            'entity_type': log.entity_type,
+            'entity_id': log.entity_id,
             'user': {
                 'id': log.user.id,
-                'full_name': log.user.full_name,
+                'full_name': (
+                    log.user.staff_profile.full_name if hasattr(log.user, 'staff_profile')
+                    else log.user.customer_profile.full_name if hasattr(log.user, 'customer_profile')
+                    else log.user.email
+                ),
                 'email': log.user.email,
             } if log.user else None,
             'changes': log.changes,
-            'timestamp': log.timestamp.isoformat(),
+            'timestamp': log.created_at.isoformat(),
         }
         for log in audit_logs
     ]
@@ -273,7 +282,7 @@ def dashboard_stats(request):
     recent_api_logs = ApiLog.objects.order_by('-created_at')[:10]
     api_logs_data = [
         {
-            'id': log.id,
+            'id': str(log.id),
             'provider': log.provider,
             'endpoint': log.endpoint,
             'method': log.method,
@@ -284,24 +293,32 @@ def dashboard_stats(request):
         for log in recent_api_logs
     ]
 
-    # Notifications (action items)
-    notifications = {
-        'new_orders': Order.objects.filter(
+    # Notifications (action items) - Use single aggregate query
+    notification_aggregates = Order.objects.aggregate(
+        new_orders=Count('id', filter=Q(
             created_at__gte=last_24h,
             status='PENDING'
-        ).count(),
-        'pending_attention': Order.objects.filter(
+        )),
+        pending_attention=Count('id', filter=Q(
             status='PENDING',
             created_at__lte=now - timedelta(hours=2)
-        ).count(),
-        'failed_transactions': DigiflazzTransaction.objects.filter(
-            created_at__gte=this_month_start,
-            status='FAILED'
-        ).count(),
-        'processing': Order.objects.filter(status='PROCESSING').count(),
+        )),
+        processing=Count('id', filter=Q(status='PROCESSING')),
+    )
+    
+    failed_transaction_count = DigiflazzTransaction.objects.filter(
+        created_at__gte=this_month_start,
+        status='FAILED'
+    ).count()
+    
+    notifications = {
+        'new_orders': notification_aggregates['new_orders'] or 0,
+        'pending_attention': notification_aggregates['pending_attention'] or 0,
+        'failed_transactions': failed_transaction_count,
+        'processing': notification_aggregates['processing'] or 0,
     }
 
-    return Response({
+    response_data = {
         'overview_stats': overview_stats,
         'revenue_by_month': revenue_by_month,
         'order_stats': order_stats_list,
@@ -311,4 +328,9 @@ def dashboard_stats(request):
         'audit_logs': audit_logs_data,
         'api_logs': api_logs_data,
         'notifications': notifications,
-    }, status=status.HTTP_200_OK)
+    }
+    
+    # Cache the response for 30 seconds
+    cache.set(cache_key, response_data, DASHBOARD_CACHE_TIMEOUT)
+
+    return Response(response_data, status=status.HTTP_200_OK)

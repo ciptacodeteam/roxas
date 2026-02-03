@@ -353,7 +353,7 @@ function transformDashboardData(data: DashboardResponse): DashboardData {
 // ============================================
 
 export async function getDashboardStats(): Promise<DashboardData> {
-  const response = await fetchFromAPI<DashboardResponse>("/admin/dashboard/");
+  const response = await fetchFromAPI<DashboardResponse>("/api/v1/admin/dashboard/");
   return transformDashboardData(response);
 }
 

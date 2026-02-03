@@ -5,6 +5,7 @@ This module provides integration with Midtrans Core API for custom payment flows
 Supports multiple payment methods: credit cards, e-wallets, bank transfers (VA), and QRIS.
 
 Core API gives full control over payment UI and flow, allowing custom-branded experiences.
+Includes API logging for monitoring and debugging.
 
 Documentation: https://docs.midtrans.com/reference/core-api-overview
 
@@ -17,8 +18,10 @@ import hashlib
 import hmac
 import requests
 import logging
+import time
 from typing import Dict, Any, Optional, List
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,23 @@ logger = logging.getLogger(__name__)
 class MidtransException(Exception):
     """Custom exception for Midtrans API errors"""
     pass
+
+
+def log_api_call(provider: str, endpoint: str, method: str, status_code: int, response_time: int, error_message: str = ""):
+    """Helper function to log API calls to database"""
+    try:
+        from ..models import ApiLog
+        ApiLog.objects.create(
+            provider=provider,
+            endpoint=endpoint,
+            method=method,
+            status_code=status_code,
+            response_time=response_time,
+            error_message=error_message,
+            created_at=timezone.now()
+        )
+    except Exception as e:
+        logger.error(f"Failed to log API call: {str(e)}")
 
 
 class MidtransClient:
@@ -87,7 +107,7 @@ class MidtransClient:
         order_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Make HTTP request to Midtrans API.
+        Make HTTP request to Midtrans API with logging.
         
         Args:
             method: HTTP method (GET, POST, PATCH)
@@ -108,6 +128,10 @@ class MidtransClient:
             "Authorization": self._generate_auth_header(),
         }
         
+        start_time = time.time()
+        status_code = 0
+        error_message = ""
+        
         try:
             if method == "GET":
                 response = requests.get(url, headers=headers, timeout=30)
@@ -118,6 +142,9 @@ class MidtransClient:
             else:
                 raise MidtransException(f"Unsupported HTTP method: {method}")
             
+            status_code = response.status_code
+            response_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
+            
             # Log request
             logger.info(f"Midtrans {method} {endpoint} - Status: {response.status_code}")
             
@@ -126,15 +153,30 @@ class MidtransClient:
             
             # Check for errors
             if response.status_code >= 400:
-                error_msg = result.get('status_message', 'Unknown error')
-                logger.error(f"Midtrans API error: {error_msg}")
-                raise MidtransException(f"API error: {error_msg}")
+                error_message = result.get('status_message', 'Unknown error')
+                logger.error(f"Midtrans API error: {error_message}")
+                
+                # Log failed API call
+                log_api_call('MIDTRANS', endpoint, method, status_code, response_time, error_message)
+                
+                raise MidtransException(f"API error: {error_message}")
+            
+            # Log successful API call
+            log_api_call('MIDTRANS', endpoint, method, status_code, response_time)
             
             return result
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Midtrans request failed: {str(e)}")
-            raise MidtransException(f"Request failed: {str(e)}")
+            response_time = int((time.time() - start_time) * 1000)
+            error_message = str(e)
+            logger.error(f"Midtrans request failed: {error_message}")
+            
+            # Log failed API call
+            if status_code == 0:
+                status_code = 500  # Default for connection errors
+            log_api_call('MIDTRANS', endpoint, method, status_code, response_time, error_message)
+            
+            raise MidtransException(f"Request failed: {error_message}")
     
     # =========================================================================
     # CHARGE API - Create Payment

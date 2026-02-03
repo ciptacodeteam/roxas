@@ -7,6 +7,7 @@ Fitur:
 - Create topup transaction
 - Check transaction status
 - Validate webhook signature
+- API logging for monitoring
 """
 
 import hashlib
@@ -14,10 +15,34 @@ import hmac
 import os
 import requests
 import logging
+import time
 from typing import Dict, Any, Optional, List
 from decimal import Decimal
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+
+class DigiflazzException(Exception):
+    """Custom exception untuk Digiflazz API errors"""
+    pass
+
+
+def log_api_call(provider: str, endpoint: str, method: str, status_code: int, response_time: int, error_message: str = ""):
+    """Helper function to log API calls to database"""
+    try:
+        from ..models import ApiLog
+        ApiLog.objects.create(
+            provider=provider,
+            endpoint=endpoint,
+            method=method,
+            status_code=status_code,
+            response_time=response_time,
+            error_message=error_message,
+            created_at=timezone.now()
+        )
+    except Exception as e:
+        logger.error(f"Failed to log API call: {str(e)}")
 
 
 class DigiflazzException(Exception):
@@ -89,7 +114,7 @@ class DigiflazzClient:
         timeout: int = 30
     ) -> Dict[str, Any]:
         """
-        Make HTTP POST request ke Digiflazz API
+        Make HTTP POST request ke Digiflazz API with logging
         
         Args:
             endpoint: API endpoint (contoh: /price-list)
@@ -103,6 +128,9 @@ class DigiflazzClient:
             DigiflazzException: Jika request gagal
         """
         url = f"{self.api_url}{endpoint}"
+        start_time = time.time()
+        status_code = 0
+        error_message = ""
         
         try:
             logger.info(f"Digiflazz Request: {endpoint} - Payload: {payload}")
@@ -113,19 +141,39 @@ class DigiflazzClient:
                 timeout=timeout
             )
             
+            status_code = response.status_code
+            response_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
+            
             # Log response
             logger.info(f"Digiflazz Response: {response.status_code} - {response.text[:500]}")
             
             response.raise_for_status()
             result = response.json()
             
+            # Log successful API call
+            log_api_call('DIGIFLAZZ', endpoint, 'POST', status_code, response_time)
+            
             return result
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Digiflazz API Error: {str(e)}")
-            raise DigiflazzException(f"Request gagal: {str(e)}")
+            response_time = int((time.time() - start_time) * 1000)
+            error_message = str(e)
+            logger.error(f"Digiflazz API Error: {error_message}")
+            
+            # Log failed API call
+            if status_code == 0:
+                status_code = 500  # Default for connection errors
+            log_api_call('DIGIFLAZZ', endpoint, 'POST', status_code, response_time, error_message)
+            
+            raise DigiflazzException(f"Request gagal: {error_message}")
         except ValueError as e:
-            logger.error(f"Digiflazz JSON Parse Error: {str(e)}")
+            response_time = int((time.time() - start_time) * 1000)
+            error_message = f"JSON Parse Error: {str(e)}"
+            logger.error(f"Digiflazz {error_message}")
+            
+            # Log parse error
+            log_api_call('DIGIFLAZZ', endpoint, 'POST', status_code or 500, response_time, error_message)
+            
             raise DigiflazzException(f"Response tidak valid: {str(e)}")
     
     def get_price_list(
