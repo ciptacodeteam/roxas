@@ -424,6 +424,69 @@ export default function ProductDetailClient({
     }
   };
 
+  // Poll for validation status updates (for Pending validations)
+  const pollValidationStatus = async (
+    productSlug: string,
+    checkId: string,
+    userId: string,
+    serverId: string,
+    maxAttempts: number = 10,
+    intervalMs: number = 3000
+  ) => {
+    let attempts = 0;
+    
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        toast.warning("Validasi memakan waktu lebih lama dari biasanya. Silakan coba lagi nanti.");
+        return;
+      }
+      
+      attempts++;
+      
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/${productSlug}/check-validation-status/${checkId}/`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        
+        const data = await response.json();
+        
+        if (data.status === 'Sukses' && data.account_name) {
+          // Validation completed successfully
+          setVerifiedAccount({
+            userId: userId,
+            serverId: serverId,
+            username: data.account_name,
+          });
+          toast.success(`Akun terverifikasi: ${data.account_name}`);
+          return; // Stop polling
+        } else if (data.status === 'Gagal') {
+          // Validation failed
+          setIsVerified(false);
+          setVerifiedAccount(null);
+          setVerificationError(data.message || "Validasi gagal");
+          toast.error(data.message || "Validasi gagal");
+          return; // Stop polling
+        } else if (data.status === 'Pending') {
+          // Still pending, continue polling
+          setTimeout(poll, intervalMs);
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+        // Continue polling on error
+        setTimeout(poll, intervalMs);
+      }
+    };
+    
+    // Start polling after initial delay
+    setTimeout(poll, intervalMs);
+  };
+
   // Handle account verification
   const handleVerifyAccount = async () => {
     // Use zoneId if available, otherwise use serverId
@@ -471,10 +534,14 @@ export default function ProductDetailClient({
           username: data.account_name || (data.status === 'Pending' ? 'Sedang diproses...' : `Player ${userId.trim()}`),
         });
         setVerificationError(null);
-        const successMessage = data.status === 'Pending'
-          ? "Akun sedang divalidasi, tunggu beberapa saat..."
-          : "Akun berhasil diverifikasi!";
-        toast.success(successMessage);
+        
+        // If status is Pending and we have a check_id, poll for updates
+        if (data.status === 'Pending' && data.check_id) {
+          toast.success("Akun sedang divalidasi, tunggu beberapa saat...");
+          pollValidationStatus(productSlug, data.check_id, userId.trim(), serverOrZoneId?.trim() || "");
+        } else {
+          toast.success("Akun berhasil diverifikasi!");
+        }
       } else {
         setIsVerified(false);
         setVerifiedAccount(null);

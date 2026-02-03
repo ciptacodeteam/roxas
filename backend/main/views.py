@@ -312,6 +312,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     'server_id': server_id if server_id else None,
                     'account_name': account_name,
                     'status': transaction_status,
+                    'check_id': str(account_check.id),  # Return check_id for polling
                     'message': 'Akun valid' if transaction_status == 'Sukses' else message
                 })
             else:
@@ -337,6 +338,37 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 'valid': False,
                 'error': 'Terjadi kesalahan saat validasi',
                 'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'], url_path='check-validation-status/(?P<check_id>[^/.]+)')
+    def check_validation_status(self, request, slug=None, check_id=None):
+        """
+        Check the status of an account validation check.
+        Used for polling when validation is pending.
+        
+        GET /api/v1/products/{slug}/check-validation-status/{check_id}/
+        """
+        try:
+            account_check = DigiflazzAccountCheck.objects.get(id=check_id)
+            
+            return Response({
+                'valid': account_check.is_valid,
+                'user_id': account_check.user_id,
+                'server_id': account_check.server_id,
+                'account_name': account_check.account_name or None,
+                'status': account_check.status,
+                'message': account_check.message,
+            })
+        except DigiflazzAccountCheck.DoesNotExist:
+            return Response({
+                'valid': False,
+                'error': 'Validation check not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error checking validation status: {str(e)}")
+            return Response({
+                'valid': False,
+                'error': 'Failed to check validation status'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
