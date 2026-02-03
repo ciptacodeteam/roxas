@@ -77,8 +77,8 @@ class DigiflazzClient:
             environment: 'sandbox' atau 'production' (default dari env)
             api_url: Base URL API (default dari env)
         """
-        self.username = username or os.environ.get("DIGIFLAZZ_USERNAME")
-        self.api_key = api_key or os.environ.get("DIGIFLAZZ_API_KEY")
+        self.username = (username or os.environ.get("DIGIFLAZZ_USERNAME", "")).strip()
+        self.api_key = (api_key or os.environ.get("DIGIFLAZZ_API_KEY", "")).strip()
         self.environment = environment or os.environ.get("DIGIFLAZZ_ENVIRONMENT", "production")
         self.api_url = api_url or os.environ.get(
             "DIGIFLAZZ_API_URL", "https://api.digiflazz.com/v1"
@@ -89,11 +89,25 @@ class DigiflazzClient:
                 "DIGIFLAZZ_USERNAME dan DIGIFLAZZ_API_KEY harus diatur di environment variables"
             )
         
+        # Validate no whitespace in credentials
+        if self.username != self.username.strip() or self.api_key != self.api_key.strip():
+            logger.warning("Whitespace detected in credentials - already stripped")
+        
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
             "Accept": "application/json",
         })
+        
+        # Log configuration (mask sensitive data)
+        masked_api_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
+        logger.info(
+            f"Digiflazz Client initialized - "
+            f"Username: '{self.username}' (len={len(self.username)}), "
+            f"API Key: {masked_api_key} (len={len(self.api_key)}), "
+            f"Environment: {self.environment}, "
+            f"API URL: {self.api_url}"
+        )
     
     def _generate_signature(self, data: str) -> str:
         """
@@ -105,7 +119,17 @@ class DigiflazzClient:
         Returns:
             MD5 hash dalam format hex
         """
-        return hashlib.md5(data.encode()).hexdigest()
+        # Ensure UTF-8 encoding and strip any whitespace
+        signature_string = str(data).strip()
+        signature = hashlib.md5(signature_string.encode('utf-8')).hexdigest()
+        logger.debug(
+            f"Signature generation - "
+            f"Input length: {len(signature_string)}, "
+            f"First 50 chars: {signature_string[:50]}, "
+            f"Last 50 chars: {signature_string[-50:]}, "
+            f"Output: {signature}"
+        )
+        return signature
     
     def _make_request(
         self,
@@ -219,7 +243,8 @@ class DigiflazzClient:
             }]
         """
         # Generate signature: md5(username + apiKey + "pricelist")
-        sign = self._generate_signature(f"{self.username}{self.api_key}pricelist")
+        signature_string = f"{self.username}{self.api_key}pricelist"
+        sign = self._generate_signature(signature_string)
         
         payload = {
             "cmd": cmd,
@@ -249,6 +274,31 @@ class DigiflazzClient:
         except DigiflazzException as e:
             logger.error(f"Failed to get price list: {str(e)}")
             raise
+    
+    def verify_signature_calculation(self, ref_id: str) -> Dict[str, Any]:
+        """
+        Helper method to verify signature calculation for debugging.
+        Returns the signature components without making an API call.
+        
+        Args:
+            ref_id: Reference ID to use for signature calculation
+            
+        Returns:
+            Dictionary with signature details for debugging
+        """
+        signature_string = f"{self.username}{self.api_key}{ref_id}"
+        signature = self._generate_signature(signature_string)
+        
+        return {
+            "username": self.username,
+            "username_length": len(self.username),
+            "api_key_length": len(self.api_key),
+            "api_key_preview": f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***",
+            "ref_id": ref_id,
+            "signature_string_length": len(signature_string),
+            "signature": signature,
+            "signature_string_preview": f"{signature_string[:20]}...{signature_string[-20:]}" if len(signature_string) > 40 else signature_string
+        }
     
     def create_transaction(
         self,
@@ -293,7 +343,20 @@ class DigiflazzClient:
             }
         """
         # Generate signature: md5(username + apiKey + ref_id)
-        sign = self._generate_signature(f"{self.username}{self.api_key}{ref_id}")
+        # IMPORTANT: No spaces or separators between username, api_key, and ref_id
+        signature_string = f"{self.username}{self.api_key}{ref_id}"
+        sign = self._generate_signature(signature_string)
+        
+        # Log signature details for debugging (mask API key)
+        masked_api_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
+        logger.info(
+            f"Transaction signature DEBUG - "
+            f"Username: '{self.username}' (len={len(self.username)}), "
+            f"API Key: {masked_api_key} (len={len(self.api_key)}), "
+            f"Ref ID: '{ref_id}' (len={len(ref_id)}), "
+            f"Combined length: {len(signature_string)}, "
+            f"Signature: {sign}"
+        )
         
         payload = {
             "username": self.username,
@@ -317,10 +380,29 @@ class DigiflazzClient:
             # Response dibungkus dalam 'data' key
             transaction = result.get("data", {})
             
+            # Check for signature errors specifically
+            rc = transaction.get('rc', '')
+            status = transaction.get('status', '')
+            message = transaction.get('message', '')
+            
+            if rc == "41" or rc == "104" or "signature" in message.lower() or "sign" in message.lower():
+                # Log detailed signature info for debugging
+                sig_info = self.verify_signature_calculation(ref_id)
+                logger.error(
+                    f"Signature validation failed - RC: {rc}, Message: {message}\n"
+                    f"Signature Debug Info:\n"
+                    f"  Username: {sig_info['username']} (length: {sig_info['username_length']})\n"
+                    f"  API Key: {sig_info['api_key_preview']} (length: {sig_info['api_key_length']})\n"
+                    f"  Ref ID: {sig_info['ref_id']}\n"
+                    f"  Signature String Length: {sig_info['signature_string_length']}\n"
+                    f"  Generated Signature: {sig_info['signature']}\n"
+                    f"  Signature String Preview: {sig_info['signature_string_preview']}"
+                )
+            
             logger.info(
                 f"Transaction created - Ref ID: {ref_id}, "
-                f"Status: {transaction.get('status')}, "
-                f"RC: {transaction.get('rc')}"
+                f"Status: {status}, "
+                f"RC: {rc}"
             )
             
             return transaction
@@ -464,7 +546,8 @@ class DigiflazzClient:
             }
         """
         # Generate signature: md5(username + apiKey + "depo")
-        sign = self._generate_signature(f"{self.username}{self.api_key}depo")
+        signature_string = f"{self.username}{self.api_key}depo"
+        sign = self._generate_signature(signature_string)
         
         payload = {
             "cmd": "deposit",
