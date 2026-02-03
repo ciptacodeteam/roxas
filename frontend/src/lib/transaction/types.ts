@@ -34,6 +34,7 @@ export type PaymentType =
  * Customer data stored in order
  */
 export interface CustomerData {
+  accountName?: string;
   userId?: string;
   serverId?: string;
   zoneId?: string;

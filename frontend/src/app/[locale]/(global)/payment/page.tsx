@@ -344,6 +344,9 @@ export default function PaymentPage() {
             <h2 className="mb-4 font-semibold">Informasi Akun</h2>
 
             <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+              {customerData.accountName && (
+                <Info label="Nama Akun" value={customerData.accountName} />
+              )}
               {customerData.userId && (
                 <Info label="User ID" value={customerData.userId} />
               )}

@@ -2733,6 +2733,14 @@ export default function ProductDetailClient({
                               if (phone) {
                                 customerData.phone = phone;
                               }
+                              // Add verified account name if available (from validation)
+                              if (isVerified && verifiedAccount?.username) {
+                                customerData.accountName = verifiedAccount.username;
+                              }
+                              // Add verified account name if available (from validation)
+                              if (isVerified && verifiedAccount?.username) {
+                                customerData.accountName = verifiedAccount.username;
+                              }
 
                               // Create order with payment via Django backend
                               const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";

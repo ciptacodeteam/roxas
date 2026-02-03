@@ -135,6 +135,9 @@ export function OrderInformationCard({ order }: { order: OrderDetail }) {
                     <div className={SECTION_STYLES}>
                         <p className="mb-3 text-sm font-medium text-white">Data Customer</p>
                         <div className="space-y-3">
+                            {order.customer_data.accountName && (
+                                <InfoRow label="Nama Akun" value={order.customer_data.accountName} copyable onCopy={() => handleCopy(order.customer_data.accountName!, "Nama Akun")} />
+                            )}
                             {order.customer_data.userId && (
                                 <InfoRow label="User ID" value={order.customer_data.userId} copyable onCopy={() => handleCopy(order.customer_data.userId!, "User ID")} />
                             )}
