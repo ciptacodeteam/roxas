@@ -123,6 +123,12 @@ def handle_prepaid_webhook(event):
     ref_id = data.get('ref_id')
     event_type = event['event_type']
     
+    # Skip validation transactions (CHECK-*, MLCHECK-*, etc.)
+    # These are temporary account validation requests, not actual orders
+    if ref_id and (ref_id.startswith('CHECK-') or ref_id.startswith('MLCHECK-')):
+        logger.info(f"Skipping webhook for validation transaction: {ref_id}")
+        return f"Validation transaction ignored: {ref_id}"
+    
     try:
         # Find transaction by ref_id
         df_transaction = DigiflazzTransaction.objects.get(ref_id=ref_id)
