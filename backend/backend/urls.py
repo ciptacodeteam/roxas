@@ -44,6 +44,9 @@ api_docs_patterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
+# Import webhook views for direct access
+from main.webhooks import digiflazz_webhook, midtrans_webhook
+
 # API v1 endpoints
 api_v1_patterns = [
     path("", include(router.urls)),
@@ -80,6 +83,9 @@ urlpatterns = [
     path("api/v1/", include(api_v1_patterns)),
     # Backward compatibility: keep old endpoints working
     path("api/", include(api_v1_patterns)),
+    # Direct webhook endpoints for compatibility with external services
+    path("api/main/webhooks/digiflazz/", digiflazz_webhook, name="digiflazz-webhook-compat"),
+    path("api/main/webhooks/midtrans/", midtrans_webhook, name="midtrans-webhook-compat"),
     # REST framework auth URLs (for browsable API)
     path("api-auth/", include("rest_framework.urls")),
 ]

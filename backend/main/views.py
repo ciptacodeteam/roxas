@@ -271,17 +271,26 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Check if validation successful
             transaction_status = result.get('status', '')
-            account_name = result.get('sn', '') or result.get('customer_name', '') or result.get('message', '')
+            # Get account name - only use sn or customer_name, not message
+            account_name = result.get('sn', '') or result.get('customer_name', '')
             rc = result.get('rc', '')
+            message = result.get('message', '')
             
             # Status "Pending" or "Sukses" means the account exists
             if transaction_status in ['Pending', 'Sukses'] or rc in ['', '00']:
+                # If account_name is empty and status is Pending, use a better default
+                if not account_name and transaction_status == 'Pending':
+                    account_name = None  # Let frontend handle pending state
+                elif not account_name:
+                    account_name = f"Player {user_id}"
+                    
                 return Response({
                     'valid': True,
                     'user_id': user_id,
                     'server_id': server_id if server_id else None,
-                    'account_name': account_name if account_name else f"Player {user_id}",
-                    'message': 'Akun valid'
+                    'account_name': account_name,
+                    'status': transaction_status,
+                    'message': 'Akun valid' if transaction_status == 'Sukses' else message
                 })
             else:
                 return Response({

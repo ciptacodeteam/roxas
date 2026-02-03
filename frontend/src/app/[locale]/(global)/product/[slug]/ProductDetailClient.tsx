@@ -438,7 +438,7 @@ export default function ProductDetailClient({
     const requiresServerId = inputFields?.some(
       (field: any) => (field.name === "serverId" || field.name === "zoneId") && field.required
     );
-    
+
     if (requiresServerId && !serverOrZoneId) {
       setVerificationError("User ID dan Server ID harus diisi");
       return;
@@ -468,10 +468,13 @@ export default function ProductDetailClient({
         setVerifiedAccount({
           userId: userId.trim(),
           serverId: serverOrZoneId ? serverOrZoneId.trim() : "",
-          username: data.account_name,
+          username: data.account_name || (data.status === 'Pending' ? 'Sedang diproses...' : `Player ${userId.trim()}`),
         });
         setVerificationError(null);
-        toast.success("Akun berhasil diverifikasi!");
+        const successMessage = data.status === 'Pending'
+          ? "Akun sedang divalidasi, tunggu beberapa saat..."
+          : "Akun berhasil diverifikasi!";
+        toast.success(successMessage);
       } else {
         setIsVerified(false);
         setVerifiedAccount(null);
@@ -867,9 +870,14 @@ export default function ProductDetailClient({
                         <p className="text-sm text-green-400 font-medium">
                           ✓ Akun Terverifikasi
                         </p>
-                        {verifiedAccount.username && (
+                        {verifiedAccount.username && verifiedAccount.username !== 'Sedang diproses...' && (
                           <p className="text-sm text-green-300 mt-1">
                             Nama: {verifiedAccount.username}
+                          </p>
+                        )}
+                        {verifiedAccount.username === 'Sedang diproses...' && (
+                          <p className="text-sm text-yellow-300 mt-1">
+                            ⏳ Nama akun sedang divalidasi...
                           </p>
                         )}
                         <p className="text-xs text-gray-400 mt-1">
