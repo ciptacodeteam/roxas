@@ -219,3 +219,50 @@ export async function deleteProduct(id: string): Promise<void> {
         throw new ProductsApiError(`Failed to delete product`, response.status);
     }
 }
+
+export interface BulkPriceUpdateRequest {
+    markup_percentage: number;
+    apply_to_all?: boolean;
+}
+
+export interface BulkPriceUpdateResponse {
+    success: boolean;
+    message: string;
+    markup_percentage: number;
+    updated_items: Array<{
+        id: string;
+        name: string;
+        sku_code: string;
+        base_price: number;
+        old_sell_price: number;
+        new_sell_price: number;
+        markup_applied: number;
+    }>;
+    skipped_items: Array<{
+        id: string;
+        name: string;
+        reason: string;
+    }>;
+    total_items: number;
+    updated_count: number;
+    skipped_count: number;
+}
+
+export async function bulkUpdateProductItemPrices(
+    productId: string,
+    data: BulkPriceUpdateRequest
+): Promise<BulkPriceUpdateResponse> {
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/admin/products/${productId}/bulk-update-prices/`,
+        {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        }
+    );
+
+    return handleResponse<BulkPriceUpdateResponse>(response);
+}

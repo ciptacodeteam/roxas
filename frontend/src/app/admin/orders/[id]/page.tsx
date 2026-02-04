@@ -26,59 +26,6 @@ import {
 import { useAdminOrder, useUpdateOrder } from "@/lib/queries";
 import { formatDateTime } from "@/lib/date-utils";
 
-interface OrderDetail {
-  id: string;
-  orderNumber: string;
-  userId: string;
-  productItemId: string;
-  customerData: Record<string, unknown>;
-  originalPrice: number;
-  finalPrice: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  paidAt: string | null;
-  completedAt: string | null;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-  };
-  productItem: {
-    id: string;
-    name: string;
-    product: {
-      id: string;
-      name: string;
-      category: {
-        id: string;
-        name: string;
-      };
-    };
-  };
-  payment: {
-    id: string;
-    transactionId: string | null;
-    paymentMethodId: string | null;
-    paymentMethod: {
-      id: string;
-      name: string;
-      type: string;
-      bank: string | null;
-    } | null;
-    status: string | null;
-    amount: number;
-    paidAt: string | null;
-  } | null;
-  digiflazzTx: {
-    id: string;
-    refId: string;
-    trxId: string | null;
-    status: string;
-    message: string | null;
-  } | null;
-}
-
 export default function OrderEditPage() {
   const router = useRouter();
   const params = useParams();
@@ -88,14 +35,13 @@ export default function OrderEditPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   const { data: orderData, isLoading: loading, error } = useAdminOrder(orderId);
-  const typedOrderData = orderData as OrderDetail | null | undefined;
 
   useEffect(() => {
-    if (typedOrderData) {
-      // Ensure status is a string to match SelectItem values exactly
-      setSelectedStatus(String(typedOrderData.status || ""));
+    if (orderData) {
+      // Backend returns snake_case fields
+      setSelectedStatus(String(orderData.status || ""));
     }
-  }, [typedOrderData]);
+  }, [orderData]);
 
   const updateOrderMutation = useUpdateOrder({
     onSuccess: () => {
@@ -169,7 +115,7 @@ export default function OrderEditPage() {
     );
   }
 
-  if (error || !typedOrderData) {
+  if (error || !orderData) {
     return (
       <SidebarProvider
         style={
@@ -248,7 +194,7 @@ export default function OrderEditPage() {
                               Order Number
                             </Label>
                             <div className="text-sm text-gray-200 font-mono bg-gray-800 px-3 py-2 rounded-md">
-                              {typedOrderData.orderNumber}
+                              {orderData.order_number}
                             </div>
                           </div>
 
@@ -340,9 +286,9 @@ export default function OrderEditPage() {
                           <span className="text-sm text-gray-400">Current Status</span>
                           <Badge
                             variant="default"
-                            className={getStatusColor(typedOrderData.status)}
+                            className={getStatusColor(orderData.status)}
                           >
-                            {typedOrderData.status}
+                            {orderData.status}
                           </Badge>
                         </div>
                       </CardContent>
@@ -359,12 +305,12 @@ export default function OrderEditPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <span className="text-xs text-gray-400">Email</span>
-                          <p className="text-sm text-gray-200">{typedOrderData.user.email}</p>
+                          <p className="text-sm text-gray-200">{orderData.user_email || orderData.user?.email}</p>
                         </div>
-                        {typedOrderData.user.name && (
+                        {orderData.user?.name && (
                           <div>
                             <span className="text-xs text-gray-400">Name</span>
-                            <p className="text-sm text-gray-200">{typedOrderData.user.name}</p>
+                            <p className="text-sm text-gray-200">{orderData.user.name}</p>
                           </div>
                         )}
                       </CardContent>
@@ -381,24 +327,24 @@ export default function OrderEditPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <span className="text-xs text-gray-400">Product</span>
-                          <p className="text-sm text-gray-200">{typedOrderData.productItem.product.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item.product.name}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Item</span>
-                          <p className="text-sm text-gray-200">{typedOrderData.productItem.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item.name}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Category</span>
-                          <p className="text-sm text-gray-200">{typedOrderData.productItem.product.category.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item.product.category.name}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Price</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {formatPrice(typedOrderData.finalPrice)}
+                            {formatPrice(orderData.final_price)}
                           </p>
-                          {typedOrderData.originalPrice !== typedOrderData.finalPrice && (
+                          {orderData.original_price !== orderData.final_price && (
                             <p className="text-xs text-gray-400 line-through">
-                              {formatPrice(typedOrderData.originalPrice)}
+                              {formatPrice(orderData.original_price)}
                             </p>
                           )}
                         </div>
@@ -406,7 +352,7 @@ export default function OrderEditPage() {
                     </Card>
 
                     {/* Payment Information */}
-                    {typedOrderData.payment && (
+                    {orderData.payment && (
                       <Card className="bg-gray-900 border-gray-800">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
@@ -415,35 +361,35 @@ export default function OrderEditPage() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {typedOrderData.payment.paymentMethod && (
+                          {orderData.payment.payment_method && (
                             <div>
                               <span className="text-xs text-gray-400">Method</span>
-                              <p className="text-sm text-gray-200">{typedOrderData.payment.paymentMethod.name}</p>
+                              <p className="text-sm text-gray-200">{orderData.payment.payment_method.name}</p>
                             </div>
                           )}
                           <div>
                             <span className="text-xs text-gray-400">Status</span>
-                            <p className="text-sm text-gray-200">{typedOrderData.payment.status || "-"}</p>
+                            <p className="text-sm text-gray-200">{orderData.payment.status || "-"}</p>
                           </div>
                           <div>
                             <span className="text-xs text-gray-400">Amount</span>
                             <p className="text-sm text-gray-200 font-semibold">
-                              {formatPrice(typedOrderData.payment.amount)}
+                              {formatPrice(orderData.payment.amount)}
                             </p>
                           </div>
-                          {typedOrderData.payment.transactionId && (
+                          {orderData.payment.transaction_id && (
                             <div>
                               <span className="text-xs text-gray-400">Transaction ID</span>
                               <p className="text-sm text-gray-200 font-mono break-all">
-                                {typedOrderData.payment.transactionId}
+                                {orderData.payment.transaction_id}
                               </p>
                             </div>
                           )}
-                          {typedOrderData.payment.paidAt && (
+                          {orderData.payment.paid_at && (
                             <div>
                               <span className="text-xs text-gray-400">Paid At</span>
                               <p className="text-sm text-gray-200">
-                                {formatDateTime(typedOrderData.payment.paidAt)}
+                                {formatDateTime(orderData.payment.paid_at)}
                               </p>
                             </div>
                           )}
@@ -452,7 +398,7 @@ export default function OrderEditPage() {
                     )}
 
                     {/* Digiflazz Transaction */}
-                    {typedOrderData.digiflazzTx && (
+                    {orderData.digiflazz_transaction && (
                       <Card className="bg-gray-900 border-gray-800">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
@@ -463,28 +409,28 @@ export default function OrderEditPage() {
                         <CardContent className="space-y-4">
                           <div>
                             <span className="text-xs text-gray-400">Status</span>
-                            <p className="text-sm text-gray-200">{typedOrderData.digiflazzTx.status}</p>
+                            <p className="text-sm text-gray-200">{orderData.digiflazz_transaction.status}</p>
                           </div>
-                          {typedOrderData.digiflazzTx.trxId && (
+                          {orderData.digiflazz_transaction.trx_id && (
                             <div>
                               <span className="text-xs text-gray-400">Transaction ID</span>
                               <p className="text-sm text-gray-200 font-mono break-all">
-                                {typedOrderData.digiflazzTx.trxId}
+                                {orderData.digiflazz_transaction.trx_id}
                               </p>
                             </div>
                           )}
-                          {typedOrderData.digiflazzTx.refId && (
+                          {orderData.digiflazz_transaction.ref_id && (
                             <div>
                               <span className="text-xs text-gray-400">Reference ID</span>
                               <p className="text-sm text-gray-200 font-mono break-all">
-                                {typedOrderData.digiflazzTx.refId}
+                                {orderData.digiflazz_transaction.ref_id}
                               </p>
                             </div>
                           )}
-                          {typedOrderData.digiflazzTx.message && (
+                          {orderData.digiflazz_transaction.message && (
                             <div>
                               <span className="text-xs text-gray-400">Message</span>
-                              <p className="text-sm text-gray-200">{typedOrderData.digiflazzTx.message}</p>
+                              <p className="text-sm text-gray-200">{orderData.digiflazz_transaction.message}</p>
                             </div>
                           )}
                         </CardContent>
@@ -503,28 +449,28 @@ export default function OrderEditPage() {
                         <div>
                           <span className="text-xs text-gray-400">Created At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedOrderData.createdAt)}
+                            {formatDateTime(orderData.created_at)}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Updated At</span>
                           <p className="text-sm text-gray-200">
-                            {formatDateTime(typedOrderData.updatedAt)}
+                            {formatDateTime(orderData.updated_at)}
                           </p>
                         </div>
-                        {typedOrderData.paidAt && (
+                        {orderData.paid_at && (
                           <div>
                             <span className="text-xs text-gray-400">Paid At</span>
                             <p className="text-sm text-gray-200">
-                              {formatDateTime(typedOrderData.paidAt)}
+                              {formatDateTime(orderData.paid_at)}
                             </p>
                           </div>
                         )}
-                        {typedOrderData.completedAt && (
+                        {orderData.completed_at && (
                           <div>
                             <span className="text-xs text-gray-400">Completed At</span>
                             <p className="text-sm text-gray-200">
-                              {formatDateTime(typedOrderData.completedAt)}
+                              {formatDateTime(orderData.completed_at)}
                             </p>
                           </div>
                         )}

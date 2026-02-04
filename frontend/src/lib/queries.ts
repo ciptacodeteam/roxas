@@ -727,7 +727,7 @@ export function useAdminOrders(
 
   return useQuery({
     queryKey: queryKeys.orders.list(filters),
-    queryFn: () => fetchJSON<any[]>(`/api/admin/orders?${queryParams.toString()}`),
+    queryFn: () => fetchJSON<any[]>(`/api/v1/admin/orders/?${queryParams.toString()}`),
     ...options,
   });
 }
@@ -738,7 +738,7 @@ export function useAdminOrder(
 ) {
   return useQuery({
     queryKey: queryKeys.orders.detail(id),
-    queryFn: () => fetchJSON<any>(`/api/admin/orders/${id}`),
+    queryFn: () => fetchJSON<any>(`/api/v1/admin/orders/${id}/`),
     enabled: !!id,
     ...options,
   });
@@ -1091,6 +1091,42 @@ export function useUpdateOrder(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+    },
+    ...options,
+  });
+}
+
+export function useRateOrder(
+  options?: Omit<UseMutationOptions<any, Error, { orderId: string; rating: number }>, "mutationFn">
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderId, rating }: { orderId: string; rating: number }) => {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/orders/${orderId}/rate/`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ rating }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Failed to submit rating" }));
+        throw new Error(error.error || error.message || "Failed to submit rating");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, { orderId }) => {
+      // Invalidate the specific order query
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
+      // Invalidate all orders list
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
     },
     ...options,
   });

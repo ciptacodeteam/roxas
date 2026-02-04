@@ -422,6 +422,103 @@ class AdminProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'slug', 'description']
     filterset_fields = ['category', 'is_active']
     ordering_fields = ['name', 'sort_order', 'created_at']
+    
+    @action(detail=True, methods=['post'], url_path='bulk-update-prices')
+    def bulk_update_prices(self, request, pk=None):
+        """
+        Bulk update sell prices for all product items of a product.
+        
+        POST /api/v1/admin/products/{id}/bulk-update-prices/
+        {
+            "markup_percentage": 10.5,  // Percentage markup from Digiflazz price
+            "apply_to_all": true  // Optional: if false, only updates items without custom pricing
+        }
+        
+        Returns updated product items with new prices.
+        """
+        from django.db import transaction
+        from decimal import Decimal, ROUND_HALF_UP
+        
+        product = self.get_object()
+        markup_percentage = request.data.get('markup_percentage')
+        apply_to_all = request.data.get('apply_to_all', True)
+        
+        # Validate input
+        if markup_percentage is None:
+            return Response(
+                {'error': 'markup_percentage is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            markup_percentage = Decimal(str(markup_percentage))
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'markup_percentage must be a valid number'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get all product items for this product
+        product_items = ProductItem.objects.filter(product=product).select_related('product')
+        
+        if not product_items.exists():
+            return Response(
+                {'error': 'No product items found for this product'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        updated_items = []
+        skipped_items = []
+        
+        with transaction.atomic():
+            for item in product_items:
+                # Skip validation items
+                if item.is_validation_item:
+                    skipped_items.append({
+                        'id': str(item.id),
+                        'name': item.name,
+                        'reason': 'Validation item'
+                    })
+                    continue
+                
+                # Calculate new sell price from base_price (Digiflazz price)
+                if item.base_price and item.base_price > 0:
+                    # Calculate markup: sell_price = base_price * (1 + markup_percentage/100)
+                    markup_multiplier = Decimal('1') + (markup_percentage / Decimal('100'))
+                    new_sell_price = (Decimal(str(item.base_price)) * markup_multiplier).quantize(
+                        Decimal('1'), rounding=ROUND_HALF_UP
+                    )
+                    
+                    old_sell_price = item.sell_price
+                    item.sell_price = int(new_sell_price)
+                    item.save(update_fields=['sell_price', 'updated_at'])
+                    
+                    updated_items.append({
+                        'id': str(item.id),
+                        'name': item.name,
+                        'sku_code': item.sku_code,
+                        'base_price': item.base_price,
+                        'old_sell_price': old_sell_price,
+                        'new_sell_price': item.sell_price,
+                        'markup_applied': float(markup_percentage)
+                    })
+                else:
+                    skipped_items.append({
+                        'id': str(item.id),
+                        'name': item.name,
+                        'reason': 'No base price available'
+                    })
+        
+        return Response({
+            'success': True,
+            'message': f'Updated {len(updated_items)} product items',
+            'markup_percentage': float(markup_percentage),
+            'updated_items': updated_items,
+            'skipped_items': skipped_items,
+            'total_items': product_items.count(),
+            'updated_count': len(updated_items),
+            'skipped_count': len(skipped_items)
+        }, status=status.HTTP_200_OK)
 
 
 class ProductItemViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1170,6 +1267,74 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         headers = self.get_success_headers(order_data)
         return Response(order_data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    @action(detail=True, methods=['post'])
+    def rate(self, request, pk=None):
+        """Submit product rating for a completed order."""
+        order = self.get_object()
+        
+        # Ensure user owns this order
+        if order.user != request.user:
+            return Response(
+                {'error': 'You can only rate your own orders'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Validate order status
+        if order.status != 'COMPLETED':
+            return Response(
+                {'error': 'You can only rate completed orders'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate rating value
+        rating_value = request.data.get('rating')
+        if not rating_value or not isinstance(rating_value, int) or rating_value < 1 or rating_value > 5:
+            return Response(
+                {'error': 'Rating must be an integer between 1 and 5'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user already rated this product for this order
+        product = order.product_item.product
+        existing_rating = ProductRating.objects.filter(
+            product=product,
+            user=request.user,
+            order=order
+        ).first()
+        
+        if existing_rating:
+            return Response(
+                {'error': 'You have already rated this product for this order'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create product rating
+        user_name = ''
+        try:
+            from account.models import UserRole
+            if request.user.role == UserRole.CUSTOMER and hasattr(request.user, "customer_profile"):
+                user_name = request.user.customer_profile.full_name or request.user.email
+            else:
+                user_name = request.user.email
+        except Exception:
+            user_name = request.user.email
+        
+        rating = ProductRating.objects.create(
+            product=product,
+            user=request.user,
+            order=order,
+            rating=rating_value,
+            user_name=user_name,
+            is_active=True
+        )
+        
+        return Response({
+            'message': 'Rating submitted successfully',
+            'rating': rating_value,
+            'product': product.name,
+            'created_at': rating.created_at
+        }, status=status.HTTP_201_CREATED)
 
 
 class AdminOrderViewSet(viewsets.ModelViewSet):

@@ -29,8 +29,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { useOrders } from "@/lib/orders";
-import type { Order } from "@/lib/orders";
+import { useAdminOrders } from "@/lib/queries";
 import {
   Select,
   SelectContent,
@@ -51,7 +50,7 @@ export default function OrdersPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   // Use TanStack Query hooks
-  const { data: orders = [], isLoading: loading, refetch } = useOrders(
+  const { data: orders = [], isLoading: loading, refetch } = useAdminOrders(
     { status: statusFilter !== "all" ? statusFilter : undefined },
     {
       refetchOnMount: "always",
@@ -60,7 +59,7 @@ export default function OrdersPage() {
     }
   );
 
-  const handleView = useCallback((order: Order) => {
+  const handleView = useCallback((order: any) => {
     router.push(`/admin/orders/${order.id}`);
   }, [router]);
 
@@ -85,7 +84,7 @@ export default function OrdersPage() {
     }).format(price);
   };
 
-  const columns = useMemo<ColumnDef<Order>[]>(
+  const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
         accessorKey: "order_number",

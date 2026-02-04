@@ -13,7 +13,10 @@ import {
     createProduct,
     updateProduct,
     deleteProduct,
+    bulkUpdateProductItemPrices,
     ProductsApiError,
+    type BulkPriceUpdateRequest,
+    type BulkPriceUpdateResponse,
 } from "./api";
 import type {
     Product,
@@ -147,6 +150,33 @@ export function useProductSearch(
         queryFn: () => getActiveProducts({ search: searchQuery }),
         enabled: searchQuery.length > 0,
         staleTime: 30000, // 30 seconds
+        ...options,
+    });
+}
+
+/**
+ * Bulk update product item prices based on markup percentage
+ */
+export function useBulkUpdateProductItemPrices(
+    options?: Omit<
+        UseMutationOptions<
+            BulkPriceUpdateResponse,
+            ProductsApiError,
+            { productId: string; data: BulkPriceUpdateRequest }
+        >,
+        "mutationFn"
+    >
+) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ productId, data }) => bulkUpdateProductItemPrices(productId, data),
+        onSuccess: (_, { productId }) => {
+            // Invalidate product details to refresh product items
+            queryClient.invalidateQueries({ queryKey: productsQueryKeys.detail(productId) });
+            // Also invalidate product items list if exists
+            queryClient.invalidateQueries({ queryKey: ["product-items"] });
+        },
         ...options,
     });
 }

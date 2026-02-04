@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { RatingModal } from "@/components/RatingModal";
+import { useRateOrder } from "@/lib/queries";
 // QR Code will be generated from payment URL or displayed as image
 
 export default function PaymentPage() {
@@ -14,6 +16,19 @@ export default function PaymentPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState<string>("");
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [hasShownRatingModal, setHasShownRatingModal] = useState(false);
+  
+  const rateOrderMutation = useRateOrder({
+    onSuccess: () => {
+      setShowRatingModal(false);
+      // Refresh order data
+      fetchOrder();
+    },
+    onError: (error) => {
+      console.error("Failed to submit rating:", error.message);
+    },
+  });
 
   const fetchOrder = async () => {
     if (!orderId) return;
@@ -58,6 +73,24 @@ export default function PaymentPage() {
 
     return () => clearInterval(pollInterval);
   }, [orderId]);
+  
+  // Effect to show rating modal when order is completed
+  useEffect(() => {
+    if (
+      order &&
+      order.status === "COMPLETED" &&
+      !order.product_rating && // Check if order has been rated
+      !hasShownRatingModal
+    ) {
+      // Show rating modal after a short delay
+      const timer = setTimeout(() => {
+        setShowRatingModal(true);
+        setHasShownRatingModal(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [order?.status, order?.product_rating, hasShownRatingModal]);
 
   // Separate effect for countdown timer
   useEffect(() => {
@@ -89,17 +122,6 @@ export default function PaymentPage() {
     return () => clearInterval(interval);
   }, [order?.payment?.expires_at]);
 
-  if (loading) {
-    return (
-      <div className="from-card via-muted-foreground to-foreground/20 flex min-h-screen items-center justify-center bg-linear-to-b text-white">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p>Memuat data pembayaran...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!order) {
     return (
       <div className="from-card via-muted-foreground to-foreground/20 flex min-h-screen items-center justify-center bg-linear-to-b text-white">
@@ -110,6 +132,12 @@ export default function PaymentPage() {
       </div>
     );
   }
+  
+  const handleRatingSubmit = (rating: number) => {
+    if (orderId) {
+      rateOrderMutation.mutate({ orderId, rating });
+    }
+  };
 
   const payment = order.payment;
   const paymentMethod = payment?.payment_method;
@@ -122,6 +150,15 @@ export default function PaymentPage() {
 
   return (
     <div className="from-card via-muted-foreground to-foreground/20 min-h-screen bg-linear-to-b text-white">
+      {/* Rating Modal */}
+      <RatingModal
+        open={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRatingSubmit}
+        isSubmitting={rateOrderMutation.isPending}
+        orderNumber={order?.order_number}
+      />
+      
       <div className="mx-auto max-w-7xl pt-38 pb-14">
         {/* HEADER */}
         <div className="mb-10 text-center">

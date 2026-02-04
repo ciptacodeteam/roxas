@@ -1275,6 +1275,15 @@ class ProductRating(UUIDModel):
         related_name="product_ratings_main",
         verbose_name=_("User"),
     )
+    order = models.ForeignKey(
+        'Order',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="product_rating",
+        verbose_name=_("Order"),
+        help_text=_("The order this rating is associated with"),
+    )
     rating = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         verbose_name=_("Rating"),

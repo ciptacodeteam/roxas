@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useProduct, useUpdateProduct, type ProductWithItems } from "@/lib/products";
 import { useCategories } from "@/lib/categories";
+import { useBulkUpdateProductItemPrices } from "@/lib/products";
 import { formatDateTime } from "@/lib/date-utils";
 
 export default function ProductEditPage() {
@@ -39,6 +40,8 @@ export default function ProductEditPage() {
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [markupPercentage, setMarkupPercentage] = useState<string>("10");
+  const [isApplyingBulkPricing, setIsApplyingBulkPricing] = useState(false);
   const [formData, setFormData] = useState<{
     name: string;
     slug: string;
@@ -104,6 +107,42 @@ export default function ProductEditPage() {
       setSaving(false);
     },
   });
+
+  const bulkPricingMutation = useBulkUpdateProductItemPrices({
+    onSuccess: (data) => {
+      toast.success(data.message, {
+        description: `Updated ${data.updated_count} items, skipped ${data.skipped_count} items`,
+      });
+      setIsApplyingBulkPricing(false);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update prices");
+      setIsApplyingBulkPricing(false);
+    },
+  });
+
+  const handleBulkPricing = () => {
+    const percentage = parseFloat(markupPercentage);
+    
+    if (isNaN(percentage)) {
+      toast.error("Please enter a valid percentage");
+      return;
+    }
+
+    if (percentage < -100 || percentage > 1000) {
+      toast.error("Percentage must be between -100 and 1000");
+      return;
+    }
+
+    setIsApplyingBulkPricing(true);
+    bulkPricingMutation.mutate({
+      productId,
+      data: {
+        markup_percentage: percentage,
+        apply_to_all: true,
+      },
+    });
+  };
 
   const handleImageChange = (file: File, type: "image" | "banner") => {
     if (type === "image") {
@@ -581,6 +620,74 @@ export default function ProductEditPage() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Bulk Price Update */}
+                    {productData.items && productData.items.length > 0 && (
+                      <Card className="bg-gray-900 border-gray-800">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Package className="h-5 w-5" />
+                            Bulk Price Update
+                          </CardTitle>
+                          <CardDescription>
+                            Update sell prices for all product items based on base price
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="markup_percentage" className="text-sm">
+                              Markup Percentage
+                            </Label>
+                            <Input
+                              id="markup_percentage"
+                              type="number"
+                              step="0.1"
+                              value={markupPercentage}
+                              onChange={(e) => setMarkupPercentage(e.target.value)}
+                              placeholder="e.g., 10 for 10% markup"
+                              className="bg-gray-800 text-gray-100 border-gray-700"
+                              disabled={isApplyingBulkPricing}
+                            />
+                            <p className="text-xs text-gray-400">
+                              Positive value for markup, negative for discount
+                            </p>
+                          </div>
+
+                          <div className="rounded-md bg-blue-950/30 border border-blue-800/50 p-3">
+                            <p className="text-xs text-blue-200">
+                              <strong>Example:</strong> With 10% markup, an item with base price of
+                              Rp 10,000 will have a sell price of Rp 11,000
+                            </p>
+                          </div>
+
+                          <Button
+                            onClick={handleBulkPricing}
+                            disabled={isApplyingBulkPricing || !markupPercentage}
+                            className="w-full"
+                            variant="default"
+                          >
+                            {isApplyingBulkPricing ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Updating Prices...
+                              </>
+                            ) : (
+                              <>
+                                <Package className="mr-2 h-4 w-4" />
+                                Apply to All Items ({productData.items.length})
+                              </>
+                            )}
+                          </Button>
+
+                          <div className="rounded-md bg-yellow-950/30 border border-yellow-800/50 p-3">
+                            <p className="text-xs text-yellow-200">
+                              <strong>Note:</strong> This will update all product items that have a
+                              base price. Items without base price will be skipped.
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
                 </div>
               </div>

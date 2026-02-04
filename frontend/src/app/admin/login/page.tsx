@@ -129,18 +129,18 @@ export default function AdminLoginPage() {
     <>
       <section>
         <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
-          <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
+          <div className="absolute inset-0 bg-linear-to-b lg:from-black/20 lg:to-black/40 from-black/50 to-black/80"></div>
 
           <div className="relative z-10 flex min-h-screen items-center justify-center">
             <div className="bg-card rounded-2xl p-6">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid lg:grid-cols-2 lg:gap-8">
 
                 {/* Gambar kiri */}
                 <div>
                   <Image
                     src={img4}
                     alt=""
-                    className="w-125 rounded-xl bg-cover bg-no-repeat"
+                    className="w-125 rounded-xl bg-cover bg-no-repeat lg:block hidden"
                   />
                 </div>
 
@@ -149,12 +149,12 @@ export default function AdminLoginPage() {
 
                   {/* Logo */}
                   <div className="flex justify-center items-center">
-                    <Image alt="" src={logo} className="w-52 mb-4" />
+                    <Image alt="" src={logo} className="w-56 mb-1 lg:block hidden" />
                   </div>
 
                   {/* Title */}
                   <div className="text-center">
-                    <h1 className="mt-4 text-2xl font-semibold text-white">
+                    <h1 className="lg:mt-4 text-2xl font-semibold text-white">
                       Admin Login
                     </h1>
                     <p className="mt-1 font-light text-white">
