@@ -48,12 +48,12 @@ async function fetchAPI<T>(
 }
 
 /**
- * Get all product items
+ * Get all product items (use sparingly - fetches all pages)
  */
 export async function getProductItems(): Promise<ProductItem[]> {
     try {
         let allItems: ProductItem[] = [];
-        let nextUrl: string | null = "/api/admin/product-items/";
+        let nextUrl: string | null = "/api/v1/admin/product-items/";
 
         // Fetch all pages
         while (nextUrl) {
@@ -90,10 +90,43 @@ export async function getProductItems(): Promise<ProductItem[]> {
 }
 
 /**
+ * Search product items with server-side filtering
+ * This is optimized for dropdown/combobox search - only fetches matching items
+ */
+export async function searchProductItems(query: string, limit: number = 50): Promise<ProductItem[]> {
+    if (!query || query.length < 2) {
+        return [];
+    }
+
+    try {
+        const searchParams = new URLSearchParams({
+            search: query,
+            page_size: limit.toString(),
+        });
+
+        const response = await fetchAPI<any>(`/api/v1/admin/product-items/?${searchParams.toString()}`);
+
+        // Handle both paginated and non-paginated responses
+        if (Array.isArray(response)) {
+            return response.slice(0, limit);
+        }
+
+        if (response && response.results && Array.isArray(response.results)) {
+            return response.results.slice(0, limit);
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Error searching product items:", error);
+        return [];
+    }
+}
+
+/**
  * Get single product item by ID
  */
 export async function getProductItem(id: string): Promise<ProductItemWithProduct> {
-    return fetchAPI<ProductItemWithProduct>(`/api/admin/product-items/${id}/`);
+    return fetchAPI<ProductItemWithProduct>(`/api/v1/admin/product-items/${id}/`);
 }
 
 /**
@@ -127,7 +160,7 @@ export async function createProductItem(
         body = JSON.stringify(data);
     }
 
-    return fetchAPI<ProductItem>("/api/admin/product-items/", {
+    return fetchAPI<ProductItem>("/api/v1/admin/product-items/", {
         method: "POST",
         headers,
         body,
@@ -166,7 +199,7 @@ export async function updateProductItem(
         body = JSON.stringify(data);
     }
 
-    return fetchAPI<ProductItem>(`/api/admin/product-items/${id}/`, {
+    return fetchAPI<ProductItem>(`/api/v1/admin/product-items/${id}/`, {
         method: "PUT",
         headers,
         body,
@@ -182,7 +215,7 @@ export async function deleteProductItem(id: string): Promise<void> {
     }
 
     try {
-        await fetchAPI<void>(`/api/admin/product-items/${id}/`, {
+        await fetchAPI<void>(`/api/v1/admin/product-items/${id}/`, {
             method: "DELETE",
         });
     } catch (error) {
@@ -202,7 +235,7 @@ export async function deleteProductItem(id: string): Promise<void> {
 export async function syncPrices(
     data?: SyncPricesRequest
 ): Promise<SyncPricesResponse> {
-    return fetchAPI<SyncPricesResponse>("/api/admin/product-items/sync-prices/", {
+    return fetchAPI<SyncPricesResponse>("/api/v1/admin/product-items/sync-prices/", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -215,7 +248,7 @@ export async function syncPrices(
  * Get sync status
  */
 export async function getSyncStatus(): Promise<SyncStatus> {
-    return fetchAPI<SyncStatus>("/api/admin/product-items/sync-status/");
+    return fetchAPI<SyncStatus>("/api/v1/admin/product-items/sync-status/");
 }
 
 // Re-export ProductItemsApiError for use in other modules

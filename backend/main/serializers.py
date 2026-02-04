@@ -347,6 +347,47 @@ class FlashSaleItemSerializer(serializers.ModelSerializer):
             discount = ((obj.product_item.normal_price - obj.sale_price) / obj.product_item.normal_price) * 100
             return round(discount, 2)
         return 0
+    
+    def validate(self, data):
+        """Validate flash sale item data."""
+        sale_price = data.get('sale_price')
+        stock = data.get('stock')
+        product_item = data.get('product_item')
+        flash_sale = data.get('flash_sale')
+        
+        # Validate sale_price is positive
+        if sale_price is not None and sale_price <= 0:
+            raise serializers.ValidationError({
+                'sale_price': 'Sale price must be greater than 0'
+            })
+        
+        # Validate stock is non-negative
+        if stock is not None and stock < 0:
+            raise serializers.ValidationError({
+                'stock': 'Stock cannot be negative'
+            })
+        
+        # Validate sale price is lower than normal price
+        if product_item and sale_price is not None:
+            if sale_price >= product_item.normal_price:
+                raise serializers.ValidationError({
+                    'sale_price': f'Sale price must be lower than normal price (Rp {product_item.normal_price:,})'
+                })
+        
+        # Check for duplicate product_item in the same flash sale (only on create)
+        if self.instance is None:  # Creating new item
+            if product_item and flash_sale:
+                existing = FlashSaleItem.objects.filter(
+                    flash_sale=flash_sale,
+                    product_item=product_item
+                ).exists()
+                
+                if existing:
+                    raise serializers.ValidationError({
+                        'product_item': 'This product is already in the flash sale'
+                    })
+        
+        return data
 
 
 class FlashSaleSerializer(serializers.ModelSerializer):

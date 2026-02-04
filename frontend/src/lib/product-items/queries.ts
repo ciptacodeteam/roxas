@@ -13,6 +13,7 @@ import {
     deleteProductItem,
     syncPrices,
     getSyncStatus,
+    searchProductItems,
     ProductItemsApiError,
 } from "./api";
 import type {
@@ -33,6 +34,7 @@ export const productItemsQueryKeys = {
     details: () => [...productItemsQueryKeys.all, "detail"] as const,
     detail: (id: string) => [...productItemsQueryKeys.details(), id] as const,
     syncStatus: () => [...productItemsQueryKeys.all, "sync-status"] as const,
+    search: (query: string) => [...productItemsQueryKeys.all, "search", query] as const,
 };
 
 // Queries
@@ -42,6 +44,23 @@ export function useProductItems(
     return useQuery({
         queryKey: productItemsQueryKeys.list(),
         queryFn: getProductItems,
+        ...options,
+    });
+}
+
+/**
+ * Search product items with server-side filtering
+ * Only triggers when query is at least 2 characters
+ */
+export function useSearchProductItems(
+    query: string,
+    options?: Omit<UseQueryOptions<ProductItem[], ProductItemsApiError>, "queryKey" | "queryFn">
+) {
+    return useQuery({
+        queryKey: productItemsQueryKeys.search(query),
+        queryFn: () => searchProductItems(query),
+        enabled: query.length >= 2,
+        staleTime: 30000, // Cache search results for 30 seconds
         ...options,
     });
 }

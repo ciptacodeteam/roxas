@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Loader2, Save, Zap, Calendar, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Save, Zap, Calendar, Plus, Trash2, X, Package, Search, Check, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,11 +19,51 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useFlashSale, useUpdateFlashSale, useFlashSaleItems, useCreateFlashSaleItem, useDeleteFlashSaleItem } from "@/lib/flash-sales";
 import { formatDateTime, utcToLocal, localToUTC } from "@/lib/date-utils";
+import { useSearchProductItems } from "@/lib/product-items";
+import type { ProductItem } from "@/lib/product-items";
+
+// Debounce hook for search optimization
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function FlashSaleEditPage() {
   const router = useRouter();
@@ -363,6 +403,7 @@ export default function FlashSaleEditPage() {
 
 // Flash Sale Items Section Component
 function FlashSaleItemsSection({ flashSaleId }: { flashSaleId: string }) {
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const { data: items = [], isLoading, refetch } = useFlashSaleItems(flashSaleId);
   const deleteItemMutation = useDeleteFlashSaleItem(flashSaleId, {
     onSuccess: async () => {
@@ -380,59 +421,421 @@ function FlashSaleItemsSection({ flashSaleId }: { flashSaleId: string }) {
     }
   };
 
+  const handleAddSuccess = async () => {
+    setShowAddDialog(false);
+    await refetch();
+  };
+
   return (
-    <Card className="bg-gray-900 border-gray-800 mt-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Flash Sale Items ({items.length})
-        </CardTitle>
-        <CardDescription>
-          Products included in this flash sale
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
+    <>
+      <Card className="bg-gray-900 border-gray-800 mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Flash Sale Items ({items.length})
+              </CardTitle>
+              <CardDescription>
+                Products included in this flash sale
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              size="sm"
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Product
+            </Button>
           </div>
-        ) : items.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-8">
-            No items in this flash sale yet. Add items from the product management section.
-          </p>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-3 border border-gray-700 rounded-md"
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 mx-auto text-gray-600 mb-3" />
+              <p className="text-sm text-gray-400 mb-3">
+                No items in this flash sale yet.
+              </p>
+              <Button
+                onClick={() => setShowAddDialog(true)}
+                variant="outline"
+                size="sm"
               >
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{item.product_item_name}</p>
-                  <p className="text-xs text-gray-400">{item.product_name}</p>
-                  <div className="flex gap-4 mt-2 text-xs">
-                    <span>Sale: Rp {item.sale_price.toLocaleString('id-ID')}</span>
-                    <span>Normal: Rp {item.normal_price.toLocaleString('id-ID')}</span>
-                    <span className="text-green-400">{item.discount_percentage}% off</span>
-                    <span>Stock: {item.stock}</span>
-                    <span>Sold: {item.sold_count}</span>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500 hover:text-red-600"
-                  onClick={() => handleDelete(item.id)}
-                  disabled={deleteItemMutation.isPending}
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Product
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 border border-gray-700 rounded-md hover:border-gray-600 transition-colors"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{item.product_item_name}</p>
+                    <p className="text-xs text-gray-400">{item.product_name}</p>
+                    <div className="flex gap-4 mt-2 text-xs">
+                      <span>Sale: Rp {item.sale_price.toLocaleString('id-ID')}</span>
+                      <span className="text-gray-500">Normal: Rp {item.normal_price.toLocaleString('id-ID')}</span>
+                      <span className="text-green-400">{item.discount_percentage}% off</span>
+                      <span>Stock: {item.stock}</span>
+                      <span className="text-gray-500">Sold: {item.sold_count}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                    onClick={() => handleDelete(item.id)}
+                    disabled={deleteItemMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AddFlashSaleItemDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        flashSaleId={flashSaleId}
+        existingItems={items}
+        onSuccess={handleAddSuccess}
+      />
+    </>
   );
 }
+
+// Add Flash Sale Item Dialog Component
+function AddFlashSaleItemDialog({
+  open,
+  onOpenChange,
+  flashSaleId,
+  existingItems,
+  onSuccess
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  flashSaleId: string;
+  existingItems: any[];
+  onSuccess: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    product_item: "",
+    sale_price: 0,
+    stock: 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
+
+  // Debounce search query for server-side search (300ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Server-side search - only fetches when query is 2+ chars
+  const { data: searchResults = [], isLoading: isSearching } = useSearchProductItems(debouncedSearchQuery, {
+    enabled: open && debouncedSearchQuery.length >= 2,
+  });
+
+  // Filter out products already in flash sale
+  const filteredProducts = useMemo(() => {
+    return searchResults.filter(
+      product => !existingItems.some(item => item.product_item === product.id)
+    );
+  }, [searchResults, existingItems]);
+
+  const createItemMutation = useCreateFlashSaleItem({
+    onSuccess: () => {
+      toast.success("Product added to flash sale successfully");
+      setSaving(false);
+      resetForm();
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to add product to flash sale");
+      setSaving(false);
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      product_item: "",
+      sale_price: 0,
+      stock: 0,
+    });
+    setSearchQuery("");
+    setComboboxOpen(false);
+    setSelectedProduct(null);
+  };
+
+  const handleClose = () => {
+    if (!saving) {
+      resetForm();
+      onOpenChange(false);
+    }
+  };
+
+  const handleSelectProduct = (product: ProductItem) => {
+    setFormData({
+      ...formData,
+      product_item: product.id,
+      sale_price: Math.round(product.normal_price * 0.8), // Default to 20% off
+    });
+    setSelectedProduct(product);
+    setComboboxOpen(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.product_item) {
+      toast.error("Please select a product");
+      return;
+    }
+
+    if (formData.sale_price <= 0) {
+      toast.error("Sale price must be greater than 0");
+      return;
+    }
+
+    if (formData.stock < 0) {
+      toast.error("Stock cannot be negative");
+      return;
+    }
+
+    // Check if product already exists in flash sale
+    const alreadyExists = existingItems.some(
+      item => item.product_item === formData.product_item
+    );
+
+    if (alreadyExists) {
+      toast.error("This product is already in the flash sale");
+      return;
+    }
+
+    // Validate sale price
+    if (selectedProduct && formData.sale_price >= selectedProduct.normal_price) {
+      toast.error("Sale price must be lower than normal price");
+      return;
+    }
+
+    setSaving(true);
+
+    const submitData = {
+      flash_sale: flashSaleId,
+      product_item: formData.product_item,
+      sale_price: formData.sale_price,
+      stock: formData.stock,
+    };
+
+    createItemMutation.mutate(submitData);
+  };
+
+  const discountPercentage = selectedProduct && formData.sale_price > 0
+    ? Math.round(((selectedProduct.normal_price - formData.sale_price) / selectedProduct.normal_price) * 100)
+    : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[550px] bg-gray-900 border-gray-800 text-white">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Plus className="h-5 w-5" />
+            Add Product to Flash Sale
+          </DialogTitle>
+          <DialogDescription className="text-gray-300">
+            Select a product and set the flash sale price and stock
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4 py-4">
+            {/* Product Selection - Searchable Combobox */}
+            <div className="space-y-2">
+              <Label htmlFor="product_item" className="flex items-center gap-2 text-white">
+                <Package className="h-4 w-4" />
+                Product <span className="text-red-400">*</span>
+              </Label>
+              <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={comboboxOpen}
+                    className="w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:text-white"
+                    disabled={saving}
+                  >
+                    {formData.product_item ? (
+                      <span className="truncate">
+                        {selectedProduct?.name || "Select a product"}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">Search product (min 2 chars)...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[500px] p-0 bg-gray-900 border-gray-700" align="start">
+                  <Command className="bg-gray-900 text-white" shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name or SKU (min 2 chars)..."
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                      className="border-gray-700 text-white placeholder:text-gray-400"
+                    />
+                    <CommandList>
+                      {isSearching ? (
+                        <div className="py-6 flex items-center justify-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                          <span className="ml-2 text-sm text-gray-400">Searching...</span>
+                        </div>
+                      ) : debouncedSearchQuery.length < 2 ? (
+                        <CommandEmpty className="py-6 text-center text-sm text-gray-400">
+                          Type at least 2 characters to search
+                        </CommandEmpty>
+                      ) : filteredProducts.length === 0 ? (
+                        <CommandEmpty className="py-6 text-center text-sm text-gray-400">
+                          No products found
+                        </CommandEmpty>
+                      ) : (
+                        <CommandGroup className="max-h-[300px] overflow-auto">
+                          {filteredProducts.map((product) => (
+                            <CommandItem
+                              key={product.id}
+                              value={product.id}
+                              onSelect={() => handleSelectProduct(product)}
+                              className="cursor-pointer hover:bg-gray-800 text-white aria-selected:bg-gray-800"
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${formData.product_item === product.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                  }`}
+                              />
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <span className="font-medium truncate">{product.name}</span>
+                                <span className="text-xs text-gray-400 truncate">
+                                  {product.product_name} • SKU: {product.sku_code} • Rp {product.normal_price.toLocaleString('id-ID')}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                          {filteredProducts.length >= 50 && (
+                            <div className="px-2 py-2 text-xs text-center text-gray-400 border-t border-gray-700">
+                              Showing first 50 results. Refine your search for more.
+                            </div>
+                          )}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Product Info Display */}
+            {selectedProduct && (
+              <div className="p-3 bg-gray-800/50 rounded-md border border-gray-700">
+                <p className="text-sm font-medium mb-1 text-white">{selectedProduct.name}</p>
+                <p className="text-xs text-gray-400 mb-2">{selectedProduct.product_name}</p>
+                <div className="flex gap-4 text-xs text-gray-300">
+                  <span>Normal Price: Rp {selectedProduct.normal_price.toLocaleString('id-ID')}</span>
+                  <span>Sell Price: Rp {selectedProduct.sell_price.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Sale Price */}
+            <div className="space-y-2">
+              <Label htmlFor="sale_price" className="flex items-center gap-2 text-white">
+                Flash Sale Price <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                id="sale_price"
+                type="number"
+                min="0"
+                step="1"
+                value={formData.sale_price}
+                onChange={(e) => setFormData({ ...formData, sale_price: parseInt(e.target.value) || 0 })}
+                placeholder="Enter flash sale price"
+                disabled={saving || !formData.product_item}
+                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+              />
+              {selectedProduct && formData.sale_price > 0 && (
+                <div className="flex gap-2 text-xs">
+                  <span className={discountPercentage > 0 ? "text-green-400" : "text-red-400"}>
+                    {discountPercentage > 0 ? `${discountPercentage}% discount` : 'Price must be lower than normal price'}
+                  </span>
+                  <span className="text-gray-400">
+                    • Savings: Rp {(selectedProduct.normal_price - formData.sale_price).toLocaleString('id-ID')}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Stock */}
+            <div className="space-y-2">
+              <Label htmlFor="stock" className="flex items-center gap-2 text-white">
+                Available Stock <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                id="stock"
+                type="number"
+                min="0"
+                step="1"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                placeholder="Enter available stock"
+                disabled={saving}
+                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+              />
+              <p className="text-xs text-gray-400">
+                Number of items available for this flash sale
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving || !formData.product_item}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to Flash Sale
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 

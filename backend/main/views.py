@@ -708,7 +708,7 @@ class AdminProductItemViewSet(viewsets.ModelViewSet):
     serializer_class = ProductItemSerializer
     permission_classes = [IsAdminOnly]
     filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
-    search_fields = ['name', 'sku_code']
+    search_fields = ['name', 'sku_code', 'product__name']  # Search by item name, SKU, and product name
     filterset_fields = ['product', 'is_active', 'digiflazz_status']
     ordering_fields = ['name', 'sell_price', 'created_at', 'last_synced_at']
 
@@ -1007,12 +1007,59 @@ class AdminFlashSaleViewSet(viewsets.ModelViewSet):
 class AdminFlashSaleItemViewSet(viewsets.ModelViewSet):
     """
     Admin API for managing flash sale items.
+    Provides CRUD operations for adding products to flash sales.
     """
-    queryset = FlashSaleItem.objects.all().select_related('flash_sale', 'product_item').order_by('-flash_sale__start_time')
     serializer_class = FlashSaleItemSerializer
     permission_classes = [IsAdminOnly]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['flash_sale']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['flash_sale', 'product_item']
+    search_fields = ['product_item__name', 'product_item__product__name']
+    ordering_fields = ['sale_price', 'stock', 'sold_count']
+    ordering = ['-flash_sale__start_time', 'product_item__name']
+    
+    def get_queryset(self):
+        """
+        Optimize queryset with select_related to reduce database queries.
+        """
+        return FlashSaleItem.objects.select_related(
+            'flash_sale',
+            'product_item',
+            'product_item__product'
+        ).prefetch_related(
+            'product_item__product__category'
+        )
+    
+    def perform_create(self, serializer):
+        """
+        Create flash sale item with additional logging.
+        """
+        instance = serializer.save()
+        logger.info(
+            f"Flash sale item created: {instance.product_item.name} "
+            f"added to {instance.flash_sale.name} at Rp {instance.sale_price:,}"
+        )
+    
+    def perform_update(self, serializer):
+        """
+        Update flash sale item with logging.
+        """
+        instance = serializer.save()
+        logger.info(
+            f"Flash sale item updated: {instance.product_item.name} "
+            f"in {instance.flash_sale.name}"
+        )
+    
+    def perform_destroy(self, instance):
+        """
+        Delete flash sale item with logging.
+        """
+        flash_sale_name = instance.flash_sale.name
+        product_name = instance.product_item.name
+        instance.delete()
+        logger.info(
+            f"Flash sale item deleted: {product_name} "
+            f"removed from {flash_sale_name}"
+        )
 
 
 # ============================================

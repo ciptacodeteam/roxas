@@ -24,12 +24,14 @@ export {
     deleteProductItem,
     syncPrices,
     getSyncStatus,
+    searchProductItems,
 } from "./api";
 
 // Queries
 export {
     productItemsQueryKeys,
     useProductItems,
+    useSearchProductItems,
     useProductItem,
     useSyncStatus,
     useCreateProductItem,
