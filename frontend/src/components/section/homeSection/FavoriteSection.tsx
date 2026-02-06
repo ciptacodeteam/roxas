@@ -88,7 +88,7 @@ export default function FavoriteSection() {
 
         {games && games.length > 0 ? (
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
-            {games.slice(7).map((game: Product) => (
+            {games.slice(6).map((game: Product) => (
               <Link
                 key={game.id}
                 href={`/${locale}/product/${game.slug}`}
