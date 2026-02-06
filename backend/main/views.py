@@ -1253,9 +1253,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 
                 # Extract QRIS
                 qris_string = None
-                if payment_response.get('actions'):
-                    qris_string = payment_response['actions'][0].get('url')
-                elif payment_response.get('qr_string'):
+                actions = payment_response.get('actions') or []
+                if actions:
+                    # Prefer the generate-qr-code action if available
+                    qr_action = None
+                    for action in actions:
+                        if action.get('name') == 'generate-qr-code' and action.get('url'):
+                            qr_action = action
+                            break
+                    # Fallback to the first action with a valid URL
+                    if not qr_action:
+                        for action in actions:
+                            if action.get('url'):
+                                qr_action = action
+                                break
+                    if qr_action:
+                        qris_string = qr_action.get('url')
+                
+                # Fallback to qr_string field if no URL-based QR was found
+                if not qris_string and payment_response.get('qr_string'):
                     qris_string = payment_response.get('qr_string')
                 
                 # Extract deeplink

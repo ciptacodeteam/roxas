@@ -10,15 +10,8 @@
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #1B2129; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #1B2129 0%, #2a3441 100%); padding: 40px 30px; text-align: center; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: 1px;">
-                🎮 ROXAS STORE
-              </h1>
-              <p style="margin: 10px 0 0 0; color: #a0a0a0; font-size: 14px;">Game Top-Up & Digital Services</p>
-            </td>
-          </tr>
+          <!-- Header with logo -->
+          {% include "account/_email_header_logo.html" with header_subtitle="Game Top-Up & Digital Services" %}
           
           <!-- Main Content -->
           <tr>
