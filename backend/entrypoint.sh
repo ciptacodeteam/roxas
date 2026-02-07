@@ -4,7 +4,11 @@ set -euo pipefail
 
 # Create logs directory (required for Django logging)
 mkdir -p /app/logs 2>/dev/null || true
-chmod 755 /app/logs 2>/dev/null || true
+chmod 777 /app/logs 2>/dev/null || true
+# Ensure log files are writable (fix RotatingFileHandler permission errors)
+touch /app/logs/django.log 2>/dev/null || true
+chmod 666 /app/logs/django.log 2>/dev/null || true
+chmod 666 /app/logs/django.log.* 2>/dev/null || true
 
 # Create media directories if they don't exist (needed for volume mounts)
 # Handle case where file exists instead of directory (common Docker volume issue)

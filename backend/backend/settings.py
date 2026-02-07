@@ -376,6 +376,9 @@ SESSION_CACHE_ALIAS = 'default'
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
+# Determine if running in Docker (file logging may have permission issues)
+_IN_DOCKER = os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER', False)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -392,10 +395,14 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            # Use plain FileHandler in Docker to avoid RotatingFileHandler
+            # permission issues with bind-mounted volumes
+            'class': 'logging.FileHandler' if _IN_DOCKER else 'logging.handlers.RotatingFileHandler',
             'filename': LOGS_DIR / 'django.log',
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 10,
+            **({} if _IN_DOCKER else {
+                'maxBytes': 1024 * 1024 * 10,  # 10 MB
+                'backupCount': 10,
+            }),
             'formatter': 'verbose',
         },
         'console': {

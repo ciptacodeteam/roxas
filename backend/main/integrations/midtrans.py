@@ -77,7 +77,8 @@ class MidtransClient:
         )
         
         if not self.server_key:
-            raise MidtransException("MIDTRANS_SERVER_KEY is required")
+            logger.error("MIDTRANS_SERVER_KEY is not configured in Django settings!")
+            raise MidtransException("MIDTRANS_SERVER_KEY is required but not configured")
         
         # Set API base URL
         if self.is_production:
@@ -85,7 +86,10 @@ class MidtransClient:
         else:
             self.api_url = "https://api.sandbox.midtrans.com/v2"
         
-        logger.info(f"Midtrans client initialized ({'production' if self.is_production else 'sandbox'})")
+        logger.info(
+            f"Midtrans client initialized | Mode: {'Production' if self.is_production else 'Sandbox'} | "
+            f"API URL: {self.api_url} | Server Key: {'***' + self.server_key[-4:] if len(self.server_key) > 4 else '***'}"
+        )
     
     def _generate_auth_header(self) -> str:
         """

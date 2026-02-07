@@ -1136,13 +1136,31 @@ class OrderViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create order and initiate Midtrans payment."""
         from .integrations.midtrans import MidtransClient, MidtransException
+        import sys
         
         # Create the order
         order = serializer.save(user=self.request.user)
         
+        # Log order creation details — also print to stderr as fallback
+        # (file logging may be broken due to Docker volume permission issues)
+        order_msg = (
+            f"Order created: {order.order_number} | Product: {order.product_item.name} | "
+            f"Payment Method: {order.payment_method.name if order.payment_method else 'None'} | "
+            f"Total: {order.total_amount}"
+        )
+        print(f"[ORDER] {order_msg}", file=sys.stderr, flush=True)
+        logger.info(order_msg)
+        
+        # Check if payment_method is set
+        if not order.payment_method:
+            print(f"[ORDER_ERROR] Order {order.order_number} created without payment_method!", file=sys.stderr, flush=True)
+            logger.error(f"Order {order.order_number} created without payment_method!")
+            return order
+        
         try:
             # Initialize Midtrans client
             midtrans_client = MidtransClient()
+            print(f"[MIDTRANS] Client initialized: {midtrans_client.api_url}", file=sys.stderr, flush=True)
             
             # Get phone and name from user profile
             user_phone = ''
@@ -1194,6 +1212,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             # Create payment based on payment method type
             payment_method = order.payment_method
             payment_response = None
+            
+            logger.info(
+                f"Creating Midtrans payment for order {order.order_number} | "
+                f"Method: {payment_method.name} ({payment_method.type}) | "
+                f"Midtrans Code: {payment_method.midtrans_code}"
+            )
             
             if payment_method.type == 'QRIS':
                 payment_response = midtrans_client.charge_qris(
@@ -1303,14 +1327,30 @@ class OrderViewSet(viewsets.ModelViewSet):
                     webhook_data=payment_response,
                 )
                 
-                logger.info(f"Payment created for order {order.order_number}: {payment.id}")
+                logger.info(
+                    f"Payment created successfully for order {order.order_number}: {payment.id} | "
+                    f"Transaction ID: {payment.transaction_id} | Status: {payment.status}"
+                )
             
         except MidtransException as e:
-            logger.error(f"Midtrans payment creation failed for order {order.order_number}: {str(e)}")
+            # Print directly to stderr as a fallback in case file logging is broken
+            import sys
+            err_msg = (
+                f"MIDTRANS ERROR for order {order.order_number}: {str(e)} | "
+                f"Payment method: {order.payment_method.name if order.payment_method else 'None'}"
+            )
+            print(f"[MIDTRANS_ERROR] {err_msg}", file=sys.stderr, flush=True)
+            logger.error(err_msg, exc_info=True)
             # Don't fail the order creation, just log the error
             # Payment can be created later or manually
         except Exception as e:
-            logger.error(f"Unexpected error creating payment for order {order.order_number}: {str(e)}")
+            import sys
+            err_msg = (
+                f"UNEXPECTED ERROR creating payment for order {order.order_number}: {str(e)} | "
+                f"Payment method: {order.payment_method.name if order.payment_method else 'None'}"
+            )
+            print(f"[PAYMENT_ERROR] {err_msg}", file=sys.stderr, flush=True)
+            logger.error(err_msg, exc_info=True)
         
         return order
     
