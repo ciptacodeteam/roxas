@@ -149,21 +149,40 @@ class MidtransClient:
             status_code = response.status_code
             response_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
             
-            # Log request
-            logger.info(f"Midtrans {method} {endpoint} - Status: {response.status_code}")
-            
             # Parse response
             result = response.json()
             
-            # Check for errors
+            # Log request with response keys for debugging
+            logger.info(f"Midtrans {method} {endpoint} - Status: {response.status_code} - Keys: {list(result.keys()) if isinstance(result, dict) else type(result).__name__}")
+            
+            # Check for HTTP-level errors
             if response.status_code >= 400:
                 error_message = result.get('status_message', 'Unknown error')
-                logger.error(f"Midtrans API error: {error_message}")
+                logger.error(f"Midtrans HTTP error: {error_message}")
                 
                 # Log failed API call
                 log_api_call('MIDTRANS', endpoint, method, status_code, response_time, error_message)
                 
                 raise MidtransException(f"API error: {error_message}")
+            
+            # CRITICAL: Check Midtrans body-level status_code
+            # Midtrans returns HTTP 200 for EVERYTHING, including errors.
+            # The real status is a STRING inside the response body (e.g., "201", "400", "500").
+            midtrans_status_code = result.get('status_code', '200')
+            try:
+                midtrans_status_int = int(midtrans_status_code)
+                if midtrans_status_int >= 400:
+                    error_message = result.get('status_message', 'Unknown Midtrans error')
+                    logger.error(
+                        f"Midtrans body error ({midtrans_status_code}): {error_message} | "
+                        f"Order: {order_id} | Full response: {result}"
+                    )
+                    log_api_call('MIDTRANS', endpoint, method, midtrans_status_int, response_time, error_message)
+                    raise MidtransException(
+                        f"Midtrans error ({midtrans_status_code}): {error_message}"
+                    )
+            except (ValueError, TypeError):
+                logger.warning(f"Midtrans returned non-numeric status_code: {midtrans_status_code}")
             
             # Log successful API call
             log_api_call('MIDTRANS', endpoint, method, status_code, response_time)
@@ -231,17 +250,20 @@ class MidtransClient:
         self,
         order_id: str,
         gross_amount: int,
-        bank: str,  # 'bca', 'bni', 'mandiri', 'permata', 'bri', 'bsi', etc.
+        bank: str,  # 'bca', 'bni', 'permata', 'bri', 'bsi', 'cimb', etc.
         customer_details: Optional[Dict[str, Any]] = None,
         item_details: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create Virtual Account payment.
         
+        NOTE: For Mandiri Bill Payment, use charge_mandiri_bill() instead.
+        Midtrans uses payment_type 'echannel' for Mandiri, not 'bank_transfer'.
+        
         Args:
             order_id: Unique order identifier
             gross_amount: Total amount in IDR
-            bank: Bank code ('bca', 'bni', 'mandiri', 'permata', 'bri', 'bsi')
+            bank: Bank code ('bca', 'bni', 'permata', 'bri', 'bsi', 'cimb')
             customer_details: Customer information
             item_details: List of purchased items
             
@@ -252,10 +274,56 @@ class MidtransClient:
             "payment_type": "bank_transfer",
             "transaction_details": {
                 "order_id": order_id,
-                "gross_amount": gross_amount,
+                "gross_amount": int(gross_amount),
             },
             "bank_transfer": {
                 "bank": bank,
+            }
+        }
+        
+        if customer_details:
+            payload["customer_details"] = customer_details
+        
+        if item_details:
+            payload["item_details"] = item_details
+        
+        return self._make_request("POST", "charge", payload, order_id)
+    
+    def charge_mandiri_bill(
+        self,
+        order_id: str,
+        gross_amount: int,
+        bill_info1: str = "Payment For:",
+        bill_info2: str = "Online Purchase",
+        customer_details: Optional[Dict[str, Any]] = None,
+        item_details: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create Mandiri Bill Payment (echannel).
+        
+        Mandiri uses a different payment_type 'echannel' instead of 'bank_transfer'.
+        Response returns biller_code and bill_key instead of va_numbers.
+        
+        Args:
+            order_id: Unique order identifier
+            gross_amount: Total amount in IDR
+            bill_info1: Label for bill info line 1
+            bill_info2: Label for bill info line 2
+            customer_details: Customer information
+            item_details: List of purchased items
+            
+        Returns:
+            dict: Payment response with biller_code and bill_key
+        """
+        payload = {
+            "payment_type": "echannel",
+            "transaction_details": {
+                "order_id": order_id,
+                "gross_amount": int(gross_amount),
+            },
+            "echannel": {
+                "bill_info1": bill_info1,
+                "bill_info2": bill_info2,
             }
         }
         
@@ -298,7 +366,7 @@ class MidtransClient:
             "payment_type": "gopay",
             "transaction_details": {
                 "order_id": order_id,
-                "gross_amount": gross_amount,
+                "gross_amount": int(gross_amount),
             },
             "gopay": gopay_data,
         }
@@ -340,7 +408,7 @@ class MidtransClient:
             "payment_type": "shopeepay",
             "transaction_details": {
                 "order_id": order_id,
-                "gross_amount": gross_amount,
+                "gross_amount": int(gross_amount),
             },
         }
         
@@ -359,6 +427,7 @@ class MidtransClient:
         self,
         order_id: str,
         gross_amount: int,
+        acquirer: str = "gopay",
         customer_details: Optional[Dict[str, Any]] = None,
         item_details: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
@@ -368,17 +437,21 @@ class MidtransClient:
         Args:
             order_id: Unique order identifier
             gross_amount: Total amount in IDR
+            acquirer: QRIS acquirer - 'gopay' (default) or 'airpay shopee'
             customer_details: Customer information
             item_details: List of purchased items
             
         Returns:
-            dict: Payment response with QR code string
+            dict: Payment response with QR code URL in actions array
         """
         payload = {
             "payment_type": "qris",
             "transaction_details": {
                 "order_id": order_id,
-                "gross_amount": gross_amount,
+                "gross_amount": int(gross_amount),
+            },
+            "qris": {
+                "acquirer": acquirer,
             },
         }
         

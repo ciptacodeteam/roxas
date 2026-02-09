@@ -1228,16 +1228,28 @@ class OrderViewSet(viewsets.ModelViewSet):
                     item_details=item_details,
                 )
             elif payment_method.type == 'BANK_TRANSFER':
-                # Extract bank code from midtrans_code (e.g., 'bca', 'bni', 'mandiri')
                 bank_code = payment_method.midtrans_code
-                payment_response = midtrans_client.charge_bank_transfer(
-                    order_id=order.order_number,
-                    gross_amount=order.total_amount,
-                    bank=bank_code,
-                    customer_details=customer_details,
-                    item_details=item_details,
-                )
+                # Mandiri uses payment_type 'echannel', not 'bank_transfer'
+                if bank_code.lower() in ('mandiri', 'echannel'):
+                    payment_response = midtrans_client.charge_mandiri_bill(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
+                else:
+                    payment_response = midtrans_client.charge_bank_transfer(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        bank=bank_code,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
             elif payment_method.type == 'E_WALLET':
+                # Build callback URL for redirect after payment
+                from django.conf import settings as django_settings
+                callback_url = f"{django_settings.FRONTEND_URL}/payment?order_id={order.order_number}"
+                
                 # Handle different e-wallets
                 if 'gopay' in payment_method.midtrans_code.lower():
                     payment_response = midtrans_client.charge_gopay(
@@ -1245,6 +1257,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
+                        callback_url=callback_url,
                     )
                 elif 'shopeepay' in payment_method.midtrans_code.lower():
                     payment_response = midtrans_client.charge_shopeepay(
@@ -1252,6 +1265,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
+                        callback_url=callback_url,
                     )
             else:
                 # Default to QRIS for unsupported types
@@ -1264,6 +1278,24 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             # Create Payment record
             if payment_response:
+                # Log the raw Midtrans response for debugging
+                import json as _json
+                raw_keys = list(payment_response.keys()) if isinstance(payment_response, dict) else []
+                print(
+                    f"[MIDTRANS_RESPONSE] Order {order.order_number} | "
+                    f"Keys: {raw_keys} | "
+                    f"transaction_id={payment_response.get('transaction_id')} | "
+                    f"status_code={payment_response.get('status_code')} | "
+                    f"payment_type={payment_response.get('payment_type')} | "
+                    f"actions={payment_response.get('actions')} | "
+                    f"va_numbers={payment_response.get('va_numbers')} | "
+                    f"permata_va_number={payment_response.get('permata_va_number')} | "
+                    f"biller_code={payment_response.get('biller_code')} | "
+                    f"bill_key={payment_response.get('bill_key')} | "
+                    f"qr_string={payment_response.get('qr_string')}",
+                    file=sys.stderr, flush=True
+                )
+                
                 # Extract VA number with multiple fallbacks
                 va_number = None
                 if payment_response.get('va_numbers'):
@@ -1299,11 +1331,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if not qris_string and payment_response.get('qr_string'):
                     qris_string = payment_response.get('qr_string')
                 
-                # Extract deeplink
+                # Extract deeplink (only 'deeplink-redirect', NOT 'generate-qr-code')
+                # GoPay returns both actions; 'generate-qr-code' is the QR URL, not a deeplink
                 deeplink_url = None
                 if payment_response.get('actions'):
                     for action in payment_response.get('actions', []):
-                        if action.get('name') in ['deeplink-redirect', 'generate-qr-code']:
+                        if action.get('name') == 'deeplink-redirect':
                             deeplink_url = action.get('url')
                             break
                 
