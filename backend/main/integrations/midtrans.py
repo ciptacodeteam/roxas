@@ -643,7 +643,7 @@ class MidtransClient:
 
 
 # =============================================================================
-# SINGLETON CLIENT
+# SINGLETON CLIENT (recreated if settings change, e.g. env fix in production)
 # =============================================================================
 
 _midtrans_client = None
@@ -651,14 +651,19 @@ _midtrans_client = None
 
 def get_midtrans_client() -> MidtransClient:
     """
-    Get singleton Midtrans client instance.
-    
-    Returns:
-        MidtransClient: Shared client instance
+    Get Midtrans client instance. Uses cached client only if settings match,
+    so production env (MIDTRANS_IS_PRODUCTION, MIDTRANS_SERVER_KEY) is always
+    respected after restart or env change.
     """
     global _midtrans_client
-    
+    current_production = getattr(settings, 'MIDTRANS_PRODUCTION', False)
+    current_server_key = getattr(settings, 'MIDTRANS_SERVER_KEY', None) or ""
+
+    if _midtrans_client is not None:
+        if _midtrans_client.is_production != current_production or _midtrans_client.server_key != current_server_key:
+            _midtrans_client = None
+
     if _midtrans_client is None:
         _midtrans_client = MidtransClient()
-    
+
     return _midtrans_client

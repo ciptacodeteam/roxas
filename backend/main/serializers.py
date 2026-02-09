@@ -447,15 +447,27 @@ class MarketingBannerSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model."""
     user_email = serializers.CharField(source='user.email', read_only=True)
+    user_name = serializers.SerializerMethodField()
     product_item = ProductItemSerializer(read_only=True)
     payment_method = PaymentMethodPublicSerializer(read_only=True)
     payment = serializers.SerializerMethodField()
     digiflazz_transaction = serializers.SerializerMethodField()
+
+    def get_user_name(self, obj):
+        """Display name from CustomerProfile or StaffProfile, else None."""
+        user = obj.user
+        if not user:
+            return None
+        if hasattr(user, 'customer_profile') and user.customer_profile:
+            return getattr(user.customer_profile, 'full_name', None) or None
+        if hasattr(user, 'staff_profile') and user.staff_profile:
+            return getattr(user.staff_profile, 'full_name', None) or None
+        return None
     
     class Meta:
         model = Order
         fields = [
-            'id', 'order_number', 'user', 'user_email', 'product_item',
+            'id', 'order_number', 'user', 'user_email', 'user_name', 'product_item',
             'customer_data', 'original_price', 'final_price',
             'payment_fee', 'vat_amount', 'total_amount', 'payment_method',
             'payment_expires_at', 'status', 'payment', 'digiflazz_transaction',

@@ -26,6 +26,7 @@ from .models import (
     FlashSaleItem,
     MarketingBanner,
     Order,
+    OrderStatus,
     Payment,
     DigiflazzTransaction,
     DigiflazzAccountCheck,
@@ -1443,10 +1444,12 @@ class OrderViewSet(viewsets.ModelViewSet):
 class AdminOrderViewSet(viewsets.ModelViewSet):
     """
     Admin API for managing all orders.
-    Full access to all orders with additional actions.
+    Status is driven solely by Digiflazz and Midtrans webhooks.
+    Admin can only cancel (expire) unpaid PENDING orders.
     """
     queryset = Order.objects.all().select_related(
-        'user', 'product_item', 'payment_method'
+        'user', 'user__customer_profile', 'user__staff_profile',
+        'product_item', 'payment_method'
     ).order_by('-created_at')
     serializer_class = OrderSerializer
     permission_classes = [IsAdminOnly]
@@ -1454,7 +1457,40 @@ class AdminOrderViewSet(viewsets.ModelViewSet):
     search_fields = ['order_number', 'user__email']
     filterset_fields = ['status', 'payment_method', 'product_item__product']
     ordering_fields = ['created_at', 'total_amount', 'status']
-    
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                'error': 'Order status cannot be changed manually. '
+                         'Status is updated by Digiflazz and Midtrans. Use the Cancel action for unpaid orders.',
+                'detail': 'Use POST /api/v1/admin/orders/{id}/cancel/ to cancel a PENDING order.',
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """
+        Cancel an unpaid order (set status to EXPIRED).
+        Only allowed when order status is PENDING.
+        """
+        order = self.get_object()
+        if order.status != OrderStatus.PENDING:
+            return Response(
+                {
+                    'error': 'Only PENDING (unpaid) orders can be cancelled. '
+                             'Other statuses are set by Digiflazz and Midtrans.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        order.status = OrderStatus.EXPIRED
+        order.save(update_fields=['status', 'updated_at'])
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['post'])
     def refund(self, request, pk=None):
         """Initiate refund for an order."""

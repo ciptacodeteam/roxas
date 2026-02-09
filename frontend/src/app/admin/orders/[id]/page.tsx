@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Loader2, Save, Package, User, CreditCard, Calendar, CheckCircle2 } from "lucide-react";
+import { Loader2, Package, User, CreditCard, Calendar, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { BackButton } from "@/components/admin/back-button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminHeader } from "@/components/admin-header";
@@ -14,16 +12,8 @@ import {
 } from "@/components/ui/sidebar";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useAdminOrder, useUpdateOrder } from "@/lib/queries";
+import { useAdminOrder, useCancelOrder } from "@/lib/queries";
 import { formatDateTime } from "@/lib/date-utils";
 
 export default function OrderEditPage() {
@@ -31,26 +21,15 @@ export default function OrderEditPage() {
   const params = useParams();
   const orderId = params?.id as string;
 
-  const [saving, setSaving] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-
   const { data: orderData, isLoading: loading, error } = useAdminOrder(orderId);
 
-  useEffect(() => {
-    if (orderData) {
-      // Backend returns snake_case fields
-      setSelectedStatus(String(orderData.status || ""));
-    }
-  }, [orderData]);
-
-  const updateOrderMutation = useUpdateOrder({
+  const cancelOrderMutation = useCancelOrder({
     onSuccess: () => {
-      toast.success("Order status updated successfully");
+      toast.success("Order cancelled");
       router.push("/admin/orders");
     },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update order status");
-      setSaving(false);
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel order");
     },
   });
 
@@ -67,6 +46,28 @@ export default function OrderEditPage() {
     return colors[status] || "bg-gray-600/20 text-gray-400";
   };
 
+  const getPaymentStatusColor = (status: string) => {
+    if (!status) return "bg-gray-600/20 text-gray-400";
+    const s = String(status).toUpperCase();
+    const colors: Record<string, string> = {
+      PENDING: "bg-yellow-600/20 text-yellow-400",
+      SETTLEMENT: "bg-green-600/20 text-green-400",
+      SUCCESS: "bg-green-600/20 text-green-400",
+      CAPTURE: "bg-green-600/20 text-green-400",
+      EXPIRE: "bg-gray-600/20 text-gray-400",
+      EXPIRED: "bg-gray-600/20 text-gray-400",
+      CANCEL: "bg-orange-600/20 text-orange-400",
+      CANCELLED: "bg-orange-600/20 text-orange-400",
+      DENY: "bg-red-600/20 text-red-400",
+      DENIED: "bg-red-600/20 text-red-400",
+      REFUND: "bg-orange-600/20 text-orange-400",
+      REFUNDED: "bg-orange-600/20 text-orange-400",
+      FAILURE: "bg-red-600/20 text-red-400",
+      FAILED: "bg-red-600/20 text-red-400",
+    };
+    return colors[s] || "bg-gray-600/20 text-gray-400";
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -75,24 +76,8 @@ export default function OrderEditPage() {
     }).format(price);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedStatus) {
-      toast.error("Status is required");
-      return;
-    }
-
-    setSaving(true);
-    updateOrderMutation.mutate(
-      { id: orderId, data: { status: selectedStatus } },
-      {
-        onSettled: () => {
-          setSaving(false);
-        },
-      }
-    );
-  };
+  const isCancellable = orderData?.status === "PENDING";
+  const cancelling = cancelOrderMutation.isPending;
 
   if (loading) {
     return (
@@ -164,16 +149,16 @@ export default function OrderEditPage() {
                 <div className="mb-6">
                   <BackButton href="/admin/orders" label="Back to Orders" />
                   <div>
-                    <h1 className="text-3xl font-bold">Edit Order</h1>
+                    <h1 className="text-3xl font-bold">Order details</h1>
                     <p className="mt-2 text-gray-400">
-                      View order details and update status
+                      View order details. Status is set by Digiflazz and Midtrans; admin can only cancel unpaid orders.
                     </p>
                   </div>
                 </div>
 
                 {/* Main Content - Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column - Status Update Form */}
+                  {/* Left Column - Order Info + Cancel (admin can only cancel; status from Digiflazz/Midtrans) */}
                   <div className="lg:col-span-2">
                     <Card className="bg-gray-900 border-gray-800">
                       <CardHeader>
@@ -182,91 +167,38 @@ export default function OrderEditPage() {
                           Order Information
                         </CardTitle>
                         <CardDescription>
-                          Update order status
+                          Status is set by Digiflazz and Midtrans. You can only cancel unpaid (PENDING) orders.
                         </CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                          {/* Order Number */}
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                              <Package className="h-4 w-4" />
-                              Order Number
-                            </Label>
-                            <div className="text-sm text-gray-200 font-mono bg-gray-800 px-3 py-2 rounded-md">
-                              {orderData.order_number}
-                            </div>
+                      <CardContent className="space-y-6">
+                        <div className="space-y-2">
+                          <span className="text-sm text-gray-400">Order Number</span>
+                          <div className="text-sm text-gray-200 font-mono bg-gray-800 px-3 py-2 rounded-md">
+                            {orderData.order_number}
                           </div>
-
-                          {/* Status Update */}
-                          <div className="space-y-2">
-                            <Label htmlFor="status" className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Status <span className="text-red-400">*</span>
-                            </Label>
-                            <Select 
-                              value={selectedStatus || undefined} 
-                              onValueChange={(value) => {
-                                if (!value?.trim()) return;
-                                setSelectedStatus(value);
-                              }}
-                            >
-                              <SelectTrigger className="bg-gray-800 text-gray-100 border-gray-700">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
-                                <SelectItem value="PENDING" className="hover:bg-gray-700">
-                                  PENDING
-                                </SelectItem>
-                                <SelectItem value="PAID" className="hover:bg-gray-700">
-                                  PAID
-                                </SelectItem>
-                                <SelectItem value="PROCESSING" className="hover:bg-gray-700">
-                                  PROCESSING
-                                </SelectItem>
-                                <SelectItem value="COMPLETED" className="hover:bg-gray-700">
-                                  COMPLETED
-                                </SelectItem>
-                                <SelectItem value="FAILED" className="hover:bg-gray-700">
-                                  FAILED
-                                </SelectItem>
-                                <SelectItem value="REFUNDED" className="hover:bg-gray-700">
-                                  REFUNDED
-                                </SelectItem>
-                                <SelectItem value="EXPIRED" className="hover:bg-gray-700">
-                                  EXPIRED
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <Separator className="bg-gray-700" />
-
-                          {/* Submit Button */}
-                          <div className="flex justify-end gap-3">
+                        </div>
+                        {isCancellable && (
+                          <div className="flex justify-end">
                             <Button
                               type="button"
-                              variant="outline"
-                              onClick={() => router.push("/admin/orders")}
-                              disabled={saving}
+                              variant="destructive"
+                              onClick={() => cancelOrderMutation.mutate(orderId)}
+                              disabled={cancelling}
                             >
-                              Cancel
-                            </Button>
-                            <Button type="submit" disabled={saving}>
-                              {saving ? (
+                              {cancelling ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Saving...
+                                  Cancelling...
                                 </>
                               ) : (
                                 <>
-                                  <Save className="mr-2 h-4 w-4" />
-                                  Update Status
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Cancel order
                                 </>
                               )}
                             </Button>
                           </div>
-                        </form>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -301,16 +233,35 @@ export default function OrderEditPage() {
                           <User className="h-5 w-5" />
                           Customer
                         </CardTitle>
+                        <CardDescription>
+                          Account and product-specific data (e.g. game ID, server, phone)
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div>
-                          <span className="text-xs text-gray-400">Email</span>
-                          <p className="text-sm text-gray-200">{orderData.user_email || orderData.user?.email}</p>
-                        </div>
-                        {orderData.user?.name && (
+                        {(orderData.user_name ?? orderData.user?.name) != null && (orderData.user_name ?? orderData.user?.name) !== "" && (
                           <div>
                             <span className="text-xs text-gray-400">Name</span>
-                            <p className="text-sm text-gray-200">{orderData.user.name}</p>
+                            <p className="text-sm text-gray-200">{orderData.user_name ?? orderData.user?.name}</p>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-xs text-gray-400">Email</span>
+                          <p className="text-sm text-gray-200">{orderData.user_email ?? orderData.user?.email ?? "-"}</p>
+                        </div>
+                        {/* Order customer_data: product-specific (userId, serverId, phoneNumber, etc.) */}
+                        {orderData.customer_data != null && typeof orderData.customer_data === "object" && Object.keys(orderData.customer_data).length > 0 && (
+                          <div className="space-y-2 pt-2 border-t border-gray-700">
+                            <span className="text-xs text-gray-400">Product / order data</span>
+                            <div className="rounded-md bg-gray-800/50 p-3 space-y-2">
+                              {Object.entries(orderData.customer_data).map(([key, value]) => (
+                                <div key={key} className="flex flex-wrap gap-x-2 gap-y-0">
+                                  <span className="text-xs text-gray-500 font-mono">{key}</span>
+                                  <span className="text-sm text-gray-200">
+                                    {value == null ? "-" : String(value)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </CardContent>
@@ -327,22 +278,22 @@ export default function OrderEditPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <span className="text-xs text-gray-400">Product</span>
-                          <p className="text-sm text-gray-200">{orderData.product_item.product.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item?.product?.name ?? "-"}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Item</span>
-                          <p className="text-sm text-gray-200">{orderData.product_item.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item?.name ?? "-"}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Category</span>
-                          <p className="text-sm text-gray-200">{orderData.product_item.product.category.name}</p>
+                          <p className="text-sm text-gray-200">{orderData.product_item?.product?.category?.name ?? "-"}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-400">Price</span>
                           <p className="text-sm text-gray-200 font-semibold">
-                            {formatPrice(orderData.final_price)}
+                            {formatPrice(orderData.final_price ?? orderData.total_amount ?? 0)}
                           </p>
-                          {orderData.original_price !== orderData.final_price && (
+                          {orderData.original_price != null && orderData.original_price !== (orderData.final_price ?? orderData.total_amount) && (
                             <p className="text-xs text-gray-400 line-through">
                               {formatPrice(orderData.original_price)}
                             </p>
@@ -369,7 +320,14 @@ export default function OrderEditPage() {
                           )}
                           <div>
                             <span className="text-xs text-gray-400">Status</span>
-                            <p className="text-sm text-gray-200">{orderData.payment.status || "-"}</p>
+                            <div className="mt-1">
+                              <Badge
+                                variant="default"
+                                className={getPaymentStatusColor(orderData.payment.status)}
+                              >
+                                {orderData.payment.status || "-"}
+                              </Badge>
+                            </div>
                           </div>
                           <div>
                             <span className="text-xs text-gray-400">Amount</span>
