@@ -91,6 +91,7 @@ class Command(BaseCommand):
                 'midtrans_code': 'gopay',
             },
             # E-Wallet - ShopeePay - 2% (VAT included)
+            # NOTE: Currently NOT activated in Midtrans production
             {
                 'type': PaymentMethodType.E_WALLET,
                 'name': 'ShopeePay',
@@ -100,10 +101,11 @@ class Command(BaseCommand):
                 'fee_value': 2.0,
                 'vat_type': FeeType.PERCENTAGE,
                 'vat_value': 0,
-                'is_active': True,
+                'is_active': False,  # Disabled - not activated in Midtrans production
                 'midtrans_code': 'shopeepay',
             },
             # Credit Card - 2.9% + IDR 2,000 (VAT applies)
+            # NOTE: Currently NOT activated in Midtrans production
             {
                 'type': PaymentMethodType.CREDIT_CARD,
                 'name': 'Kartu Kredit',
@@ -113,10 +115,11 @@ class Command(BaseCommand):
                 'fee_value': 2.9,
                 'vat_type': FeeType.PERCENTAGE,
                 'vat_value': 11,  # 11% VAT on fee
-                'is_active': True,
+                'is_active': False,  # Disabled - not activated in Midtrans production
                 'midtrans_code': 'credit_card',
             },
             # Mobile Banking - BCA - IDR 4,000 (VAT applies)
+            # NOTE: Currently NOT activated in Midtrans production
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
                 'name': 'BCA Virtual Account',
@@ -126,7 +129,7 @@ class Command(BaseCommand):
                 'fee_value': 4000,
                 'vat_type': FeeType.PERCENTAGE,
                 'vat_value': 11,
-                'is_active': True,
+                'is_active': False,  # Disabled - not activated in Midtrans production
                 'midtrans_code': 'bca',
             },
             # Mobile Banking - BNI - IDR 4,000 (VAT applies)
@@ -195,6 +198,7 @@ class Command(BaseCommand):
                 'midtrans_code': 'bsi',
             },
             # Mobile Banking - Danamon - IDR 4,000 (VAT applies)
+            # NOTE: Currently NOT activated in Midtrans production
             {
                 'type': PaymentMethodType.MOBILE_BANKING,
                 'name': 'Danamon Virtual Account',
@@ -204,7 +208,7 @@ class Command(BaseCommand):
                 'fee_value': 4000,
                 'vat_type': FeeType.PERCENTAGE,
                 'vat_value': 11,
-                'is_active': True,
+                'is_active': False,  # Disabled - not activated in Midtrans production
                 'midtrans_code': 'danamon',
             },
             # Mobile Banking - CIMB - IDR 4,000 (VAT applies)

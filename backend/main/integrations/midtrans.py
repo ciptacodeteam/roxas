@@ -468,17 +468,21 @@ class MidtransClient:
         self,
         order_id: str,
         gross_amount: int,
-        acquirer: str = "gopay",
+        acquirer: Optional[str] = None,
         customer_details: Optional[Dict[str, Any]] = None,
         item_details: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create QRIS payment.
         
+        For standard QRIS (QRIS Dinamis GoPay), omit the acquirer parameter.
+        Only specify acquirer if you need a specific acquirer like 'airpay shopee'.
+        
         Args:
             order_id: Unique order identifier
             gross_amount: Total amount in IDR
-            acquirer: QRIS acquirer - 'gopay' (default) or 'airpay shopee'
+            acquirer: QRIS acquirer (optional) - 'gopay' or 'airpay shopee'
+                     If None, uses default QRIS without acquirer specification
             customer_details: Customer information
             item_details: List of purchased items
             
@@ -491,10 +495,14 @@ class MidtransClient:
                 "order_id": order_id,
                 "gross_amount": int(gross_amount),
             },
-            "qris": {
-                "acquirer": acquirer,
-            },
         }
+        
+        # Only include acquirer if explicitly specified
+        # For standard QRIS Dinamis GoPay, omit this parameter
+        if acquirer:
+            payload["qris"] = {
+                "acquirer": acquirer,
+            }
         
         if customer_details:
             payload["customer_details"] = customer_details
