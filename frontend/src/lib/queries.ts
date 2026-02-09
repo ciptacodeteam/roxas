@@ -145,17 +145,28 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    const error = await response.json().catch(() => ({}));
+    const message =
+      error.detail ||
+      error.message ||
+      (typeof error.error?.message === "string" ? error.error.message : null) ||
+      `HTTP error! status: ${response.status}`;
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
 
   const data = await response.json();
 
-  if (!data.success) {
-    throw new Error(data.message || "Request failed");
+  // Django REST Framework paginated format: { count, next, previous, results }
+  if (Array.isArray(data.results)) {
+    return data.results as T;
   }
 
-  return data.data || data;
+  // Standard format: { success, data?, message? }
+  if (data.success === false) {
+    throw new Error(data.message || data.error?.message || "Request failed");
+  }
+
+  return (data.data !== undefined ? data.data : data) as T;
 }
 
 // ============================================
@@ -1076,20 +1087,20 @@ export function useDeleteMarketingBanner(
 }
 
 // Orders Mutations
-export function useUpdateOrder(
-  options?: Omit<UseMutationOptions<any, Error, { id: string; data: any }>, "mutationFn">
+export function useCancelOrder(
+  options?: Omit<UseMutationOptions<any, Error, string>, "mutationFn">
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return fetchJSON<any>(`/api/admin/orders/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
+    mutationFn: async (orderId: string) => {
+      return fetchJSON<any>(`/api/v1/admin/orders/${orderId}/cancel/`, {
+        method: "POST",
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, orderId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     ...options,

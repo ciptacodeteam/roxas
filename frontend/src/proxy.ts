@@ -34,7 +34,7 @@ async function getSession(request: NextRequest) {
   }
 }
 
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Skip locale handling for admin routes - they don't need localization

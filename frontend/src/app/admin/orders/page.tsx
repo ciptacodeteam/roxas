@@ -76,6 +76,41 @@ export default function OrdersPage() {
     return colors[status] || "bg-gray-600/20 text-gray-400";
   };
 
+  const getPaymentStatusColor = (status: string) => {
+    if (!status) return "bg-gray-600/20 text-gray-400";
+    const s = String(status).toUpperCase();
+    const colors: Record<string, string> = {
+      PENDING: "bg-yellow-600/20 text-yellow-400",
+      SETTLEMENT: "bg-green-600/20 text-green-400",
+      SUCCESS: "bg-green-600/20 text-green-400",
+      CAPTURE: "bg-green-600/20 text-green-400",
+      EXPIRE: "bg-gray-600/20 text-gray-400",
+      EXPIRED: "bg-gray-600/20 text-gray-400",
+      CANCEL: "bg-orange-600/20 text-orange-400",
+      CANCELLED: "bg-orange-600/20 text-orange-400",
+      DENY: "bg-red-600/20 text-red-400",
+      DENIED: "bg-red-600/20 text-red-400",
+      REFUND: "bg-orange-600/20 text-orange-400",
+      REFUNDED: "bg-orange-600/20 text-orange-400",
+      FAILURE: "bg-red-600/20 text-red-400",
+      FAILED: "bg-red-600/20 text-red-400",
+    };
+    return colors[s] || "bg-gray-600/20 text-gray-400";
+  };
+
+  const getDigiflazzStatusColor = (status: string) => {
+    if (!status) return "bg-gray-600/20 text-gray-400";
+    const s = String(status).toUpperCase();
+    const colors: Record<string, string> = {
+      PENDING: "bg-yellow-600/20 text-yellow-400",
+      SUKSES: "bg-green-600/20 text-green-400",
+      SUCCESS: "bg-green-600/20 text-green-400",
+      GAGAL: "bg-red-600/20 text-red-400",
+      FAILED: "bg-red-600/20 text-red-400",
+    };
+    return colors[s] || "bg-gray-600/20 text-gray-400";
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -111,16 +146,19 @@ export default function OrdersPage() {
         ),
       },
       {
-        accessorKey: "user",
+        accessorKey: "user_email",
         header: "Customer",
         cell: ({ row }) => {
-          const user = row.original.user;
+          const email = row.original.user_email ?? row.original.user?.email;
+          const name = row.original.user_name ?? row.original.user?.name;
           return (
             <div>
-              <div className="font-medium">{user.email}</div>
-              {user.name && (
-                <div className="text-sm text-gray-400">{user.name}</div>
+              {name != null && name !== "" && (
+                <div className="font-medium">{name}</div>
               )}
+              <div className={name ? "text-sm text-gray-400" : "font-medium"}>
+                {email ?? "-"}
+              </div>
             </div>
           );
         },
@@ -197,13 +235,34 @@ export default function OrdersPage() {
         cell: ({ row }) => {
           const payment = row.original.payment;
           if (!payment) return <span className="text-gray-400">-</span>;
+          const payStatus = payment.status || "-";
           return (
-            <div>
-              <div className="text-sm">{payment.status || "-"}</div>
+            <div className="space-y-1">
+              <span
+                className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getPaymentStatusColor(payStatus)}`}
+              >
+                {payStatus}
+              </span>
               {payment.payment_method && (
                 <div className="text-xs text-gray-400">{payment.payment_method.name}</div>
               )}
             </div>
+          );
+        },
+      },
+      {
+        accessorKey: "digiflazz_transaction",
+        header: "Digiflazz",
+        cell: ({ row }) => {
+          const df = row.original.digiflazz_transaction;
+          if (!df) return <span className="text-gray-400">-</span>;
+          const dfStatus = df.status || "-";
+          return (
+            <span
+              className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getDigiflazzStatusColor(dfStatus)}`}
+            >
+              {dfStatus}
+            </span>
           );
         },
       },
@@ -274,12 +333,14 @@ export default function OrdersPage() {
     globalFilterFn: (row, columnId, filterValue) => {
       const order = row.original;
       const searchLower = filterValue.toLowerCase();
+      const email = order.user_email ?? order.user?.email ?? "";
+      const name = order.user_name ?? order.user?.name ?? "";
       return (
-        order.order_number.toLowerCase().includes(searchLower) ||
-        order.user.email.toLowerCase().includes(searchLower) ||
-        (order.user.name && order.user.name.toLowerCase().includes(searchLower)) ||
-        order.product_item.product.name.toLowerCase().includes(searchLower) ||
-        order.product_item.name.toLowerCase().includes(searchLower)
+        (order.order_number ?? "").toLowerCase().includes(searchLower) ||
+        email.toLowerCase().includes(searchLower) ||
+        name.toLowerCase().includes(searchLower) ||
+        (order.product_item?.product?.name ?? "").toLowerCase().includes(searchLower) ||
+        (order.product_item?.name ?? "").toLowerCase().includes(searchLower)
       );
     },
   });
@@ -338,7 +399,7 @@ export default function OrdersPage() {
                 </div>
 
                 {loading ? (
-                  <TableSkeleton columns={8} rows={10} />
+                  <TableSkeleton columns={9} rows={10} />
                 ) : table.getFilteredRowModel().rows.length === 0 ? (
                   <EmptyState
                     icon={PackageSearch}

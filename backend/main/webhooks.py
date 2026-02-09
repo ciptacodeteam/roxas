@@ -552,15 +552,22 @@ def handle_midtrans_notification(notification: dict) -> str:
 @csrf_exempt
 def midtrans_webhook_ping(request):
     """
-    Endpoint untuk test webhook dari Midtrans
-    
-    URL Configuration:
-        path('webhooks/midtrans/ping/', midtrans_webhook_ping, name='midtrans_webhook_ping'),
+    Endpoint untuk test webhook dari Midtrans.
+    GET returns config (no secrets) so you can verify production vs sandbox.
     """
+    from django.conf import settings
     logger.info(f"Midtrans webhook ping from IP: {get_client_ip(request)}")
-    
+
+    # Expose mode and API URL so production can verify env (no secrets)
+    is_production = getattr(settings, 'MIDTRANS_PRODUCTION', False)
+    api_url = "https://api.midtrans.com/v2" if is_production else "https://api.sandbox.midtrans.com/v2"
+    server_key_set = bool(getattr(settings, 'MIDTRANS_SERVER_KEY', ''))
+
     return JsonResponse({
         'status': 'ok',
         'message': 'Midtrans webhook endpoint is working',
-        'timestamp': timezone.now().isoformat()
+        'timestamp': timezone.now().isoformat(),
+        'midtrans_mode': 'production' if is_production else 'sandbox',
+        'midtrans_api_url': api_url,
+        'server_key_configured': server_key_set,
     })
