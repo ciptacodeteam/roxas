@@ -569,8 +569,11 @@ export default function ProductDetailClient({
       (field: any) => field.name === "serverId" || field.name === "zoneId",
     ) || false;
 
-  // Use API field to determine if product supports verification
-  const supportsVerification = productData?.supports_validation || false;
+  // Only require verification when:
+  // - Backend explicitly marks the product as supporting validation, AND
+  // - The product actually has the ID fields needed for validation
+  const supportsVerification =
+    !!productData?.supports_validation && hasUserIdField && hasServerField;
 
   // Check if all required fields are filled
   const areRequiredFieldsFilled = () => {
@@ -2564,7 +2567,7 @@ export default function ProductDetailClient({
                         }
 
                         // Validate account verification if required
-                        if (productData?.supports_validation && !isVerified) {
+                        if (supportsVerification && !isVerified) {
                           toast.error("Verifikasi Diperlukan", {
                             description: "Silakan verifikasi akun Anda terlebih dahulu",
                           });
