@@ -250,20 +250,23 @@ class MidtransClient:
         self,
         order_id: str,
         gross_amount: int,
-        bank: str,  # 'bca', 'bni', 'permata', 'bri', 'bsi', 'cimb', etc.
+        bank: str,  # 'bca', 'bni', 'bri', 'bsi', 'cimb', etc.
         customer_details: Optional[Dict[str, Any]] = None,
         item_details: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create Virtual Account payment.
         
-        NOTE: For Mandiri Bill Payment, use charge_mandiri_bill() instead.
-        Midtrans uses payment_type 'echannel' for Mandiri, not 'bank_transfer'.
+        NOTE: 
+        - For Mandiri Bill Payment, use charge_mandiri_bill() instead.
+          Midtrans uses payment_type 'echannel' for Mandiri, not 'bank_transfer'.
+        - For Permata Virtual Account, use charge_permata() instead.
+          Permata uses payment_type 'permata' directly, not 'bank_transfer'.
         
         Args:
             order_id: Unique order identifier
             gross_amount: Total amount in IDR
-            bank: Bank code ('bca', 'bni', 'permata', 'bri', 'bsi', 'cimb')
+            bank: Bank code ('bca', 'bni', 'bri', 'bsi', 'cimb', 'danamon')
             customer_details: Customer information
             item_details: List of purchased items
             
@@ -325,6 +328,44 @@ class MidtransClient:
                 "bill_info1": bill_info1,
                 "bill_info2": bill_info2,
             }
+        }
+        
+        if customer_details:
+            payload["customer_details"] = customer_details
+        
+        if item_details:
+            payload["item_details"] = item_details
+        
+        return self._make_request("POST", "charge", payload, order_id)
+    
+    def charge_permata(
+        self,
+        order_id: str,
+        gross_amount: int,
+        customer_details: Optional[Dict[str, Any]] = None,
+        item_details: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create Permata Virtual Account payment.
+        
+        Permata uses payment_type 'permata' directly, not 'bank_transfer' with bank parameter.
+        Response returns permata_va_number instead of va_numbers array.
+        
+        Args:
+            order_id: Unique order identifier
+            gross_amount: Total amount in IDR
+            customer_details: Customer information
+            item_details: List of purchased items
+            
+        Returns:
+            dict: Payment response with permata_va_number
+        """
+        payload = {
+            "payment_type": "permata",
+            "transaction_details": {
+                "order_id": order_id,
+                "gross_amount": int(gross_amount),
+            },
         }
         
         if customer_details:

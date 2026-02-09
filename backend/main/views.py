@@ -1228,16 +1228,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                     item_details=item_details,
                 )
             elif payment_method.type == 'BANK_TRANSFER':
-                bank_code = payment_method.midtrans_code
+                bank_code = payment_method.midtrans_code.lower()
                 # Mandiri uses payment_type 'echannel', not 'bank_transfer'
-                if bank_code.lower() in ('mandiri', 'echannel'):
+                if bank_code in ('mandiri', 'echannel'):
                     payment_response = midtrans_client.charge_mandiri_bill(
                         order_id=order.order_number,
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
                     )
+                # Permata uses payment_type 'permata' directly, not 'bank_transfer'
+                elif bank_code == 'permata':
+                    payment_response = midtrans_client.charge_permata(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
                 else:
+                    # Standard bank transfer (BCA, BNI, BRI, CIMB, BSI, Danamon)
                     payment_response = midtrans_client.charge_bank_transfer(
                         order_id=order.order_number,
                         gross_amount=order.total_amount,
@@ -1267,6 +1276,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                         item_details=item_details,
                         callback_url=callback_url,
                     )
+            elif payment_method.type == 'CREDIT_CARD':
+                # Credit card requires card_token from frontend (Midtrans.js token)
+                card_token = self.request.data.get('card_token')
+                if not card_token:
+                    raise ValueError(
+                        "Credit card payment requires 'card_token' parameter. "
+                        "Please provide the card token from Midtrans.js in the request."
+                    )
+                payment_response = midtrans_client.charge_credit_card(
+                    order_id=order.order_number,
+                    gross_amount=order.total_amount,
+                    card_token=card_token,
+                    customer_details=customer_details,
+                    item_details=item_details,
+                )
             else:
                 # Default to QRIS for unsupported types
                 payment_response = midtrans_client.charge_qris(
