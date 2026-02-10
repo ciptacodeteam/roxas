@@ -1221,12 +1221,31 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             
             if payment_method.type == 'QRIS':
-                payment_response = midtrans_client.charge_qris(
-                    order_id=order.order_number,
-                    gross_amount=order.total_amount,
-                    customer_details=customer_details,
-                    item_details=item_details,
-                )
+                # Try QRIS first; if 402 (channel not activated for Core API), use GoPay
+                # GoPay returns a QR code (QRIS-compatible) and is often activated when "QRIS Dinamis GoPay" is on
+                try:
+                    payment_response = midtrans_client.charge_qris(
+                        order_id=order.order_number,
+                        gross_amount=order.total_amount,
+                        customer_details=customer_details,
+                        item_details=item_details,
+                    )
+                except MidtransException as e:
+                    if "402" in str(e) or "not activated" in str(e).lower():
+                        logger.warning(
+                            f"QRIS returned 402 for Core API; using GoPay (QRIS-compatible QR) for order {order.order_number}"
+                        )
+                        from django.conf import settings as django_settings
+                        callback_url = f"{django_settings.FRONTEND_URL}/payment?order_id={order.order_number}"
+                        payment_response = midtrans_client.charge_gopay(
+                            order_id=order.order_number,
+                            gross_amount=order.total_amount,
+                            customer_details=customer_details,
+                            item_details=item_details,
+                            callback_url=callback_url,
+                        )
+                    else:
+                        raise
             elif payment_method.type == 'BANK_TRANSFER':
                 bank_code = payment_method.midtrans_code.lower()
                 # Mandiri uses payment_type 'echannel', not 'bank_transfer'
@@ -1332,17 +1351,17 @@ class OrderViewSet(viewsets.ModelViewSet):
                     # Mandiri specific: biller_code + bill_key
                     va_number = f"{payment_response.get('biller_code')}{payment_response.get('bill_key', '')}"
                 
-                # Extract QRIS
+                # Extract QRIS (support both legacy and new QRIS Dinamis GoPay format per Midtrans blog)
+                # New design: use generate-qr-code-v2; legacy: generate-qr-code
                 qris_string = None
                 actions = payment_response.get('actions') or []
                 if actions:
-                    # Prefer the generate-qr-code action if available
                     qr_action = None
                     for action in actions:
-                        if action.get('name') == 'generate-qr-code' and action.get('url'):
+                        name = action.get('name')
+                        if name in ('generate-qr-code-v2', 'generate-qr-code') and action.get('url'):
                             qr_action = action
                             break
-                    # Fallback to the first action with a valid URL
                     if not qr_action:
                         for action in actions:
                             if action.get('url'):
@@ -1351,7 +1370,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                     if qr_action:
                         qris_string = qr_action.get('url')
                 
-                # Fallback to qr_string field if no URL-based QR was found
                 if not qris_string and payment_response.get('qr_string'):
                     qris_string = payment_response.get('qr_string')
                 
