@@ -1184,11 +1184,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 "phone": user_phone,
             }
             
-            # Prepare item details
+            # Prepare item details (cast to int — Decimal is NOT JSON serializable)
             item_details = [{
                 "id": str(order.product_item.id),
                 "name": order.product_item.name,
-                "price": order.final_price,
+                "price": int(order.final_price),
                 "quantity": 1,
             }]
             
@@ -1197,7 +1197,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 item_details.append({
                     "id": "payment_fee",
                     "name": f"Biaya {order.payment_method.name}",
-                    "price": order.payment_fee,
+                    "price": int(order.payment_fee),
                     "quantity": 1,
                 })
             
@@ -1206,7 +1206,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 item_details.append({
                     "id": "vat",
                     "name": "PPN",
-                    "price": order.vat_amount,
+                    "price": int(order.vat_amount),
                     "quantity": 1,
                 })
             
@@ -1221,28 +1221,34 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             
             if payment_method.type == 'QRIS':
-                # Try QRIS first; if 402 (channel not activated for Core API), use GoPay
-                # GoPay returns a QR code (QRIS-compatible) and is often activated when "QRIS Dinamis GoPay" is on
+                # "QRIS Dinamis GoPay" in Midtrans dashboard activates the GoPay channel,
+                # NOT the standalone QRIS channel. So we MUST use payment_type="gopay" first.
+                # GoPay returns QRIS-compatible QR codes via generate-qr-code / generate-qr-code-v2 actions.
+                # Only fall back to payment_type="qris" if GoPay is not activated.
+                from django.conf import settings as django_settings
+                callback_url = getattr(django_settings, 'FRONTEND_URL', '') or ''
+                if callback_url:
+                    callback_url = f"{callback_url}/payment?order_id={order.order_number}"
+                
                 try:
-                    payment_response = midtrans_client.charge_qris(
+                    payment_response = midtrans_client.charge_gopay(
                         order_id=order.order_number,
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
+                        callback_url=callback_url or None,
                     )
+                    logger.info(f"QRIS via GoPay charge successful for order {order.order_number}")
                 except MidtransException as e:
                     if "402" in str(e) or "not activated" in str(e).lower():
                         logger.warning(
-                            f"QRIS returned 402 for Core API; using GoPay (QRIS-compatible QR) for order {order.order_number}"
+                            f"GoPay returned 402; trying standalone QRIS for order {order.order_number}"
                         )
-                        from django.conf import settings as django_settings
-                        callback_url = f"{django_settings.FRONTEND_URL}/payment?order_id={order.order_number}"
-                        payment_response = midtrans_client.charge_gopay(
+                        payment_response = midtrans_client.charge_qris(
                             order_id=order.order_number,
                             gross_amount=order.total_amount,
                             customer_details=customer_details,
                             item_details=item_details,
-                            callback_url=callback_url,
                         )
                     else:
                         raise
@@ -1276,7 +1282,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             elif payment_method.type == 'E_WALLET':
                 # Build callback URL for redirect after payment
                 from django.conf import settings as django_settings
-                callback_url = f"{django_settings.FRONTEND_URL}/payment?order_id={order.order_number}"
+                callback_url = getattr(django_settings, 'FRONTEND_URL', '') or ''
+                if callback_url:
+                    callback_url = f"{callback_url}/payment?order_id={order.order_number}"
                 
                 # Handle different e-wallets
                 if 'gopay' in payment_method.midtrans_code.lower():
@@ -1285,7 +1293,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
-                        callback_url=callback_url,
+                        callback_url=callback_url or None,
                     )
                 elif 'shopeepay' in payment_method.midtrans_code.lower():
                     payment_response = midtrans_client.charge_shopeepay(
@@ -1293,7 +1301,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         gross_amount=order.total_amount,
                         customer_details=customer_details,
                         item_details=item_details,
-                        callback_url=callback_url,
+                        callback_url=callback_url or None,
                     )
             elif payment_method.type == 'CREDIT_CARD':
                 # Credit card requires card_token from frontend (Midtrans.js token)
