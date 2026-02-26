@@ -5,6 +5,7 @@ import { Search, Loader2, RefreshCw, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useUserTransactions } from "@/lib/transaction/queries";
 import {
   getStatusColor,
@@ -16,6 +17,8 @@ import {
 export default function UserTransactionTable() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const params = useParams();
+  const locale = (params?.locale as string) || "id";
 
   const { data, isLoading, error, refetch } = useUserTransactions({
     search: search || undefined,
@@ -148,7 +151,7 @@ export default function UserTransactionTable() {
                       </span>
                     </td>
                     <td className="border border-gray-700 px-4 py-3">
-                      <Link href={`/id/transaction/${transaction.id}`}>
+                      <Link href={`/${locale}/transaction/${transaction.id}`}>
                         <Button
                           size="sm"
                           variant="outline"

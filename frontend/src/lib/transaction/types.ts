@@ -70,17 +70,29 @@ export interface PaymentDetail {
 
 /**
  * Digiflazz transaction details
+ * Status values are uppercase as stored by the backend (DigiflazzStatus choices).
  */
 export interface DigiflazzTransaction {
   ref_id: string;
   trx_id: string;
-  status: "Pending" | "Sukses" | "Gagal" | "Expired";
+  /** Backend stores uppercase: "PENDING" | "SUKSES" | "GAGAL" | "Expired" */
+  status: "PENDING" | "SUKSES" | "GAGAL" | "Expired" | string;
   message: string;
   serial_number: string;
   sku_code: string;
   customer_no: string;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Completion data stored on order when top-up succeeds
+ */
+export interface CompletionData {
+  serial_number?: string;
+  completed_at?: string;
+  buyer_last_saldo?: number | null;
+  price?: number | null;
 }
 
 /**
@@ -91,18 +103,27 @@ export interface OrderDetail {
   order_number: string;
   user_email: string;
   product_item_name: string;
+  product_item?: {
+    id: string;
+    name: string;
+    product?: { name: string; slug?: string };
+  };
   customer_data: CustomerData;
   original_price: number;
   final_price: number;
+  coupon_discount: number | null;
   payment_fee: number;
   vat_amount: number;
   total_amount: number;
   payment_method_name: string;
   payment_expires_at: string | null;
   status: OrderStatus;
+  failure_reason: string | null;
+  completion_data: CompletionData | null;
   refund_amount: number | null;
   refund_reason: string | null;
   refunded_at: string | null;
+  product_rating: number | null;
   created_at: string;
   updated_at: string;
   paid_at: string | null;

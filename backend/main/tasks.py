@@ -286,28 +286,39 @@ def process_order_topup(self, order_id):
             ref_id=order.order_number,  # Use order_number instead of UUID for ref_id
         )
         
-        # Save transaction to database
-        df_transaction = DigiflazzTransaction.objects.create(
-            order=order,
+        # Use get_or_create to prevent duplicate DigiflazzTransaction on task retry
+        df_transaction, tx_created = DigiflazzTransaction.objects.get_or_create(
             ref_id=order.order_number,
-            sku_code=transaction.get('buyer_sku_code', ''),
-            customer_no=transaction.get('customer_no', ''),
-            status=transaction.get('status', ''),
-            message=transaction.get('message', ''),
-            serial_number=transaction.get('sn', ''),
-            response_data=transaction
+            defaults={
+                'order': order,
+                'sku_code': transaction.get('buyer_sku_code', ''),
+                'customer_no': transaction.get('customer_no', ''),
+                'status': transaction.get('status', ''),
+                'message': transaction.get('message', ''),
+                'serial_number': transaction.get('sn', ''),
+                'response_data': transaction,
+            }
         )
-        
+        if not tx_created:
+            # Update existing record with latest response
+            df_transaction.status = transaction.get('status', df_transaction.status)
+            df_transaction.message = transaction.get('message', df_transaction.message)
+            df_transaction.serial_number = transaction.get('sn', df_transaction.serial_number)
+            df_transaction.response_data = transaction
+            df_transaction.save(update_fields=['status', 'message', 'serial_number', 'response_data', 'updated_at'])
+
         # Update order based on transaction status
         if client.is_transaction_success(transaction['status'], transaction['rc']):
             order.status = OrderStatus.COMPLETED
+            _now = timezone.now()
+            order.completed_at = _now
             order.completion_data = {
-                'serial_number': transaction['sn'],
-                'completed_at': timezone.now().isoformat(),
+                'serial_number': transaction.get('sn', ''),
+                'completed_at': _now.isoformat(),
                 'buyer_last_saldo': transaction.get('buyer_last_saldo'),
                 'price': transaction.get('price')
             }
-            logger.info(f"✅ Order {order.id} COMPLETED - SN: {transaction['sn']}")
+            logger.info(f"✅ Order {order.id} COMPLETED - SN: {transaction.get('sn', '')}")
             
         elif client.is_transaction_pending(transaction['status'], transaction['rc']):
             order.status = OrderStatus.PROCESSING
@@ -551,14 +562,16 @@ def check_digiflazz_transaction_status(self, transaction_id):
         if client.is_transaction_success(status_response.get('status', ''), status_response.get('rc', '')):
             # Transaction completed successfully
             order.status = OrderStatus.COMPLETED
+            _now = timezone.now()
+            order.completed_at = _now
             order.completion_data = {
                 'serial_number': status_response.get('sn', ''),
-                'completed_at': timezone.now().isoformat(),
+                'completed_at': _now.isoformat(),
                 'buyer_last_saldo': status_response.get('buyer_last_saldo'),
                 'price': status_response.get('price')
             }
             order.save()
-            
+            send_order_notification.delay(str(order.id), 'COMPLETED')
             logger.info(f"✅ Order {order.id} COMPLETED via status check - SN: {status_response.get('sn')}")
             return {'success': True, 'status': 'completed'}
             
@@ -567,7 +580,7 @@ def check_digiflazz_transaction_status(self, transaction_id):
             order.status = OrderStatus.FAILED
             order.failure_reason = status_response.get('message', 'Transaction failed')
             order.save()
-            
+            send_order_notification.delay(str(order.id), 'FAILED')
             logger.warning(f"❌ Order {order.id} FAILED via status check - {order.failure_reason}")
             return {'success': True, 'status': 'failed'}
             

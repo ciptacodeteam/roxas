@@ -66,6 +66,14 @@ export function TransactionStatusCard({ order }: { order: OrderDetail }) {
                 </div>
             </div>
 
+            {/* Failure Reason */}
+            {order.status === "FAILED" && order.failure_reason && (
+                <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/30 p-4">
+                    <p className="mb-1 text-sm font-medium text-red-400">Alasan Kegagalan</p>
+                    <p className="text-sm text-white/80">{order.failure_reason}</p>
+                </div>
+            )}
+
             {/* Timeline */}
             <div className="space-y-3">
                 <TimelineItem
@@ -156,14 +164,28 @@ export function OrderInformationCard({ order }: { order: OrderDetail }) {
                         </div>
                     </div>
                 )}
+                {/* Completion Data - shown when digiflazz_transaction card is not rendered */}
+                {!order.digiflazz_transaction && order.completion_data?.serial_number && (
+                    <div className={`${SECTION_STYLES} bg-green-500/5 border-green-500/20`}>
+                        <p className="mb-3 text-sm font-medium text-green-400">Serial Number / Voucher</p>
+                        <div className="flex items-center gap-2">
+                            <code className="flex-1 rounded-lg bg-slate-950 border border-green-500/30 px-3 py-2 font-mono text-base text-green-400 break-all">
+                                {order.completion_data.serial_number}
+                            </code>
+                            <button
+                                onClick={() => handleCopy(order.completion_data!.serial_number!, "Serial number")}
+                                className="rounded-lg bg-green-500/20 p-2 text-green-400 transition-colors hover:bg-green-500/30"
+                            >
+                                <Copy className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <p className="mt-2 text-xs text-green-400/70">Simpan serial number ini untuk aktivasi produk</p>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-/**
- * Payment Information Card
- */
 export function PaymentInformationCard({ order }: { order: OrderDetail }) {
     const handleCopy = useCopyToClipboard();
 
@@ -220,13 +242,13 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                                                             <p className="text-gray-700 text-xs mb-2">
                                                                 Scan dengan aplikasi pembayaran
                                                             </p>
-                                                            <p className="font-mono text-[10px] text-gray-600 break-all max-w-[200px]">
+                                                            <p className="font-mono text-[10px] text-gray-600 break-all max-w-50">
                                                                 {qrCodeValue.substring(0, 100)}...
                                                             </p>
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center justify-center h-[220px] w-[220px] bg-gray-100">
+                                                    <div className="flex items-center justify-center h-55 w-55 bg-gray-100">
                                                         <p className="text-gray-500 text-sm text-center p-4">
                                                             Memuat QR Code...
                                                         </p>
@@ -293,7 +315,10 @@ export function PaymentInformationCard({ order }: { order: OrderDetail }) {
                     <p className="mb-4 text-sm font-medium text-white">Rincian Harga</p>
                     <div className="space-y-3">
                         <PriceRow label="Harga Produk" amount={order.original_price} />
-                        {order.final_price !== order.original_price && (
+                        {order.coupon_discount != null && order.coupon_discount > 0 && (
+                            <PriceRow label="Diskon Kupon" amount={-order.coupon_discount} highlight />
+                        )}
+                        {order.final_price !== order.original_price && !order.coupon_discount && (
                             <PriceRow label="Harga Setelah Diskon" amount={order.final_price} highlight />
                         )}
                         {order.payment_fee > 0 && <PriceRow label="Biaya Pembayaran" amount={order.payment_fee} />}
@@ -330,31 +355,39 @@ export function DigiflazzTransactionCard({ order }: { order: OrderDetail }) {
     
     // Get status info
     const getDigiflazzStatusInfo = (status: string) => {
-        switch (status) {
-            case "Sukses":
+        const normalized = status?.toUpperCase();
+        switch (normalized) {
+            case "SUKSES":
                 return {
                     label: "Berhasil",
                     color: "bg-green-500/10 text-green-400 border-green-500/30",
                     icon: "✅",
                     description: "Top-up berhasil diproses"
                 };
-            case "Pending":
+            case "PENDING":
                 return {
                     label: "Sedang Diproses",
-                    color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30", 
+                    color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
                     icon: "⏳",
                     description: "Sedang diproses oleh provider"
                 };
-            case "Gagal":
+            case "GAGAL":
                 return {
                     label: "Gagal",
                     color: "bg-red-500/10 text-red-400 border-red-500/30",
                     icon: "❌",
                     description: "Top-up gagal diproses"
                 };
+            case "EXPIRED":
+                return {
+                    label: "Kadaluarsa",
+                    color: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+                    icon: "⌛",
+                    description: "Transaksi kadaluarsa"
+                };
             default:
                 return {
-                    label: status,
+                    label: status || "Tidak Dikenal",
                     color: "bg-gray-500/10 text-gray-400 border-gray-500/30",
                     icon: "ℹ️",
                     description: "Status tidak dikenal"
@@ -530,14 +563,16 @@ function PriceRow({
     highlight?: boolean;
     total?: boolean;
 }) {
+    const isNegative = amount < 0;
     return (
         <div className="flex items-center justify-between gap-4">
             <span className={`text-sm ${total ? "font-semibold text-white" : "text-white/60"}`}>{label}</span>
             <span
-                className={`text-sm font-medium ${total ? "text-lg text-white" : highlight ? "text-green-400" : "text-white"
-                    }`}
+                className={`text-sm font-medium ${
+                    total ? "text-lg text-white" : isNegative ? "text-green-400" : highlight ? "text-green-400" : "text-white"
+                }`}
             >
-                {formatCurrency(amount)}
+                {isNegative ? `-${formatCurrency(Math.abs(amount))}` : formatCurrency(amount)}
             </span>
         </div>
     );

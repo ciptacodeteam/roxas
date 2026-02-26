@@ -182,10 +182,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == "STAFF":
             return Order.objects.all().select_related(
-                "user", "product_item__product", "payment_method"
+                "user", "product_item__product", "payment_method", "coupon_usage"
+            ).prefetch_related(
+                "payment", "digiflazz_transaction", "product_rating"
             ).order_by("-created_at")
         return Order.objects.filter(user=user).select_related(
-            "product_item__product", "payment_method"
+            "product_item__product", "payment_method", "coupon_usage"
+        ).prefetch_related(
+            "payment", "digiflazz_transaction", "product_rating"
         ).order_by("-created_at")
 
     def get_serializer_class(self):
@@ -497,6 +501,9 @@ class AdminOrderViewSet(viewsets.ModelViewSet):
         "user__staff_profile",
         "product_item",
         "payment_method",
+        "coupon_usage",
+    ).prefetch_related(
+        "payment", "digiflazz_transaction", "product_rating",
     ).order_by("-created_at")
     serializer_class = OrderSerializer
     permission_classes = [IsAdminOnly]

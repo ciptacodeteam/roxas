@@ -76,12 +76,13 @@ class OrderSerializer(serializers.ModelSerializer):
     payment = serializers.SerializerMethodField()
     digiflazz_transaction = serializers.SerializerMethodField()
     product_rating = serializers.SerializerMethodField()
+    coupon_discount = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'order_number', 'user', 'user_email', 'user_name', 'product_item',
-            'customer_data', 'original_price', 'final_price',
+            'customer_data', 'original_price', 'final_price', 'coupon_discount',
             'payment_fee', 'vat_amount', 'total_amount', 'payment_method',
             'payment_expires_at', 'status', 'payment', 'digiflazz_transaction',
             'failure_reason', 'completion_data',
@@ -142,6 +143,14 @@ class OrderSerializer(serializers.ModelSerializer):
         """Return the star rating (1-5) the user gave for this order, or null."""
         rating = obj.product_rating.filter(is_active=True).first()
         return rating.rating if rating else None
+
+    def get_coupon_discount(self, obj) -> int | None:
+        """Return the coupon discount amount applied to this order, or null."""
+        try:
+            usage = obj.coupon_usage
+            return int(usage.discount_amount) if usage else None
+        except Exception:
+            return None
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):

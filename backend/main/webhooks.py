@@ -163,9 +163,11 @@ def handle_prepaid_webhook(event):
         if client.is_transaction_success(data['status'], data['rc']):
             # Transaction SUCCESS
             order.status = OrderStatus.COMPLETED
+            now = timezone.now()
+            order.completed_at = now
             order.completion_data = {
                 'serial_number': data.get('sn', ''),
-                'completed_at': timezone.now().isoformat(),
+                'completed_at': now.isoformat(),
                 'buyer_last_saldo': data.get('buyer_last_saldo'),
                 'price': data.get('price')
             }
@@ -540,7 +542,9 @@ def handle_midtrans_notification(notification: dict) -> str:
             
             # Set paid_at only if not already set (idempotency)
             if not payment.paid_at:
-                payment.paid_at = timezone.now()
+                _now = timezone.now()
+                payment.paid_at = _now
+                order.paid_at = _now
             
             logger.info(f"✅ Payment SUCCESS for Order {order_id}")
             

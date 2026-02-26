@@ -69,6 +69,10 @@ export async function getOrderDetailsApi(orderId: string): Promise<OrderDetail> 
       ? `${data.product_item.product.name} - ${data.product_item.name}`
       : data.product_item?.name || "Unknown Product",
     payment_method_name: data.payment_method?.name || "Unknown Payment Method",
+    coupon_discount: data.coupon_discount ?? null,
+    failure_reason: data.failure_reason || null,
+    completion_data: data.completion_data ?? null,
+    product_rating: data.product_rating ?? null,
     payment: data.payment ? {
       id: data.payment.id,
       external_id: data.payment.external_id,

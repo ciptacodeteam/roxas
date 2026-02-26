@@ -3,12 +3,14 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { RatingModal } from "@/components/RatingModal";
 import { useRateOrder } from "@/lib/queries";
 // QR Code will be generated from payment URL or displayed as image
+
+const TERMINAL_STATES = ["COMPLETED", "FAILED", "EXPIRED", "REFUNDED", "CANCELLED"] as const;
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
@@ -18,7 +20,9 @@ export default function PaymentPage() {
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasShownRatingModal, setHasShownRatingModal] = useState(false);
-  
+  // Ref to avoid stale closure in setInterval
+  const orderStatusRef = useRef<string | null>(null);
+
   const rateOrderMutation = useRateOrder({
     onSuccess: () => {
       setShowRatingModal(false);
@@ -51,6 +55,7 @@ export default function PaymentPage() {
       
       const data = await response.json();
       setOrder(data);
+      orderStatusRef.current = data.status;
     } catch (error) {
       console.error("Failed to fetch order:", error);
     } finally {
@@ -65,9 +70,13 @@ export default function PaymentPage() {
     }
 
     fetchOrder();
-    
-    // Poll for order updates every 5 seconds if payment is pending
+
+    // Poll every 5 seconds; stop automatically on terminal states
     const pollInterval = setInterval(() => {
+      if (orderStatusRef.current && TERMINAL_STATES.includes(orderStatusRef.current as any)) {
+        clearInterval(pollInterval);
+        return;
+      }
       fetchOrder();
     }, 5000);
 
@@ -196,10 +205,34 @@ export default function PaymentPage() {
                 </Badge>
               </Row>
 
-              {payment?.paidAt && (
+              {payment?.paid_at && (
                 <Row label="Waktu Pembayaran">
-                  {new Date(payment.paidAt).toLocaleString("id-ID")}
+                  {new Date(payment.paid_at).toLocaleString("id-ID")}
                 </Row>
+              )}
+
+              {order.completed_at && (
+                <Row label="Waktu Selesai">
+                  {new Date(order.completed_at).toLocaleString("id-ID")}
+                </Row>
+              )}
+
+              {/* FAILURE REASON */}
+              {order.status === "FAILED" && order.failure_reason && (
+                <div className="space-y-1 border-t border-red-500/20 pt-3">
+                  <p className="text-xs text-red-400 font-medium">Alasan Gagal</p>
+                  <p className="text-sm text-red-300">{order.failure_reason}</p>
+                </div>
+              )}
+
+              {/* COMPLETION DATA - serial number */}
+              {order.status === "COMPLETED" && order.completion_data?.serial_number && (
+                <div className="space-y-1 border-t border-green-500/20 pt-3">
+                  <p className="text-xs text-green-400 font-medium">Serial Number / Voucher</p>
+                  <p className="font-mono text-sm text-green-300 break-all">
+                    {order.completion_data.serial_number}
+                  </p>
+                </div>
               )}
 
               {/* RINCIAN PEMBAYARAN */}
@@ -284,7 +317,7 @@ export default function PaymentPage() {
                               <p className="text-gray-700 text-xs mb-2">
                                 Scan dengan aplikasi pembayaran
                               </p>
-                              <p className="font-mono text-[10px] text-gray-600 break-all max-w-[200px]">
+                              <p className="font-mono text-[10px] text-gray-600 break-all max-w-50">
                                 {qrCodeValue.substring(0, 100)}...
                               </p>
                             </div>
@@ -292,7 +325,7 @@ export default function PaymentPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-[220px] w-[220px] bg-gray-100">
+                      <div className="flex items-center justify-center h-55 w-55 bg-gray-100">
                         <p className="text-gray-500 text-sm text-center p-4">
                           Memuat QR Code...
                         </p>
