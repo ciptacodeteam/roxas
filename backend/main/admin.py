@@ -1,6 +1,8 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.db.models import Count, Sum
+from .input_field_presets import INPUT_FIELD_PRESETS, INPUT_FIELD_PRESET_CHOICES
 from .models import (
     PaymentMethod,
     Category,
@@ -27,6 +29,32 @@ from .models import (
 # ============================================
 # INLINE ADMINS
 # ============================================
+
+
+# ============================================
+# PRODUCT ADMIN FORM (with preset helper)
+# ============================================
+
+class ProductAdminForm(forms.ModelForm):
+    """
+    Extends the Product form with an optional preset picker.
+    When a preset is selected, it auto-fills ``input_fields``
+    and ``customer_no_template`` on save.
+    """
+    input_field_preset = forms.ChoiceField(
+        choices=[('', '-- Pilih preset (opsional) --')] + INPUT_FIELD_PRESET_CHOICES,
+        required=False,
+        label='Input Field Preset',
+        help_text=(
+            'Memilih preset akan otomatis mengisi Input Fields dan Customer No Template di bawah. '
+            'Kosongkan untuk mengisi manual.'
+        ),
+    )
+
+    class Meta:
+        model = Product
+        fields = '__all__'
+
 
 class CategoryInstructionImageInline(admin.TabularInline):
     model = CategoryInstructionImage
@@ -93,13 +121,14 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ["name", "category", "item_count", "is_active", "sort_order", "created_at"]
+    form = ProductAdminForm
+    list_display = ["name", "category", "item_count", "input_summary", "is_active", "sort_order", "created_at"]
     list_filter = ["category", "is_active"]
     search_fields = ["name", "slug"]
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ["id", "created_at", "updated_at", "item_count"]
     inlines = [ProductItemInline]
-    
+
     fieldsets = (
         ("Basic Information", {
             "fields": ("category", "name", "slug", "description", "is_active", "sort_order")
@@ -107,8 +136,15 @@ class ProductAdmin(admin.ModelAdmin):
         ("Images", {
             "fields": ("image", "banner_image")
         }),
-        ("Configuration", {
-            "fields": ("input_fields", "instructions")
+        ("Input & Customer No Configuration", {
+            "fields": ("input_field_preset", "input_fields", "customer_no_template", "instructions"),
+            "description": (
+                "<strong>Quick setup:</strong> Pick a preset to auto-fill Input Fields and Customer No Template. "
+                "<br><strong>Presets:</strong> GAME_WITH_SERVER, GAME_USER_ONLY, PHONE_NUMBER, "
+                "PLN_PREPAID, PLN_POSTPAID, PDAM, INTERNET_TV, BPJS, BPJS_TK, "
+                "GAS_NEGARA, MULTIFINANCE, PBB_TAX, SAMSAT, E_WALLET, HP_POSTPAID, "
+                "VOUCHER_ACCOUNT, GENERIC, NO_INPUT."
+            ),
         }),
         ("Statistics", {
             "fields": ("item_count",),
@@ -119,10 +155,27 @@ class ProductAdmin(admin.ModelAdmin):
             "classes": ("collapse",)
         }),
     )
-    
+
     def item_count(self, obj):
         return obj.items.count()
     item_count.short_description = "Items"
+
+    def input_summary(self, obj):
+        template = obj.customer_no_template or ''
+        keys = [f.get('key', '?') for f in (obj.input_fields or [])]
+        if keys:
+            return format_html('<code>{}</code> → <code>{}</code>',
+                               ', '.join(keys), template or '(empty)')
+        return format_html('<em style="color:#aaa">No input</em>')
+    input_summary.short_description = "Input → customer_no"
+
+    def save_model(self, request, obj, form, change):
+        preset_key = form.cleaned_data.get('input_field_preset')
+        if preset_key and preset_key in INPUT_FIELD_PRESETS:
+            preset = INPUT_FIELD_PRESETS[preset_key]
+            obj.input_fields = preset['input_fields']
+            obj.customer_no_template = preset['customer_no_template']
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(ProductItem)

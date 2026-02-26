@@ -80,17 +80,18 @@ export function useLoginMutation(
   options?: UseMutationOptions<LoginResponse, Error, LoginRequest>
 ) {
   const queryClient = useQueryClient();
+  const { onSuccess, ...otherOptions } = options ?? {};
 
-  const userOnSuccess = options?.onSuccess;
-  
   return useMutation({
-    ...options,
+    ...otherOptions,
     mutationFn: loginApi,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, mutationContext) => {
       // Update session cache
       queryClient.setQueryData(authKeys.session(), { user: data.user });
       // Call user-provided onSuccess if it exists
-      (userOnSuccess as any)?.(data, variables, context);
+      if (onSuccess) {
+        onSuccess(data, variables, context, mutationContext);
+      }
     },
   });
 }
@@ -102,18 +103,19 @@ export function useLogoutMutation(
   options?: UseMutationOptions<void, Error, void>
 ) {
   const queryClient = useQueryClient();
+  const { onSuccess, ...otherOptions } = options ?? {};
 
-  const userOnSuccess = options?.onSuccess;
-  
   return useMutation({
-    ...options,
+    ...otherOptions,
     mutationFn: logoutApi,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, mutationContext) => {
       // Clear all auth data
       queryClient.setQueryData(authKeys.session(), null);
       queryClient.removeQueries({ queryKey: authKeys.all });
       // Call user-provided onSuccess if it exists
-      (userOnSuccess as any)?.(data, variables, context);
+      if (onSuccess) {
+        onSuccess(data, variables, context, mutationContext);
+      }
     },
   });
 }
@@ -125,17 +127,18 @@ export function useRegisterMutation(
   options?: UseMutationOptions<RegisterResponse, Error, RegisterRequest>
 ) {
   const queryClient = useQueryClient();
+  const { onSuccess, ...otherOptions } = options ?? {};
 
-  const userOnSuccess = options?.onSuccess;
-  
   return useMutation({
-    ...options,
+    ...otherOptions,
     mutationFn: registerApi,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, mutationContext) => {
       // Update session cache
       queryClient.setQueryData(authKeys.session(), { user: data.user });
       // Call user-provided onSuccess if it exists
-      (userOnSuccess as any)?.(data, variables, context);
+      if (onSuccess) {
+        onSuccess(data, variables, context, mutationContext);
+      }
     },
   });
 }
@@ -163,12 +166,9 @@ export function useTokenRefresh(isAuthenticated: boolean) {
     queryKey: [...authKeys.all, "refresh"] as const,
     queryFn: async () => {
       try {
-        console.log("[Token Refresh] Refreshing access token...");
         await refreshTokenApi();
-        console.log("[Token Refresh] Access token refreshed successfully");
         return { success: true, timestamp: new Date().toISOString() };
       } catch (error) {
-        console.error("[Token Refresh] Failed to refresh token:", error);
         // Clear session on refresh failure
         queryClient.setQueryData(authKeys.session(), null);
         throw error;

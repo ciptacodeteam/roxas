@@ -51,20 +51,9 @@ export function ProductSelectCombobox({
 
     // Find selected item - ensure proper ID comparison
     const selectedItem = React.useMemo(() => {
-        if (!value) {
-            console.log('ProductSelectCombobox: No value provided');
-            return undefined;
-        }
-        const result = items.find((item) => String(item.id) === String(value));
-        if (!result && value) {
-            console.warn(`Product not found for value: ${value}. Available IDs:`, items.map(i => i.id));
-        } else if (result) {
-            console.log('ProductSelectCombobox: Found item', result);
-        }
-        return result;
+        if (!value) return undefined;
+        return items.find((item) => String(item.id) === String(value));
     }, [items, value]);
-
-    console.log('ProductSelectCombobox render:', { value, hasSelectedItem: !!selectedItem, itemsCount: items.length });
 
     const filteredItems = React.useMemo(() => {
         if (!searchValue.trim()) return items;

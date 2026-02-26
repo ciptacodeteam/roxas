@@ -1,6 +1,50 @@
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+import type { Metadata } from "next";
 import ProductDetailClient from "./ProductDetailClient";
 import { getActiveProductBySlug } from "@/lib/products/api";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://roxasgamestore.com";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+
+  try {
+    const product = await getActiveProductBySlug(slug);
+    const title = product?.name ?? "Top Up Game";
+    const description =
+      product?.description ||
+      `Top up ${product?.name ?? "game"} dengan harga terbaik, proses instan, dan pembayaran lengkap di Roxas Games Store.`;
+    const image = product?.image ? `${SITE_URL}${product.image.startsWith("http") ? "" : ""}${product.image}` : `${SITE_URL}/img/og-default.webp`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title: `${title} | Roxas Games Store`,
+        description,
+        images: [{ url: image, width: 1200, height: 630, alt: title }],
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | Roxas Games Store`,
+        description,
+        images: [image],
+      },
+      alternates: {
+        canonical: `${SITE_URL}/id/product/${slug}`,
+      },
+    };
+  } catch {
+    return {
+      title: "Top Up Game",
+      description: "Top up game dengan harga terbaik di Roxas Games Store.",
+    };
+  }
+}
 
 export default async function ProductDetailPage({
   params,
@@ -23,11 +67,14 @@ export default async function ProductDetailPage({
     let inputFields: any[] = [];
     if (Array.isArray(product.input_fields)) {
       inputFields = product.input_fields.map((field: any) => {
-        // If field is already an object with name property, use it directly
-        if (typeof field === 'object' && field !== null && field.name) {
+        // If field is already an object with key property, use it directly
+        if (typeof field === 'object' && field !== null && (field.key || field.name)) {
           return {
-            name: field.name,
-            label: field.label || field.name,
+            key: field.key || field.name, // support legacy `name` from old data
+            label: field.label || field.key || field.name,
+            type: field.type || "text",
+            placeholder: field.placeholder,
+            hint: field.hint,
             required: field.required !== false,
             dialog: field.dialog,
           };
@@ -35,7 +82,7 @@ export default async function ProductDetailPage({
         // If field is a string, convert to object
         if (typeof field === 'string') {
           return {
-            name: field,
+            key: field,
             label:
               field === "userId"
                 ? "User ID"
@@ -44,6 +91,7 @@ export default async function ProductDetailPage({
                   : field === "phoneNumber"
                     ? "Nomor Telepon"
                     : field,
+            type: field === "phoneNumber" ? "tel" : "text",
             required: true,
             ...(field === "userId" && {
               dialog: {

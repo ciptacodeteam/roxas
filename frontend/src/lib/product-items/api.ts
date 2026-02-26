@@ -14,8 +14,9 @@ import type {
 } from "./types";
 
 import { ProductItemsApiError } from "./types";
+import { API_URL } from "@/lib/api-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 /**
  * Fetch wrapper with error handling

@@ -9,8 +9,9 @@ import type {
   UpdatePaymentMethodRequest,
   PaymentMethodListParams,
 } from "./types";
+import { API_URL } from "@/lib/api-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 export class PaymentMethodsApiError extends Error {
   constructor(

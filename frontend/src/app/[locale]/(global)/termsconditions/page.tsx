@@ -1,3 +1,17 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Syarat & Ketentuan",
+  description:
+    "Baca syarat dan ketentuan layanan Roxas Games Store sebelum menggunakan platform kami.",
+  openGraph: {
+    title: "Syarat & Ketentuan | Roxas Games Store",
+    description:
+      "Baca syarat dan ketentuan layanan Roxas Games Store sebelum menggunakan platform kami.",
+    type: "website",
+  },
+};
+
 export default function TermsConditions() {
   return (
     <>

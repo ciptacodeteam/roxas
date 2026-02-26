@@ -69,7 +69,7 @@ class Command(BaseCommand):
                 'type': PaymentMethodType.QRIS,
                 'name': 'QRIS (Semua Pembayaran)',
                 'description': 'Bayar dengan QRIS melalui semua aplikasi pembayaran',
-                'icon': '/svg/QRIS_Logo.svg',
+                'icon': '',  # Set via admin after upload
                 'fee_type': FeeType.PERCENTAGE,
                 'fee_value': 0.7,
                 'vat_type': FeeType.PERCENTAGE,
@@ -228,9 +228,9 @@ class Command(BaseCommand):
 
         for pm_data in payment_methods:
             try:
-                # Check if payment method exists
+                # midtrans_code is the unique natural key for payment methods
                 existing = PaymentMethod.objects.filter(
-                    type=pm_data['type'],
+                    midtrans_code=pm_data['midtrans_code'],
                 ).first()
 
                 if existing:

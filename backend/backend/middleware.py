@@ -76,18 +76,22 @@ class CacheControlMiddleware(MiddlewareMixin):
     Adds appropriate cache headers based on request type.
     """
     
-    # Endpoints that should be cached
+    # Endpoints that should be cached (public, read-only resources)
     CACHEABLE_PATHS = [
-        '/api/v1/product/',
-        '/api/product/',
+        '/api/v1/products',
+        '/api/v1/categories',
+        '/api/v1/banners',
+        '/api/v1/flash-sales',
+        '/api/v1/payment-methods',
     ]
     
     # Endpoints that should never be cached
     NO_CACHE_PATHS = [
-        '/api/v1/token/',
-        '/api/token/',
-        '/api/v1/change-password/',
-        '/api/change-password/',
+        '/api/v1/token',
+        '/api/v1/change-password',
+        '/api/v1/orders',
+        '/api/v1/payments',
+        '/api/v1/admin',
     ]
     
     def process_response(self, request, response):

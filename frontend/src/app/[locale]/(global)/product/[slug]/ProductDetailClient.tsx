@@ -2,6 +2,7 @@
 "use client";
 
 import { productDetail } from "@/lib/data/productDetail";
+import { API_URL } from "@/lib/api-url";
 import { calculateTotalWithFees } from "@/lib/payment-fees";
 import { useActiveFlashSales } from "@/lib/flash-sales/queries";
 import { useActivePaymentMethods } from "@/lib/payment-methods/queries";
@@ -75,12 +76,16 @@ type ProductData = {
   banner_image?: string | null;
   supports_validation?: boolean;
   inputFields?: Array<{
-    name: string;
+    key: string;
     label: string;
+    type?: string;
+    placeholder?: string;
+    hint?: string;
     required: boolean;
     dialog?: {
       title: string;
       content: string;
+      steps?: string[];
     };
   }>;
   items: Array<{
@@ -184,21 +189,18 @@ export default function ProductDetailClient({
     cvv?: string;
   }>({});
 
-  // Account verification state
-  const [userId, setUserId] = useState("");
-  const [serverId, setServerId] = useState("");
-  const [zoneId, setZoneId] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [meterNumber, setMeterNumber] = useState("");
+  // Customer input state — keyed by field.key (dynamic, replaces per-field state vars)
+  const [customerData, setCustomerData] = useState<Record<string, string>>({});
+  const updateCustomerField = (key: string, value: string) =>
+    setCustomerData((prev) => ({ ...prev, [key]: value }));
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
   const [verifiedAccount, setVerifiedAccount] = useState<{
-    userId: string;
-    serverId: string;
     username?: string;
+    customerData: Record<string, string>;
   } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -390,7 +392,7 @@ export default function ProductDetailClient({
 
     try {
       const baseAmount = productPrice * quantity;
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = API_URL;
       const response = await fetch(`${apiUrl}/api/v1/coupons/validate/`, {
         method: "POST",
         headers: {
@@ -428,8 +430,7 @@ export default function ProductDetailClient({
   const pollValidationStatus = async (
     productSlug: string,
     checkId: string,
-    userId: string,
-    serverId: string,
+    sentCustomerData: Record<string, string>,
     maxAttempts: number = 10,
     intervalMs: number = 3000
   ) => {
@@ -445,7 +446,7 @@ export default function ProductDetailClient({
       
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/${productSlug}/check-validation-status/${checkId}/`,
+          `${API_URL}/api/v1/products/${productSlug}/check-validation-status/${checkId}/`,
           {
             method: "GET",
             headers: {
@@ -456,54 +457,52 @@ export default function ProductDetailClient({
         
         const data = await response.json();
         
-        if (data.status === 'Sukses' && data.account_name) {
-          // Validation completed successfully
+        if (data.status === 'SUKSES' && data.account_name) {
           setVerifiedAccount({
-            userId: userId,
-            serverId: serverId,
             username: data.account_name,
+            customerData: sentCustomerData,
           });
           toast.success(`Akun terverifikasi: ${data.account_name}`);
-          return; // Stop polling
-        } else if (data.status === 'Gagal') {
-          // Validation failed
+          return;
+        } else if (data.status === 'GAGAL') {
           setIsVerified(false);
           setVerifiedAccount(null);
           setVerificationError(data.message || "Validasi gagal");
           toast.error(data.message || "Validasi gagal");
-          return; // Stop polling
-        } else if (data.status === 'Pending') {
-          // Still pending, continue polling
+          return;
+        } else if (data.status === 'PENDING') {
           setTimeout(poll, intervalMs);
         }
       } catch (error) {
         console.error("Polling error:", error);
-        // Continue polling on error
         setTimeout(poll, intervalMs);
       }
     };
     
-    // Start polling after initial delay
     setTimeout(poll, intervalMs);
   };
 
   // Handle account verification
   const handleVerifyAccount = async () => {
-    // Use zoneId if available, otherwise use serverId
-    const serverOrZoneId = zoneId || serverId;
+    // Build a clean copy of customer data (trimmed, non-empty only)
+    const trimmedData: Record<string, string> = {};
+    for (const field of inputFields) {
+      const val = (customerData[field.key] || "").trim();
+      if (val) trimmedData[field.key] = val;
+    }
 
-    if (!userId) {
-      setVerificationError("User ID harus diisi");
+    // At least one filled field is required
+    if (Object.keys(trimmedData).length === 0) {
+      setVerificationError("Silakan isi data akun terlebih dahulu");
       return;
     }
 
-    // Some products require server ID, some don't
-    const requiresServerId = inputFields?.some(
-      (field: any) => (field.name === "serverId" || field.name === "zoneId") && field.required
-    );
-
-    if (requiresServerId && !serverOrZoneId) {
-      setVerificationError("User ID dan Server ID harus diisi");
+    // Validate required fields
+    const missingRequired = inputFields
+      .filter((f: any) => f.required && !trimmedData[f.key])
+      .map((f: any) => f.label);
+    if (missingRequired.length > 0) {
+      setVerificationError(`${missingRequired.join(", ")} harus diisi`);
       return;
     }
 
@@ -511,16 +510,14 @@ export default function ProductDetailClient({
     setVerificationError(null);
 
     try {
-      // Call the new generic validation endpoint based on product slug
       const productSlug = productData?.slug || slug;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/${productSlug}/validate-account/`, {
+      const response = await fetch(`${API_URL}/api/v1/products/${productSlug}/validate-account/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user_id: userId.trim(),
-          server_id: serverOrZoneId ? serverOrZoneId.trim() : undefined,
+          customer_data: trimmedData,
         }),
       });
 
@@ -529,16 +526,14 @@ export default function ProductDetailClient({
       if (response.ok && data.valid) {
         setIsVerified(true);
         setVerifiedAccount({
-          userId: userId.trim(),
-          serverId: serverOrZoneId ? serverOrZoneId.trim() : "",
-          username: data.account_name || (data.status === 'Pending' ? 'Sedang diproses...' : `Player ${userId.trim()}`),
+          username: data.account_name || (data.status === 'PENDING' ? 'Sedang diproses...' : undefined),
+          customerData: trimmedData,
         });
         setVerificationError(null);
         
-        // If status is Pending and we have a check_id, poll for updates
-        if (data.status === 'Pending' && data.check_id) {
+        if (data.status === 'PENDING' && data.check_id) {
           toast.success("Akun sedang divalidasi, tunggu beberapa saat...");
-          pollValidationStatus(productSlug, data.check_id, userId.trim(), serverOrZoneId?.trim() || "");
+          pollValidationStatus(productSlug, data.check_id, trimmedData);
         } else {
           toast.success("Akun berhasil diverifikasi!");
         }
@@ -559,21 +554,22 @@ export default function ProductDetailClient({
     }
   };
 
-  // Check if this product supports account verification
-  // Uses the supports_validation field from API (products with "Cek" validation items)
-  const inputFields = product?.inputFields || [];
-  const hasUserIdField =
-    inputFields?.some((field: any) => field.name === "userId") || false;
-  const hasServerField =
-    inputFields?.some(
-      (field: any) => field.name === "serverId" || field.name === "zoneId",
-    ) || false;
+  // Resolve input fields — normalise legacy `name` → `key` for hardcoded fallback data
+  const inputFields = useMemo(() => {
+    const raw: any[] = product?.inputFields || [];
+    return raw.map((f: any) => ({
+      ...f,
+      key: f.key || f.name, // legacy hardcoded data uses `name`
+    }));
+  }, [product]);
 
-  // Only require verification when:
-  // - Backend explicitly marks the product as supporting validation, AND
-  // - The product actually has the ID fields needed for validation
+  const hasInputFields = inputFields.length > 0;
+
+  // Check if this product supports account verification
+  // Check if this product supports account verification
+  // Only requires: backend marks it as supporting validation AND has input fields
   const supportsVerification =
-    !!productData?.supports_validation && hasUserIdField && hasServerField;
+    !!productData?.supports_validation && hasInputFields;
 
   // Check if all required fields are filled
   const areRequiredFieldsFilled = () => {
@@ -581,21 +577,7 @@ export default function ProductDetailClient({
 
     return inputFields.every((field: any) => {
       if (!field.required) return true;
-
-      switch (field.name) {
-        case "userId":
-          return !!userId;
-        case "serverId":
-          return !!serverId;
-        case "zoneId":
-          return !!zoneId;
-        case "phoneNumber":
-          return !!phoneNumber;
-        case "meterNumber":
-          return !!meterNumber;
-        default:
-          return true;
-      }
+      return !!customerData[field.key];
     });
   };
 
@@ -618,7 +600,7 @@ export default function ProductDetailClient({
       setLoadingCoupons(true);
       try {
         const baseAmount = productPrice * quantity;
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = API_URL;
 
         // Fetch applicable coupons from backend
         const response = await fetch(`${apiUrl}/api/v1/coupons/applicable/`, {
@@ -658,15 +640,22 @@ export default function ProductDetailClient({
 
       setLoadingRatings(true);
       try {
-        // TODO: Implement Django ratings API endpoint
-        // const response = await fetch(`/api/products/${slug}/ratings`);
-        // const data = await response.json();
-        // if (data.success && data.data) {
-        //   setProductRatings(data.data);
-        // }
-        setProductRatings(null);
+        const response = await fetch(
+          `${API_URL}/api/v1/products/${slug}/ratings/`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data: any[] = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const total = data.length;
+          const avg = data.reduce((sum, r) => sum + (r.rating ?? 0), 0) / total;
+          setProductRatings({ averageRating: avg, totalRatings: total, ratings: data });
+        } else {
+          setProductRatings(null);
+        }
       } catch (error) {
         console.error("Failed to fetch ratings:", error);
+        setProductRatings(null);
       } finally {
         setLoadingRatings(false);
       }
@@ -711,6 +700,15 @@ export default function ProductDetailClient({
   }, [baseAmountAfterCoupon, selectedPaymentMethodData]);
 
   const { paymentFee, vatAmount, totalAmount } = feeCalculation;
+
+  // Dynamic step numbering — skip "Masukkan Data Akun" when no input fields
+  let _step = 0;
+  const accountDataStep = hasInputFields ? ++_step : 0;
+  const selectNominalStep = ++_step;
+  const selectQuantityStep = ++_step;
+  const paymentMethodStep = ++_step;
+  const whatsappStep = ++_step;
+  const promoCodeStep = ++_step;
 
   return (
     <section className="mt-18 lg:mt-12">
@@ -785,11 +783,13 @@ export default function ProductDetailClient({
           <div className="lg:col-span-2">
             {/* Form Input */}
             <div className="flex flex-col gap-6 lg:gap-8">
+              {/* Step: Masukkan Data Akun — only shown when product has input fields */}
+              {hasInputFields && (
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    1
+                    {accountDataStep}
                   </div>
                   <h2 className="font-medium text-white">Masukkan Data Akun</h2>
                 </div>
@@ -801,53 +801,22 @@ export default function ProductDetailClient({
                   {/* Dynamic Input Fields */}
                   {inputFields?.map((field: any) => {
                     // Determine the value and setter for each field type
-                    const getFieldValue = () => {
-                      switch (field.name) {
-                        case "userId":
-                          return userId;
-                        case "serverId":
-                          return serverId;
-                        case "zoneId":
-                          return zoneId;
-                        case "phoneNumber":
-                          return phoneNumber;
-                        case "meterNumber":
-                          return meterNumber;
-                        default:
-                          return "";
-                      }
-                    };
+                    // Dynamic value and change handler using customerData Record
+                    const getFieldValue = () => customerData[field.key] ?? "";
 
                     const handleFieldChange = (value: string) => {
-                      switch (field.name) {
-                        case "userId":
-                          setUserId(value);
-                          setIsVerified(false);
-                          break;
-                        case "serverId":
-                          setServerId(value);
-                          setIsVerified(false);
-                          break;
-                        case "zoneId":
-                          setZoneId(value);
-                          setServerId(value);
-                          setIsVerified(false);
-                          break;
-                        case "phoneNumber":
-                          setPhoneNumber(value);
-                          break;
-                        case "meterNumber":
-                          setMeterNumber(value);
-                          break;
+                      updateCustomerField(field.key, value);
+                      if (field.key === "userId" || field.key === "serverId" || field.key === "zoneId") {
+                        setIsVerified(false);
                       }
                     };
 
-                    // Determine input type and mode
+                    // Determine input type and mode based on field.type
                     const inputType = field.type || "text";
-                    const inputMode = field.name === "phoneNumber" || field.name === "meterNumber" ? "numeric" : "text";
+                    const inputMode = inputType === "tel" || inputType === "number" ? "numeric" : "text";
 
                     return (
-                      <div key={field.name}>
+                      <div key={field.key}>
                         <Label className="mb-2 flex items-center gap-2 text-sm text-white">
                           {field.label}
                           {field.dialog && isMounted && (
@@ -912,7 +881,7 @@ export default function ProductDetailClient({
                       type="button"
                       onClick={handleVerifyAccount}
                       disabled={
-                        isVerifying || !userId || (!serverId && !zoneId)
+                        isVerifying || !areRequiredFieldsFilled()
                       }
                       className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
                     >
@@ -967,7 +936,10 @@ export default function ProductDetailClient({
                           </>
                         )}
                         <p className="text-xs text-gray-400 mt-1">
-                          User ID: {verifiedAccount.userId} | Server: {verifiedAccount.serverId}
+                          {inputFields.map((field: any) => {
+                            const val = verifiedAccount.customerData[field.key];
+                            return val ? `${field.label}: ${val}` : null;
+                          }).filter(Boolean).join(" | ")}
                         </p>
                       </div>
                     )}
@@ -984,22 +956,21 @@ export default function ProductDetailClient({
                   </div>
                 )}
 
-                {/* Instruction text - dynamic based on field types */}
+                {/* Instruction text - uses first field's label for context */}
                 <p className="px-4 pb-4 text-sm text-gray-300">
-                  {inputFields.some((f: any) => f.name === "phoneNumber")
-                    ? "Pastikan nomor HP yang Anda masukkan sudah benar."
-                    : inputFields.some((f: any) => f.name === "meterNumber")
-                      ? "Pastikan nomor meter PLN yang Anda masukkan sudah benar."
-                      : "Pastikan User ID dan Server ID yang Anda masukkan sudah benar."}
+                  {inputFields.length === 1
+                    ? `Pastikan ${inputFields[0].label?.toLowerCase() || "data"} yang Anda masukkan sudah benar.`
+                    : `Pastikan ${inputFields.map((f: any) => f.label?.toLowerCase() || f.key).join(" dan ")} yang Anda masukkan sudah benar.`}
                 </p>
               </div>
+              )}
 
-              {/* Step 2: Pilih Nominal */}
+              {/* Step: Pilih Nominal */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    2
+                    {selectNominalStep}
                   </div>
                   <h2 className="font-medium text-white">Pilih Nominal</h2>
                 </div>
@@ -1306,12 +1277,12 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 3: Masukkan Jumlah Pembelian */}
+              {/* Step: Masukkan Jumlah Pembelian */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    3
+                    {selectQuantityStep}
                   </div>
                   <h2 className="font-medium text-white">
                     Masukkan Jumlah Pembelian
@@ -1358,12 +1329,12 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 4: Pilih Metode Pembayaran */}
+              {/* Step: Pilih Metode Pembayaran */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    4
+                    {paymentMethodStep}
                   </div>
                   <h2 className="font-medium text-white">Metode Pembayaran</h2>
                 </div>
@@ -2017,12 +1988,12 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 4: Masukkan Nomor WhatsApp */}
+              {/* Step: Masukkan Nomor WhatsApp */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    5
+                    {whatsappStep}
                   </div>
                   <h2 className="font-medium text-white">
                     Masukkan nomor WhatsApp
@@ -2052,12 +2023,12 @@ export default function ProductDetailClient({
                 </div>
               </div>
 
-              {/* Step 6: Kode Promo */}
+              {/* Step: Kode Promo */}
               <div className="overflow-hidden rounded-2xl bg-gray-800">
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
-                    6
+                    {promoCodeStep}
                   </div>
                   <h2 className="font-medium text-white">Kode Promo</h2>
                 </div>
@@ -2562,7 +2533,8 @@ export default function ProductDetailClient({
                           toast.error("Login Diperlukan", {
                             description: "Silakan login terlebih dahulu untuk melanjutkan pembelian",
                           });
-                          router.push(`/${locale}/auth/login`);
+                          const callbackUrl = `/${locale}/product/${slug}`;
+                          router.push(`/${locale}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
                           return;
                         }
 
@@ -2575,18 +2547,9 @@ export default function ProductDetailClient({
                         }
 
                         // Validate required fields are filled
-                        const requiredFields = product?.inputFields?.filter((f: any) => f.required) || [];
+                        const requiredFields = inputFields.filter((f: any) => f.required);
                         const missingFields = requiredFields
-                          .filter((field: any) => {
-                            switch (field.name) {
-                              case "userId": return !userId;
-                              case "serverId": return !serverId;
-                              case "zoneId": return !zoneId;
-                              case "phoneNumber": return !phoneNumber;
-                              case "meterNumber": return !meterNumber;
-                              default: return false;
-                            }
-                          })
+                          .filter((field: any) => !customerData[field.key])
                           .map((field: any) => field.label)
                           .join(", ");
 
@@ -2636,10 +2599,23 @@ export default function ProductDetailClient({
 
                       {/* DETAIL PESANAN */}
                       <div className="bg-card lg:mt-4 space-y-3 rounded-xl p-4 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Username</span>
-                          <span>{/* ambil dari input */}-</span>
-                        </div>
+                        {/* Dynamic customer data fields */}
+                        {hasInputFields && inputFields.map((field: any) => {
+                          const val = customerData[field.key];
+                          if (!val) return null;
+                          return (
+                            <div key={field.key} className="flex justify-between">
+                              <span className="text-gray-400">{field.label}</span>
+                              <span>{val}</span>
+                            </div>
+                          );
+                        })}
+                        {isVerified && verifiedAccount?.username && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Username</span>
+                            <span className="text-green-400">{verifiedAccount.username}</span>
+                          </div>
+                        )}
 
                         <div className="flex justify-between">
                           <span className="text-gray-400">Item</span>
@@ -2747,17 +2723,7 @@ export default function ProductDetailClient({
                             // Validate required fields are filled
                             if (!areRequiredFieldsFilled()) {
                               const missingFields = inputFields
-                                .filter((field: any) => {
-                                  if (!field.required) return false;
-                                  switch (field.name) {
-                                    case "userId": return !userId;
-                                    case "serverId": return !serverId;
-                                    case "zoneId": return !zoneId;
-                                    case "phoneNumber": return !phoneNumber;
-                                    case "meterNumber": return !meterNumber;
-                                    default: return false;
-                                  }
-                                })
+                                .filter((field: any) => field.required && !customerData[field.key])
                                 .map((field: any) => field.label)
                                 .join(", ");
 
@@ -2804,42 +2770,19 @@ export default function ProductDetailClient({
                             setOpenConfirm(false);
 
                             try {
-                              // Prepare customer data based on input fields
-                              const customerData: any = {};
-                              (product?.inputFields || []).forEach((field) => {
-                                switch (field.name) {
-                                  case "userId":
-                                    if (userId) customerData.userId = userId;
-                                    break;
-                                  case "serverId":
-                                    if (serverId) customerData.serverId = serverId;
-                                    break;
-                                  case "zoneId":
-                                    if (zoneId) customerData.zoneId = zoneId;
-                                    break;
-                                  case "phoneNumber":
-                                    if (phoneNumber) customerData.phoneNumber = phoneNumber;
-                                    break;
-                                  case "meterNumber":
-                                    if (meterNumber) customerData.meterNumber = meterNumber;
-                                    break;
-                                }
-                              });
+                              // Build customer data from the dynamic customerData state
+                              const orderCustomerData: Record<string, string> = { ...customerData };
                               // Add phone if available (for contact purposes)
                               if (phone) {
-                                customerData.phone = phone;
+                                orderCustomerData.phone = phone;
                               }
                               // Add verified account name if available (from validation)
                               if (isVerified && verifiedAccount?.username) {
-                                customerData.accountName = verifiedAccount.username;
-                              }
-                              // Add verified account name if available (from validation)
-                              if (isVerified && verifiedAccount?.username) {
-                                customerData.accountName = verifiedAccount.username;
+                                orderCustomerData.accountName = verifiedAccount.username;
                               }
 
                               // Create order with payment via Django backend
-                              const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                              const apiUrl = API_URL;
                               const response = await fetch(
                                 `${apiUrl}/api/v1/orders/`,
                                 {
@@ -2850,7 +2793,7 @@ export default function ProductDetailClient({
                                   },
                                   body: JSON.stringify({
                                     product_item: selectedItemData.id,
-                                    customer_data: customerData,
+                                    customer_data: orderCustomerData,
                                     coupon_code: appliedCoupon?.code || "",
                                     payment_method: selectedPaymentMethod,
                                   }),

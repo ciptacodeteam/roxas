@@ -6,9 +6,10 @@ Endpoints untuk menerima webhook dari:
 - Midtrans (payment gateway)
 """
 
+import ipaddress
 import json
 import logging
-import os
+from django.conf import settings as django_settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -40,8 +41,16 @@ def digiflazz_webhook(request):
         User-Agent: Digiflazz-Hookshot (prepaid) atau Digiflazz-Pasca-Hookshot (postpaid)
     """
     try:
+        # IP allowlist check
+        client_ip = get_client_ip(request)
+        allowed_ips = _get_webhook_ip_allowlist('DIGIFLAZZ_WEBHOOK_ALLOWED_IPS')
+        if allowed_ips and not _is_ip_allowed(client_ip, allowed_ips):
+            logger.warning(f"Digiflazz webhook rejected — IP not in allowlist: {client_ip}")
+            return JsonResponse({'error': 'Forbidden'}, status=403)
+        logger.info(f"Digiflazz webhook received from IP: {client_ip}")
+
         # Get webhook secret
-        webhook_secret = os.environ.get('DIGIFLAZZ_WEBHOOK_SECRET', '')
+        webhook_secret = getattr(django_settings, 'DIGIFLAZZ_WEBHOOK_SECRET', '')
         
         if not webhook_secret:
             logger.warning("DIGIFLAZZ_WEBHOOK_SECRET not set - webhook validation disabled!")
@@ -197,10 +206,12 @@ def handle_prepaid_webhook(event):
             #     create_refund(order)
         
         order.save()
-        
-        # TODO: Send notification to user (email, push notification, etc.)
-        # send_order_status_notification(order)
-        
+
+        # Fire email notification on terminal states
+        if order.status in (OrderStatus.COMPLETED, OrderStatus.FAILED):
+            from main.tasks import send_order_notification
+            send_order_notification.delay(str(order.id), order.status)
+
         return f"Order {order.id} updated to {order.status}"
         
     except DigiflazzTransaction.DoesNotExist:
@@ -327,6 +338,39 @@ def get_client_ip(request):
     return ip
 
 
+# ==================== IP ALLOWLIST HELPERS ====================
+
+def _is_ip_allowed(ip: str, allowed_cidrs: list) -> bool:
+    """
+    Return True if ip falls within any CIDR in allowed_cidrs.
+    An empty list means no restriction (allow all).
+    """
+    if not allowed_cidrs:
+        return True
+    try:
+        client_addr = ipaddress.ip_address(ip)
+        for cidr in allowed_cidrs:
+            try:
+                if client_addr in ipaddress.ip_network(cidr.strip(), strict=False):
+                    return True
+            except ValueError:
+                logger.warning(f"Invalid CIDR in webhook allowlist: {cidr}")
+    except ValueError:
+        logger.warning(f"Invalid client IP for allowlist check: {ip}")
+    return False
+
+
+def _get_webhook_ip_allowlist(settings_key: str, default_cidrs=None) -> list:
+    """
+    Return parsed IP/CIDR allowlist from Django settings.
+    Falls back to default_cidrs if the setting is empty.
+    """
+    raw = getattr(django_settings, settings_key, '')
+    if raw:
+        return [item.strip() for item in raw.split(',') if item.strip()]
+    return default_cidrs or []
+
+
 # Optional: Webhook untuk ping test
 @csrf_exempt
 def digiflazz_webhook_ping(request):
@@ -369,6 +413,19 @@ def midtrans_webhook(request):
         - signature_key: SHA512 hash untuk validasi
     """
     try:
+        # IP allowlist check (Midtrans known production IPs used as default in prod)
+        _MIDTRANS_DEFAULT_IPS = ['103.208.23.0/24', '103.179.188.0/28']
+        client_ip = get_client_ip(request)
+        is_production = getattr(django_settings, 'MIDTRANS_PRODUCTION', False)
+        allowed_ips = _get_webhook_ip_allowlist(
+            'MIDTRANS_WEBHOOK_ALLOWED_IPS',
+            default_cidrs=_MIDTRANS_DEFAULT_IPS if is_production else [],
+        )
+        if allowed_ips and not _is_ip_allowed(client_ip, allowed_ips):
+            logger.warning(f"Midtrans webhook rejected — IP not in allowlist: {client_ip}")
+            return JsonResponse({'error': 'Forbidden'}, status=403)
+        logger.info(f"Midtrans webhook received from IP: {client_ip}")
+
         # Parse notification JSON
         try:
             notification = json.loads(request.body.decode('utf-8'))
@@ -456,7 +513,7 @@ def handle_midtrans_notification(notification: dict) -> str:
         
         # Update payment data (always update these fields)
         payment.transaction_id = transaction_id
-        payment.raw_response = notification
+        payment.webhook_data = notification
         
         # Get Midtrans client
         client = get_midtrans_client()
@@ -500,7 +557,6 @@ def handle_midtrans_notification(notification: dict) -> str:
             new_order_status = OrderStatus.FAILED
             
             failure_reason = client.get_transaction_status_message(notification)
-            payment.failure_reason = failure_reason
             order.failure_reason = failure_reason
             
             logger.warning(f"❌ Payment FAILED for Order {order_id} - {failure_reason}")
@@ -533,11 +589,13 @@ def handle_midtrans_notification(notification: dict) -> str:
                 f"Current status={order.status} (priority={current_priority}), "
                 f"New status={new_order_status} (priority={new_priority})"
             )
-            payment.save()  # Still save payment to update transaction_id and raw_response
+            payment.save()  # Still save payment to update transaction_id and webhook_data
         
-        # TODO: Send notification to user
-        # send_payment_status_notification(order, payment)
-        
+        # Send PROCESSING notification when payment is confirmed
+        if new_order_status == OrderStatus.PROCESSING and new_priority >= current_priority:
+            from main.tasks import send_order_notification
+            send_order_notification.delay(str(order.id), 'PROCESSING')
+
         return f"Order {order_id} status: {order.status}"
         
     except Order.DoesNotExist:

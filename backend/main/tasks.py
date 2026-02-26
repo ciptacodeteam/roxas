@@ -9,176 +9,218 @@ Tasks untuk async processing:
 
 import logging
 from celery import shared_task
+from django.conf import settings
+from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.utils.text import slugify
 from decimal import Decimal
 
+from account.tasks import send_email_with_backend_detection
 from main.models import (
     Product, ProductItem, Category, Order, OrderStatus,
-    DigiflazzTransaction, ApiLog
+    DigiflazzTransaction, ApiLog, PriceSync, Payment, PaymentStatus,
 )
 from main.integrations.digiflazz import (
     get_digiflazz_client, DigiflazzException
 )
+from main.utils import build_customer_no
+from main.input_field_presets import get_preset_for_digiflazz, apply_preset_to_product
 
 logger = logging.getLogger(__name__)
+
+# SKU patterns that identify validation / "cek" items (case-insensitive)
+_VALIDATION_SKU_PATTERNS = ("MLCU", "FFCEK", "plncek")
+
+
+def _is_validation_sku(sku_code: str, product_name: str = "") -> bool:
+    """Return True if the SKU or name indicates a validation/check item."""
+    low_sku = sku_code.lower()
+    low_name = product_name.lower()
+    if "cek" in low_name:
+        return True
+    return any(p.lower() in low_sku for p in _VALIDATION_SKU_PATTERNS)
 
 
 @shared_task(bind=True, max_retries=3)
 def sync_digiflazz_products(self, category_filter=None, brand_filter=None):
     """
-    Sync products dari Digiflazz ke database
-    
+    Sync products dari Digiflazz ke database.
+
+    Behaviour
+    ---------
+    * **New SKU** → create Category (if missing), create Product (if missing),
+      create ProductItem with base_price = normal_price = sell_price = Digiflazz price.
+    * **Existing SKU** → update ONLY:
+        - ``base_price`` (Digiflazz cost price)
+        - ``digiflazz_status`` / ``last_synced_at``
+        - ``is_active`` — only deactivates; never re-activates a manually-disabled item
+      Fields that are **never** touched on update:
+        - ``sell_price``, ``normal_price``, ``discounted_price`` (admin-controlled)
+        - ``product.category``, ``product.name``, ``product.description`` (admin-controlled)
+
     Args:
-        category_filter: Filter by kategori (optional)
-        brand_filter: Filter by brand (optional)
-        
+        category_filter: Optional Digiflazz category string to filter the price list.
+        brand_filter: Optional Digiflazz brand string to filter the price list.
+
     Returns:
-        dict: {
-            'success': bool,
-            'created': int,
-            'updated': int,
-            'errors': list
-        }
+        dict: {'success', 'created', 'updated', 'errors'}
     """
+    price_sync = PriceSync.objects.create(
+        sync_type='FULL' if not category_filter and not brand_filter else 'PARTIAL',
+        status='RUNNING',
+    )
+
     try:
         client = get_digiflazz_client()
-        
-        # Get price list
+
         products = client.get_price_list(
             cmd="prepaid",
             category=category_filter,
-            brand=brand_filter
+            brand=brand_filter,
         )
-        
-        # Validate response - check if it's an error
+
         if not isinstance(products, list):
             error_msg = "API returned error or invalid response"
             if isinstance(products, dict):
                 error_msg = products.get('message', error_msg)
             logger.error(error_msg)
-            return {
-                'success': False,
-                'created': 0,
-                'updated': 0,
-                'errors': [error_msg]
-            }
-        
+            price_sync.status = 'FAILED'
+            price_sync.error_message = error_msg
+            price_sync.completed_at = timezone.now()
+            price_sync.save(update_fields=['status', 'error_message', 'completed_at', 'updated_at'])
+            return {'success': False, 'created': 0, 'updated': 0, 'errors': [error_msg]}
+
         logger.info(f"Syncing {len(products)} products from Digiflazz...")
-        
+
         created_count = 0
         updated_count = 0
         errors = []
-        
+        now = timezone.now()
+
         for df_product in products:
             try:
-                # Validate df_product is a dict
                 if not isinstance(df_product, dict):
-                    logger.warning(f"Skipping invalid product: {df_product}")
+                    logger.warning(f"Skipping invalid product entry: {df_product}")
                     continue
-                
-                # Skip inactive products
-                if not df_product.get('buyer_product_status') or \
-                   not df_product.get('seller_product_status'):
+
+                buyer_active = bool(df_product.get('buyer_product_status'))
+                seller_active = bool(df_product.get('seller_product_status'))
+                sku_code = df_product.get('buyer_sku_code', '').strip()
+
+                if not sku_code:
                     continue
-                
-                # Get or create category (from 'category' field, e.g., "Games")
-                category_name = df_product.get('category', 'Uncategorized')
-                category_slug = slugify(category_name)
-                
-                # Try to get existing category by name first
-                try:
-                    category = Category.objects.get(name=category_name)
-                except Category.DoesNotExist:
-                    # Create new category with slug
-                    category = Category.objects.create(
-                        name=category_name,
-                        slug=category_slug,
-                        is_active=True
-                    )
-                
-                # Get or create product (from 'brand' field, e.g., "MOBILE LEGENDS")
-                product_brand = df_product.get('brand', 'Unknown')
-                product_slug = slugify(product_brand)
-                
-                product, created = Product.objects.get_or_create(
-                    slug=product_slug,
-                    defaults={
-                        'name': product_brand,
-                        'category': category,
-                        'description': f"{product_brand} products",
-                        'is_active': True,
-                    }
-                )
-                
-                # Update product if exists (ensure it's in the right category)
-                if not created:
-                    if product.category != category:
-                        product.category = category
-                        product.save()
-                
-                # Create or update product item (from 'product_name' field, e.g., "Mobile Legends 100 Diamonds")
-                sku_code = df_product['buyer_sku_code']
-                
-                # Check if product item already exists
+
+                # ── Existing item: update only Digiflazz-owned fields ──────────
                 try:
                     product_item = ProductItem.objects.get(sku_code=sku_code)
-                    # Product exists - only update price-related fields
+
+                    update_fields = ['base_price', 'last_synced_at', 'digiflazz_status', 'updated_at']
                     product_item.base_price = int(df_product['price'])
-                    product_item.normal_price = int(df_product['price'])
-                    product_item.sell_price = int(df_product['price'])
-                    product_item.last_synced_at = timezone.now()
-                    product_item.digiflazz_status = 'ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
-                    # Only update is_active if it's becoming inactive (don't accidentally activate disabled products)
-                    if not df_product.get('buyer_product_status') or not df_product.get('seller_product_status'):
+                    product_item.last_synced_at = now
+                    product_item.digiflazz_status = 'ACTIVE' if buyer_active else 'INACTIVE'
+
+                    # Only deactivate — never accidentally re-activate a manually-disabled item
+                    if not buyer_active or not seller_active:
                         product_item.is_active = False
-                    product_item.save()
+                        update_fields.append('is_active')
+
+                    product_item.save(update_fields=update_fields)
                     updated_count += 1
-                    item_created = False
-                    logger.info(f"Updated prices for existing product: {sku_code}")
-                    
+                    logger.debug(f"Updated base_price for existing SKU: {sku_code}")
+
+                # ── New item: create Category, Product, ProductItem ───────────
                 except ProductItem.DoesNotExist:
-                    # Product doesn't exist - create new with all fields
-                    product_item = ProductItem.objects.create(
+                    # Get or create category — used only when creating new products
+                    category_name = df_product.get('category', 'Uncategorized')
+                    category, _ = Category.objects.get_or_create(
+                        name=category_name,
+                        defaults={'slug': slugify(category_name), 'is_active': True},
+                    )
+
+                    # Get or create product — never update existing product's category/name
+                    product_brand = df_product.get('brand', 'Unknown')
+                    product_slug = slugify(product_brand)
+                    product, product_created = Product.objects.get_or_create(
+                        slug=product_slug,
+                        defaults={
+                            'name': product_brand,
+                            'category': category,
+                            'description': f"{product_brand} products",
+                            'is_active': True,
+                        },
+                    )
+
+                    # Auto-assign input field preset for newly created products
+                    if product_created:
+                        preset_key = get_preset_for_digiflazz(category_name, product_brand)
+                        apply_preset_to_product(product, preset_key)
+                        product.save(update_fields=['input_fields', 'customer_no_template', 'updated_at'])
+                        logger.info(f"Auto-assigned preset '{preset_key}' to new product: {product_brand}")
+
+                    # New items start with sell_price = base_price;
+                    # admin should apply a markup via bulk-update-prices afterwards
+                    initial_price = int(df_product['price'])
+                    item_name = df_product.get('product_name', sku_code)
+                    ProductItem.objects.create(
                         sku_code=sku_code,
                         product=product,
-                        name=df_product['product_name'],  # Full item name
-                        base_price=int(df_product['price']),
-                        normal_price=int(df_product['price']),
-                        sell_price=int(df_product['price']),
-                        is_active=df_product.get('buyer_product_status', True) and df_product.get('seller_product_status', True),
-                        last_synced_at=timezone.now(),
-                        digiflazz_status='ACTIVE' if df_product.get('buyer_product_status') else 'INACTIVE'
+                        name=item_name,
+                        base_price=initial_price,
+                        normal_price=initial_price,
+                        sell_price=initial_price,
+                        is_active=buyer_active and seller_active,
+                        is_validation_item=_is_validation_sku(sku_code, item_name),
+                        last_synced_at=now,
+                        digiflazz_status='ACTIVE' if buyer_active else 'INACTIVE',
                     )
                     created_count += 1
-                    item_created = True
-                    logger.info(f"Created new product: {sku_code}")
-                    
-            except Exception as e:
+                    logger.info(f"Created new ProductItem: {sku_code}")
+
+            except Exception as exc:
                 sku = df_product.get('buyer_sku_code', 'unknown') if isinstance(df_product, dict) else 'unknown'
-                error_msg = f"Error syncing product {sku}: {str(e)}"
-                logger.error(error_msg)
+                error_msg = f"Error syncing SKU {sku}: {exc}"
+                logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
-        
-        result = {
+
+        price_sync.status = 'SUCCESS' if not errors else 'PARTIAL'
+        price_sync.items_synced = len(products)
+        price_sync.items_created = created_count
+        price_sync.items_updated = updated_count
+        price_sync.error_message = '\n'.join(errors[:10])  # store first 10 errors
+        price_sync.completed_at = now
+        price_sync.save(
+            update_fields=[
+                'status', 'items_synced', 'items_created', 'items_updated',
+                'error_message', 'completed_at', 'updated_at',
+            ]
+        )
+
+        logger.info(
+            f"✅ Sync done — Created: {created_count}, Updated: {updated_count}, "
+            f"Errors: {len(errors)}"
+        )
+        return {
             'success': True,
             'created': created_count,
             'updated': updated_count,
-            'errors': errors
+            'errors': errors,
         }
-        
-        logger.info(f"✅ Product sync completed - Created: {created_count}, Updated: {updated_count}")
-        
-        return result
-        
-    except DigiflazzException as e:
-        logger.error(f"Digiflazz API error during sync: {e}")
-        
-        # Retry dengan exponential backoff
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
-        
-    except Exception as e:
-        logger.exception(f"Unexpected error during product sync: {e}")
+
+    except DigiflazzException as exc:
+        logger.error(f"Digiflazz API error during sync: {exc}")
+        price_sync.status = 'FAILED'
+        price_sync.error_message = str(exc)
+        price_sync.completed_at = timezone.now()
+        price_sync.save(update_fields=['status', 'error_message', 'completed_at', 'updated_at'])
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+
+    except Exception as exc:
+        logger.exception(f"Unexpected error during product sync: {exc}")
+        price_sync.status = 'FAILED'
+        price_sync.error_message = str(exc)
+        price_sync.completed_at = timezone.now()
+        price_sync.save(update_fields=['status', 'error_message', 'completed_at', 'updated_at'])
         raise
 
 
@@ -223,40 +265,16 @@ def process_order_topup(self, order_id):
         if not order.product_item.sku_code:
             raise ValueError("Product tidak memiliki SKU code")
         
-        # Extract customer_no from customer_data based on product type
-        # Different product types require different field combinations:
-        # - Games with server: userId + serverId (concatenated, e.g., Mobile Legends)
-        # - Games without server: userId only (e.g., Free Fire, PUBG)
-        # - Pulsa: phoneNumber
-        # - PLN: meterNumber
-        # - Voucher: userId (can be email or account ID)
+        # Build customer_no from product's template + submitted customer_data
+        # The template is configured per-product (e.g. "{userId}{serverId}", "{phoneNumber}")
         customer_data = order.customer_data or {}
-        
-        # Try different field types based on what's available
-        # Priority: phoneNumber > meterNumber > userId (with optional serverId)
-        phone_number = customer_data.get('phoneNumber') or customer_data.get('phone_number')
-        meter_number = customer_data.get('meterNumber') or customer_data.get('meter_number')
-        user_id = customer_data.get('userId') or customer_data.get('user_id') or customer_data.get('gameId')
-        
-        if phone_number:
-            # Pulsa products
-            customer_no = str(phone_number)
-        elif meter_number:
-            # PLN products
-            customer_no = str(meter_number)
-        elif user_id:
-            # Game or Voucher products
-            server_id = customer_data.get('serverId') or customer_data.get('server_id') or customer_data.get('zoneId')
-            if server_id:
-                # Games with server (e.g., Mobile Legends)
-                customer_no = f"{user_id}{server_id}"
-            else:
-                # Games without server or vouchers
-                customer_no = str(user_id)
-        else:
-            raise ValueError("Customer data tidak memiliki field yang diperlukan (userId, phoneNumber, atau meterNumber)")
-        
-        logger.info(f"Processing top-up for customer_no: {customer_no}")
+        template = order.product_item.product.customer_no_template or ''
+
+        customer_no = build_customer_no(customer_data, template)
+        if not customer_no and template:
+            raise ValueError("customer_no tidak bisa dibangun dari data yang diberikan")
+
+        logger.info(f"Processing top-up for customer_no: {customer_no!r}")
         
         # Get Digiflazz client
         client = get_digiflazz_client()
@@ -266,7 +284,6 @@ def process_order_topup(self, order_id):
             buyer_sku_code=order.product_item.sku_code,
             customer_no=customer_no,
             ref_id=order.order_number,  # Use order_number instead of UUID for ref_id
-            testing=False
         )
         
         # Save transaction to database
@@ -309,10 +326,11 @@ def process_order_topup(self, order_id):
             logger.warning(f"❌ Order {order.id} FAILED - {transaction['message']}")
         
         order.save()
-        
-        # TODO: Send notification to user
-        # send_order_notification.delay(str(order.id))
-        
+
+        # Send email notification to user on terminal states
+        if order.status in (OrderStatus.COMPLETED, OrderStatus.FAILED):
+            send_order_notification.delay(str(order.id), order.status)
+
         return {
             'success': True,
             'order_id': str(order.id),
@@ -377,120 +395,6 @@ def process_order_topup(self, order_id):
         raise
 
 
-@shared_task(bind=True, max_retries=3)
-def check_order_status(self, order_id):
-    """
-    Check status order yang masih pending
-    
-    Args:
-        order_id: UUID of the order
-        
-    Returns:
-        dict: Status check result
-    """
-    try:
-        order = Order.objects.select_related('product_item').get(id=order_id)
-        
-        logger.info(f"Checking status for Order {order.id}")
-        
-        # Skip jika order sudah completed atau failed
-        if order.status in [OrderStatus.COMPLETED, OrderStatus.FAILED, OrderStatus.EXPIRED]:
-            logger.info(f"Order {order.id} already {order.status}, skipping status check")
-            return {
-                'success': True,
-                'order_id': str(order.id),
-                'status': order.status,
-                'message': 'Order already finalized'
-            }
-        
-        # Get latest Digiflazz transaction
-        df_transaction = DigiflazzTransaction.objects.filter(
-            order=order
-        ).order_by('-created_at').first()
-        
-        if not df_transaction:
-            raise ValueError("No Digiflazz transaction found for this order")
-        
-        # Check status
-        client = get_digiflazz_client()
-        status_result = client.check_transaction_status(
-            buyer_sku_code=df_transaction.sku_code,
-            customer_no=df_transaction.customer_no,
-            ref_id=df_transaction.ref_id
-        )
-        
-        # Update transaction
-        df_transaction.status = status_result['status']
-        df_transaction.message = status_result['message']
-        df_transaction.serial_number = status_result.get('sn', '')
-        df_transaction.response_data = status_result
-        df_transaction.save()
-        
-        # Update order
-        if client.is_transaction_success(status_result['status'], status_result['rc']):
-            order.status = OrderStatus.COMPLETED
-            order.completion_data = {
-                'serial_number': status_result['sn'],
-                'completed_at': timezone.now().isoformat()
-            }
-            logger.info(f"✅ Order {order.id} COMPLETED after status check")
-            
-        elif client.is_transaction_pending(status_result['status'], status_result['rc']):
-            # Still pending, check again later
-            logger.info(f"⏳ Order {order.id} still PENDING")
-            
-            # Check if transaction is expired (>90 days)
-            if client.is_transaction_expired(df_transaction.created_at):
-                order.status = OrderStatus.EXPIRED
-                order.failure_reason = "Transaction expired after 90 days"
-                logger.warning(f"Order {order.id} expired")
-            # Check if timed out (>30 minutes for immediate check)
-            elif (timezone.now() - order.created_at).total_seconds() > 1800:
-                # Timeout after 30 minutes
-                order.status = OrderStatus.FAILED
-                order.failure_reason = "Transaction timeout (pending > 30 minutes)"
-                logger.warning(f"Order {order.id} timeout")
-            else:
-                # Schedule check with appropriate delay
-                delay_minutes = client.get_retry_delay_minutes(status_result.get('rc', ''))
-                check_order_status.apply_async(
-                    args=[str(order.id)],
-                    countdown=delay_minutes * 60
-                )
-                
-        else:
-            order.status = OrderStatus.FAILED
-            order.failure_reason = status_result['message']
-            logger.warning(f"❌ Order {order.id} FAILED after status check")
-        
-        order.save()
-        
-        return {
-            'success': True,
-            'order_id': str(order.id),
-            'status': order.status,
-            'message': status_result['message']
-        }
-        
-    except Order.DoesNotExist:
-        logger.error(f"Order {order_id} not found")
-        return {
-            'success': False,
-            'order_id': str(order_id),
-            'message': 'Order not found'
-        }
-        
-    except DigiflazzException as e:
-        logger.error(f"Digiflazz error checking Order {order_id}: {e}")
-        
-        # Retry
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
-        
-    except Exception as e:
-        logger.exception(f"Error checking Order {order_id} status: {e}")
-        raise
-
-
 @shared_task
 def sync_digiflazz_balance():
     """
@@ -508,18 +412,21 @@ def sync_digiflazz_balance():
         
         # Log to ApiLog for monitoring
         ApiLog.objects.create(
-            service='digiflazz',
+            provider='DIGIFLAZZ',
             endpoint='/cek-saldo',
             method='POST',
             request_data={'cmd': 'deposit'},
             response_data=balance,
+            status='SUCCESS',
             status_code=200,
-            duration_ms=0
+            response_time=0,
         )
-        
-        # TODO: Send alert if balance < threshold
-        # if deposit < 100000:  # Rp 100k
-        #     send_low_balance_alert(deposit)
+
+        # Send alert if balance is below threshold
+        threshold = getattr(settings, 'DIGIFLAZZ_LOW_BALANCE_THRESHOLD', 100000)
+        if deposit < threshold:
+            logger.warning(f"⚠️ Low Digiflazz balance: Rp {deposit:,} (threshold: Rp {threshold:,})")
+            send_low_balance_alert.delay(deposit)
         
         return {
             'success': True,
@@ -698,3 +605,138 @@ def check_digiflazz_transaction_status(self, transaction_id):
             raise self.retry(countdown=countdown, exc=e)
         
         return {'success': False, 'error': str(e)}
+
+
+# ======================================================================
+# EMAIL NOTIFICATION TASKS
+# ======================================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_order_notification(self, order_id, notification_type):
+    """
+    Send order status email notification to customer.
+
+    Args:
+        order_id: UUID string of the Order
+        notification_type: 'COMPLETED' | 'FAILED' | 'PROCESSING' | 'REFUNDED'
+    """
+    TEMPLATES = {
+        'COMPLETED':  'main/emails/order_completed_email.html',
+        'FAILED':     'main/emails/order_failed_email.html',
+        'PROCESSING': 'main/emails/order_processing_email.html',
+        'REFUNDED':   'main/emails/order_refunded_email.html',
+    }
+    SUBJECTS = {
+        'COMPLETED':  '✅ Top-up Berhasil - {order_number}',
+        'FAILED':     '❌ Top-up Gagal - {order_number}',
+        'PROCESSING': '⏳ Pembayaran Diterima - {order_number}',
+        'REFUNDED':   '💰 Refund Diproses - {order_number}',
+    }
+    try:
+        order = Order.objects.select_related(
+            'user', 'product_item__product', 'payment_method'
+        ).get(id=order_id)
+
+        template = TEMPLATES.get(notification_type)
+        subject_tpl = SUBJECTS.get(notification_type)
+
+        if not template:
+            logger.error(f"Unknown notification_type: {notification_type}")
+            return f"Unknown notification_type: {notification_type}"
+
+        subject = subject_tpl.format(order_number=order.order_number)
+        html_message = render_to_string(template, {
+            'order': order,
+            'FRONTEND_URL': getattr(settings, 'FRONTEND_URL', ''),
+        })
+        plain_message = strip_tags(html_message)
+
+        return send_email_with_backend_detection(
+            subject=subject,
+            plain_message=plain_message,
+            html_message=html_message,
+            recipient_list=[order.user.email],
+            email_type=f"order_{notification_type.lower()}_notification",
+        )
+
+    except Order.DoesNotExist:
+        logger.error(f"Order {order_id} not found for notification")
+        return f"Order {order_id} not found"
+
+    except Exception as exc:
+        logger.error(f"Error sending order notification: {exc}", exc_info=True)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise
+
+
+@shared_task(bind=True, max_retries=3)
+def process_midtrans_refund(self, order_id, refund_amount=None, reason=''):
+    """
+    Call Midtrans refund API and update payment/order status.
+
+    Args:
+        order_id: UUID string of the Order
+        refund_amount: Optional override; falls back to order.refund_amount or total_amount
+        reason: Human-readable refund reason
+    """
+    from main.integrations.midtrans import get_midtrans_client, MidtransException
+
+    try:
+        order = Order.objects.select_related('payment').get(id=order_id)
+        payment = getattr(order, 'payment', None)
+
+        if not payment or not payment.transaction_id:
+            raise ValueError(f"Order {order_id} has no linked Midtrans transaction")
+
+        client = get_midtrans_client()
+        amount = refund_amount or getattr(order, 'refund_amount', None) or order.total_amount
+
+        result = client.refund_transaction(
+            order_id=payment.transaction_id,
+            reason=reason or getattr(order, 'refund_reason', '') or 'Admin refund',
+            amount=amount,
+        )
+
+        payment.status = PaymentStatus.REFUND
+        payment.save(update_fields=['status', 'updated_at'])
+
+        logger.info(f"✅ Midtrans refund processed for Order {order_id}: {result}")
+        send_order_notification.delay(str(order_id), 'REFUNDED')
+
+        return {'success': True, 'order_id': str(order_id), 'result': result}
+
+    except Exception as exc:
+        logger.error(f"Error processing refund for Order {order_id}: {exc}", exc_info=True)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=120 * (2 ** self.request.retries))
+        raise
+
+
+@shared_task
+def send_low_balance_alert(deposit):
+    """
+    Send low Digiflazz balance alert email to the configured ADMIN_ALERT_EMAIL.
+
+    Args:
+        deposit: Current balance (int, IDR)
+    """
+    admin_email = getattr(settings, 'ADMIN_ALERT_EMAIL', '')
+    if not admin_email:
+        logger.warning("ADMIN_ALERT_EMAIL not set — cannot send low balance alert")
+        return "ADMIN_ALERT_EMAIL not configured"
+
+    threshold = getattr(settings, 'DIGIFLAZZ_LOW_BALANCE_THRESHOLD', 100000)
+    html_message = render_to_string('main/emails/low_balance_alert_email.html', {
+        'deposit': deposit,
+        'threshold': threshold,
+    })
+    plain_message = strip_tags(html_message)
+
+    return send_email_with_backend_detection(
+        subject=f'⚠️ Saldo Digiflazz Rendah: Rp {deposit:,}',
+        plain_message=plain_message,
+        html_message=html_message,
+        recipient_list=[admin_email],
+        email_type='low_balance_alert',
+    )

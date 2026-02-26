@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pembayaran Diterima - Memproses Top-up</title>
+</head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#13171C;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#13171C;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;background-color:#1B2129;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.3);">
+          {% include "account/_email_header_logo.html" with header_subtitle="Game Top-Up & Digital Services" %}
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:40px 30px;">
+              <h2 style="margin:0 0 20px 0;color:#ffffff;font-size:24px;font-weight:600;">
+                ⏳ Pembayaran Diterima!
+              </h2>
+              <p style="margin:0 0 20px 0;color:#d0d0d0;font-size:16px;line-height:1.6;">
+                Halo, <strong style="color:#ffffff;">{{ order.user.email }}</strong>!
+                Pembayaran Anda telah berhasil diterima. Top-up sedang diproses oleh sistem kami.
+              </p>
+
+              <!-- Order Details -->
+              <div style="background-color:rgba(255,193,7,0.08);border-left:4px solid #ffc107;padding:20px;margin:24px 0;border-radius:8px;">
+                <p style="margin:0 0 10px 0;color:#ffc107;font-size:13px;font-weight:700;letter-spacing:0.5px;">DETAIL PESANAN</p>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;width:40%;">No. Pesanan</td><td style="color:#ffffff;font-size:14px;font-weight:600;">{{ order.order_number }}</td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Produk</td><td style="color:#ffffff;font-size:14px;">{{ order.product_item.name }}</td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Game</td><td style="color:#ffffff;font-size:14px;">{{ order.product_item.product.name }}</td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Total Bayar</td><td style="color:#ffc107;font-size:15px;font-weight:700;">Rp {{ order.total_amount }}</td></tr>
+                </table>
+              </div>
+
+              <p style="margin:0 0 20px 0;color:#d0d0d0;font-size:15px;line-height:1.6;">
+                Proses top-up biasanya selesai dalam <strong style="color:#ffc107;">beberapa menit</strong>.
+                Anda akan mendapat email konfirmasi setelah top-up berhasil.
+              </p>
+
+              <div style="text-align:center;margin:32px 0;">
+                <a href="{{ FRONTEND_URL }}/id/orders"
+                   style="display:inline-block;background:linear-gradient(135deg,#ffc107 0%,#e5a800 100%);color:#1B2129;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;">
+                  Lihat Status Pesanan
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+              <p style="margin:0 0 8px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store. All rights reserved.</p>
+              <p style="margin:0;color:#606060;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

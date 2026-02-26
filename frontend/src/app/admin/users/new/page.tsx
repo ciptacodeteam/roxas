@@ -111,7 +111,6 @@ export default function UserAddPage() {
       role: userType === "staff" ? "STAFF" : "CUSTOMER",
     };
 
-    console.log("Submitting user data:", submitData);
     setSaving(true);
     
     if (userType === "staff") {

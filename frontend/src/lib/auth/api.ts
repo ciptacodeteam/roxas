@@ -223,5 +223,4 @@ export async function refreshTokenApi(): Promise<void> {
   }
 
   // Token is refreshed in HTTP-only cookie
-  console.log("[Refresh Token] Success");
 }

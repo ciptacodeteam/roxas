@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { API_URL } from "@/lib/api-url";
 import { useProfile, useUpdateProfile, useChangePassword } from "@/lib/profile";
 import { useSendEmailVerification } from "@/lib/users";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -203,7 +204,7 @@ export default function ProfileContent() {
       setIsConnectingGoogle(true);
       try {
         // Send the token to the backend to connect Google account
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/v1/auth/connect-google/`, {
+        const res = await fetch(`${API_URL}/api/v1/auth/connect-google/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

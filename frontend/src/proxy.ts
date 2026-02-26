@@ -2,11 +2,12 @@ import createMiddleware from 'next-intl/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { routing } from './i18n/routing'; // Pastikan routing sudah dikonfigurasi
+import { API_URL } from '@/lib/api-url';
 
 // Create next-intl middleware with locale prefix strategy
 const intlMiddleware = createMiddleware(routing);
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 /**
  * Get user session from Django backend

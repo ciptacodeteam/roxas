@@ -1,7 +1,7 @@
-import { env } from "@/env";
+import { API_URL } from "@/lib/api-url";
 import type { Order, OrderDetail, OrderFilters, OrderListResponse } from "./types";
 
-const API_BASE_URL = env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 // Re-export types for convenience
 export type { Order, OrderDetail, OrderFilters, OrderListResponse } from "./types";

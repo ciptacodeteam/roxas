@@ -60,10 +60,10 @@ export function useLogin(options?: {
         // Trigger session refetch
         refetchSession();
 
-        // Wait longer to ensure session is fully loaded
+        // Wait for session to be fully loaded before navigating
         setTimeout(() => {
           window.location.href = options?.redirectTo || "/admin";
-        }, 1500); // Increased to 1.5 seconds to ensure session loads
+        }, 500);
 
         options?.onSuccess?.();
         return;

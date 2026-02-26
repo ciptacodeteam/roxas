@@ -45,11 +45,6 @@ def log_api_call(provider: str, endpoint: str, method: str, status_code: int, re
         logger.error(f"Failed to log API call: {str(e)}")
 
 
-class DigiflazzException(Exception):
-    """Custom exception untuk Digiflazz API errors"""
-    pass
-
-
 class DigiflazzClient:
     """
     Digiflazz API Client untuk game top-up
@@ -69,20 +64,30 @@ class DigiflazzClient:
         api_url: Optional[str] = None,
     ):
         """
-        Initialize Digiflazz client
-        
-        Args:
-            username: Username Digiflazz (default dari env)
-            api_key: API Key Digiflazz (default dari env)
-            environment: 'sandbox' atau 'production' (default dari env)
-            api_url: Base URL API (default dari env)
+        Initialize Digiflazz client.
+
+        Credential resolution order:
+        1. Explicit constructor arguments
+        2. ``django.conf.settings`` (preferred in Django context)
+        3. ``os.environ`` fallback
         """
-        self.username = (username or os.environ.get("DIGIFLAZZ_USERNAME", "")).strip()
-        self.api_key = (api_key or os.environ.get("DIGIFLAZZ_API_KEY", "")).strip()
-        self.environment = environment or os.environ.get("DIGIFLAZZ_ENVIRONMENT", "production")
-        self.api_url = api_url or os.environ.get(
-            "DIGIFLAZZ_API_URL", "https://api.digiflazz.com/v1"
-        )
+        def _cfg(attr: str, env_key: str, default: str = "") -> str:
+            if attr:
+                return str(attr).strip()
+            # Try Django settings first
+            try:
+                from django.conf import settings as _s
+                val = getattr(_s, env_key, None)
+                if val:
+                    return str(val).strip()
+            except Exception:
+                pass
+            return os.environ.get(env_key, default).strip()
+
+        self.username = _cfg(username, "DIGIFLAZZ_USERNAME")
+        self.api_key = _cfg(api_key, "DIGIFLAZZ_API_KEY")
+        self.environment = _cfg(environment, "DIGIFLAZZ_ENVIRONMENT") or "production"
+        self.api_url = _cfg(api_url, "DIGIFLAZZ_API_URL") or "https://api.digiflazz.com/v1"
         
         if not self.username or not self.api_key:
             raise DigiflazzException(
@@ -101,14 +106,19 @@ class DigiflazzClient:
         
         # Log configuration (mask sensitive data)
         masked_api_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
-        logger.info(
+        logger.debug(
             f"Digiflazz Client initialized - "
             f"Username: '{self.username}' (len={len(self.username)}), "
             f"API Key: {masked_api_key} (len={len(self.api_key)}), "
             f"Environment: {self.environment}, "
             f"API URL: {self.api_url}"
         )
-    
+
+    @property
+    def is_development(self) -> bool:
+        """True when not in production mode — transactions will use testing=True automatically."""
+        return self.environment != "production"
+
     def _generate_signature(self, data: str) -> str:
         """
         Generate MD5 signature untuk request
@@ -305,7 +315,7 @@ class DigiflazzClient:
         buyer_sku_code: str,
         customer_no: str,
         ref_id: str,
-        testing: bool = False,
+        testing: Optional[bool] = None,
         max_price: Optional[int] = None,
         callback_url: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -318,7 +328,10 @@ class DigiflazzClient:
             buyer_sku_code: Kode SKU produk Anda
             customer_no: Nomor pelanggan/user ID game
             ref_id: Reference ID unik dari sistem Anda
-            testing: True untuk development testing
+            testing: Override testing mode. None = auto-detect from environment
+                     (sandbox/development → True, production → False).
+                     Pass True explicitly to force testing regardless of environment
+                     (e.g. MLCU account-name lookup). Pass False to force real mode.
             max_price: Limit harga maksimal (optional)
             callback_url: URL webhook khusus untuk transaksi ini (optional)
             
@@ -349,8 +362,8 @@ class DigiflazzClient:
         
         # Log signature details for debugging (mask API key)
         masked_api_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
-        logger.info(
-            f"Transaction signature DEBUG - "
+        logger.debug(
+            f"Transaction signature - "
             f"Username: '{self.username}' (len={len(self.username)}), "
             f"API Key: {masked_api_key} (len={len(self.api_key)}), "
             f"Ref ID: '{ref_id}' (len={len(ref_id)}), "
@@ -367,7 +380,9 @@ class DigiflazzClient:
         }
         
         # Add optional parameters
-        if testing or self.environment == "sandbox":
+        # If testing is explicitly provided, honour it; otherwise auto-detect from environment.
+        use_testing = testing if testing is not None else self.is_development
+        if use_testing:
             payload["testing"] = True
         if max_price:
             payload["max_price"] = max_price

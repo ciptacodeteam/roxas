@@ -1,3 +1,17 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Kebijakan Privasi",
+  description:
+    "Baca kebijakan privasi Roxas Games Store — bagaimana kami mengumpulkan, menggunakan, dan melindungi data pribadi Anda.",
+  openGraph: {
+    title: "Kebijakan Privasi | Roxas Games Store",
+    description:
+      "Baca kebijakan privasi Roxas Games Store — bagaimana kami mengumpulkan, menggunakan, dan melindungi data pribadi Anda.",
+    type: "website",
+  },
+};
+
 export default function PrivacyPolicy() {
   return (
     <>

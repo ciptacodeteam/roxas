@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚠️ Saldo Digiflazz Rendah</title>
+</head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#13171C;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#13171C;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;background-color:#1B2129;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.3);">
+          {% include "account/_email_header_logo.html" with header_subtitle="System Alert — Admin Only" %}
+
+          <!-- Alert Banner -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);padding:20px 30px;text-align:center;">
+              <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">⚠️ Peringatan Sistem</p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:40px 30px;">
+              <h2 style="margin:0 0 16px 0;color:#ffffff;font-size:22px;font-weight:700;">
+                Saldo Digiflazz Di Bawah Batas Minimum
+              </h2>
+              <p style="margin:0 0 24px 0;color:#d0d0d0;font-size:15px;line-height:1.6;">
+                Sistem mendeteksi bahwa saldo Digiflazz Anda saat ini sudah di bawah batas minimum yang ditetapkan.
+                Segera lakukan pengisian ulang untuk menghindari kegagalan transaksi pelanggan.
+              </p>
+
+              <!-- Balance Box -->
+              <div style="background-color:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:24px;margin:0 0 28px 0;text-align:center;">
+                <p style="margin:0 0 6px 0;color:#a0a0a0;font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Saldo Saat Ini</p>
+                <p style="margin:0 0 16px 0;color:#ef4444;font-size:36px;font-weight:800;">
+                  Rp {{ deposit|floatformat:"0" }}
+                </p>
+                <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 0 16px 0;"></div>
+                <p style="margin:0 0 6px 0;color:#a0a0a0;font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Batas Minimum</p>
+                <p style="margin:0;color:#f97316;font-size:22px;font-weight:700;">
+                  Rp {{ threshold|floatformat:"0" }}
+                </p>
+              </div>
+
+              <p style="margin:0 0 24px 0;color:#d0d0d0;font-size:14px;line-height:1.6;">
+                Transaksi baru masih dapat diproses selama saldo mencukupi biaya produk yang diminta.
+                Namun kami merekomendasikan untuk segera melakukan top-up saldo Digiflazz melalui panel admin Digiflazz.
+              </p>
+
+              <div style="text-align:center;margin:32px 0;">
+                <a href="https://digiflazz.com"
+                   style="display:inline-block;background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;">
+                  Buka Panel Digiflazz
+                </a>
+              </div>
+
+              <div style="background-color:rgba(255,255,255,0.03);border-radius:8px;padding:14px 18px;border:1px solid rgba(255,255,255,0.07);">
+                <p style="margin:0;color:#606060;font-size:12px;line-height:1.5;">
+                  Email ini dikirim secara otomatis oleh sistem monitoring saldo Roxas Store.
+                  Alert dikirim ketika saldo di bawah <strong style="color:#a0a0a0;">Rp {{ threshold|floatformat:"0" }}</strong>.
+                  Untuk mengubah batas minimum, atur environment variable <code style="color:#f97316;">DIGIFLAZZ_LOW_BALANCE_THRESHOLD</code>.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+              <p style="margin:0 0 4px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store — System Alert</p>
+              <p style="margin:0;color:#606060;font-size:12px;">Email ini hanya dikirim ke alamat admin yang terdaftar.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

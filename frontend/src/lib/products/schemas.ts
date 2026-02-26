@@ -1,11 +1,17 @@
 import { z } from "zod";
 
 export const InputFieldSchema = z.object({
-    name: z.string().min(1, "Field name is required"),
+    key: z.string().min(1, "Field key is required"),
     label: z.string().min(1, "Field label is required"),
     type: z.enum(["text", "number", "email", "tel"]),
     placeholder: z.string().optional(),
+    hint: z.string().optional(),
     required: z.boolean().optional().default(true),
+    validation: z.object({
+        pattern: z.string().optional(),
+        min_length: z.number().optional(),
+        max_length: z.number().optional(),
+    }).optional(),
 });
 
 export const CreateProductSchema = z.object({
@@ -16,6 +22,8 @@ export const CreateProductSchema = z.object({
     image: z.string().optional().nullable(),
     banner_image: z.string().optional().nullable(),
     input_fields: z.array(InputFieldSchema).default([]),
+    customer_no_template: z.string().optional().default(""),
+    supports_validation: z.boolean().optional().default(false),
     instructions: z.string().optional().default(""),
     is_active: z.boolean().default(true),
     sort_order: z.number().int().default(0),

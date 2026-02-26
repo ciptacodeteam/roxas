@@ -5,8 +5,9 @@
 
 import type { Order } from "./types";
 import { OrdersApiError } from "./types";
+import { API_URL } from "@/lib/api-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 /**
  * Fetch wrapper with error handling
@@ -47,7 +48,7 @@ export async function getOrders(filters?: { status?: string }): Promise<Order[]>
         queryParams.set("status", filters.status);
     }
 
-    const url = `/api/admin/orders${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    const url = `/api/v1/admin/orders/${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
     return fetchAPI<Order[]>(url);
 }
 
@@ -55,5 +56,5 @@ export async function getOrders(filters?: { status?: string }): Promise<Order[]>
  * Get single order by ID
  */
 export async function getOrder(id: string): Promise<Order> {
-    return fetchAPI<Order>(`/api/admin/orders/${id}`);
+    return fetchAPI<Order>(`/api/v1/admin/orders/${id}/`);
 }

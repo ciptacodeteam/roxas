@@ -3,10 +3,8 @@
  * Shared functionality for both admin and public password reset
  */
 
-import { env } from "@/env";
+import { API_URL } from "@/lib/api-url";
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-
-const API_URL = env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8000";
 
 // ==================== TYPES ====================
 

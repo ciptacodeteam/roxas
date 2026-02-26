@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { API_URL } from "@/lib/api-url"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -18,7 +19,7 @@ export function getImageUrl(imageUrl: string | null | undefined, fallback: strin
   }
 
   // Build full URL with backend API URL
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const backendUrl = API_URL;
   const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
 
   return `${backendUrl}${cleanPath}`;

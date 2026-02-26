@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
+import { API_URL } from "@/lib/api-url";
 
 // Django API base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 /**
  * Auth client for Django backend

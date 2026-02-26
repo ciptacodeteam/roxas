@@ -1,17 +1,51 @@
-// app/leaderboard/page.tsx
 "use client";
 
-import { leaderboard } from "@/lib/data/leaderboard";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { leaderboard as dummyLeaderboard, type LeaderboardData } from "@/lib/data/leaderboard";
+import { API_URL } from "@/lib/api-url";
 
 function formatRupiah(n: number) {
   return n.toLocaleString("id-ID");
 }
 
 export default function TopLeaderboardPage() {
+  const [data, setData] = useState<LeaderboardData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/v1/orders/leaderboard/`, { cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.json() as Promise<LeaderboardData[]>;
+      })
+      .then((json) => {
+        // Use dummy data for any group that came back empty from the API
+        const merged = json.map((group, i) => ({
+          ...group,
+          items: group.items.length > 0 ? group.items : dummyLeaderboard[i]?.items ?? [],
+        }));
+        setData(merged);
+      })
+      .catch(() => {
+        // Network error — fall back entirely to dummy data
+        setData(dummyLeaderboard);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-white/40" />
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto mt-8 max-w-7xl pb-14">
       <div className="grid gap-6 md:grid-cols-3">
-        {leaderboard.map((group, idx) => (
+        {data.map((group, idx) => (
           <section
             key={idx}
             aria-labelledby={`leaderboard-${idx}`}
@@ -29,7 +63,7 @@ export default function TopLeaderboardPage() {
                 const isTop3 = index < 3;
                 return (
                   <li
-                    key={item.name + index}
+                    key={index}
                     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
                       isTop3
                         ? "border-yellow-500/30 bg-linear-to-r from-white/5 to-yellow-200/10"

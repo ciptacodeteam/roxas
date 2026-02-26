@@ -1,3 +1,4 @@
+from django.db.models import F
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -75,8 +76,9 @@ def update_flash_sale_sold_count(sender, instance, created, **kwargs):
         ).first()
         
         if flash_sale_item:
-            flash_sale_item.sold_count += 1
-            flash_sale_item.save(update_fields=['sold_count', 'updated_at'])
+            FlashSaleItem.objects.filter(pk=flash_sale_item.pk).update(
+                sold_count=F('sold_count') + 1
+            )
 
 
 # ============================================
@@ -89,9 +91,10 @@ def increment_coupon_usage(sender, instance, created, **kwargs):
     Increment coupon usage count when a new usage is created.
     """
     if created:
-        coupon = instance.coupon
-        coupon.usage_count += 1
-        coupon.save(update_fields=['usage_count', 'updated_at'])
+        from .models import Coupon
+        Coupon.objects.filter(pk=instance.coupon_id).update(
+            usage_count=F('usage_count') + 1
+        )
 
 
 @receiver(pre_delete, sender=CouponUsage)
@@ -99,10 +102,10 @@ def decrement_coupon_usage(sender, instance, **kwargs):
     """
     Decrement coupon usage count when usage is deleted (e.g., order cancelled).
     """
-    coupon = instance.coupon
-    if coupon.usage_count > 0:
-        coupon.usage_count -= 1
-        coupon.save(update_fields=['usage_count', 'updated_at'])
+    from .models import Coupon
+    Coupon.objects.filter(pk=instance.coupon_id, usage_count__gt=0).update(
+        usage_count=F('usage_count') - 1
+    )
 
 
 # ============================================
@@ -125,10 +128,19 @@ def _optimize_image_field(instance, field_name, max_width=1920, max_height=1920,
     
     image_field = getattr(instance, field_name, None)
     if image_field and image_field.name and not image_field.name.lower().endswith('.webp'):
+        name = image_field.name
+        # Skip absolute paths, URLs, and SVG files — they are not media-managed rasterised images
+        if (
+            name.startswith('/')
+            or name.startswith('http://') or name.startswith('https://')
+            or name.lower().endswith('.svg')
+        ):
+            logger.debug(f"Skipping optimization for {field_name}: not a media-managed raster image ({name!r})")
+            return
         _optimizing.add(instance_id)
         try:
             # Check if file exists and is accessible in media storage
-            if not image_field.storage.exists(image_field.name):
+            if not image_field.storage.exists(name):
                 logger.debug(f"Skipping optimization for {field_name}: file does not exist in storage")
                 return
             

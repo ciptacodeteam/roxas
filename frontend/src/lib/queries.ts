@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions, type UseMutationOptions } from "@tanstack/react-query";
+import { API_URL } from "@/lib/api-url";
 
 // ============================================
 // Query Keys Factory
@@ -129,7 +130,7 @@ export const queryKeys = {
 // Helper Functions
 // ============================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   // If URL doesn't start with http, prepend the API_BASE_URL
@@ -178,7 +179,7 @@ export function useCategories(options?: Omit<UseQueryOptions<any[]>, "queryKey" 
   return useQuery({
     queryKey: queryKeys.categories.list(),
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/categories/`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/categories/`, {
         method: "GET",
       });
 
@@ -223,7 +224,7 @@ export function useProducts(
     queryKey: queryKeys.products.list(filters),
     queryFn: async () => {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/products/?${queryParams.toString()}`,
+        `${API_BASE_URL}/api/v1/products/?${queryParams.toString()}`,
         { method: "GET" }
       );
 
@@ -321,7 +322,7 @@ export function useMarketingBanners(options?: Omit<UseQueryOptions<any[]>, "quer
   return useQuery({
     queryKey: queryKeys.banners.active(),
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/banners/`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/banners/`, {
         method: "GET",
       });
 
@@ -414,7 +415,6 @@ export function useCreatePayment(
 
   return useMutation({
     mutationFn: async (data: { productItemId: string; customerData: any; couponCode?: string; paymentMethodId?: string }) => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       // Map to Django backend format
       const payload = {
         product_item: data.productItemId,
@@ -422,7 +422,7 @@ export function useCreatePayment(
         payment_method: data.paymentMethodId,
         coupon_code: data.couponCode || "",
       };
-      return fetchJSON<any>(`${apiUrl}/api/v1/orders/`, {
+      return fetchJSON<any>(`${API_BASE_URL}/api/v1/orders/`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -441,13 +441,12 @@ export function useValidateCoupon(
 ) {
   return useMutation({
     mutationFn: async ({ code, orderAmount }: { code: string; orderAmount: number }) => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       // Map to Django backend format
       const payload = {
         code,
         order_amount: orderAmount,
       };
-      return fetchJSON<any>(`${apiUrl}/api/v1/coupons/validate/`, {
+      return fetchJSON<any>(`${API_BASE_URL}/api/v1/coupons/validate/`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -680,7 +679,7 @@ export function useActiveFlashSales(options?: Omit<UseQueryOptions<any>, "queryK
   return useQuery({
     queryKey: queryKeys.flashSales.active(),
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/flash-sales/`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/flash-sales/`, {
         method: "GET",
       });
 

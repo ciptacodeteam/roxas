@@ -13,8 +13,9 @@ import type {
   FlashSaleListParams,
   PaginatedResponse,
 } from "./types";
+import { API_URL } from "@/lib/api-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 export class FlashSalesApiError extends Error {
   constructor(

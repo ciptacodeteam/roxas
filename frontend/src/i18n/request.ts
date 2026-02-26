@@ -1,12 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { getRequestConfig } from 'next-intl/server';
 import { hasLocale } from 'next-intl';
-import { routing } from './routing'; // Asumsi routing.ts juga di folder src, jika tidak, ganti
+import { routing } from './routing';
 
-// Tipe yang lebih aman: Kunci adalah string, dan nilainya juga string
-type Messages = Record<string, string>; 
+type Messages = Record<string, string>;
 
 export default getRequestConfig(async ({ requestLocale }) => {
   

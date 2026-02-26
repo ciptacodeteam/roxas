@@ -98,9 +98,6 @@ export default function AdminAccountPage() {
   // Populate form when profile data loads
   useEffect(() => {
     if (profileData) {
-      console.log("Profile Data:", profileData);
-      console.log("User Data:", profileData.user_data);
-      console.log("Email:", profileData.user_data?.email);
       setProfileValue("full_name", profileData.full_name || "");
       setProfileValue("contact_phone", profileData.contact_phone || "");
     }
@@ -113,7 +110,6 @@ export default function AdminAccountPage() {
         toast.success("Profile updated successfully", {
           description: "Your profile has been updated.",
         });
-        setTimeout(() => window.location.reload(), 500);
       },
       onError: (error) => {
         toast.error("Update failed", {

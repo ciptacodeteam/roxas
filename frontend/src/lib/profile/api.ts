@@ -1,6 +1,6 @@
-import { env } from "@/env";
+import { API_URL } from "@/lib/api-url";
 
-const API_BASE_URL = env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8000";
+const API_BASE_URL = API_URL;
 
 // ==================== TYPES ====================
 

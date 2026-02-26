@@ -79,9 +79,6 @@ export default function ProductEditPage() {
         categoryId = productData.category;
       }
 
-      console.log('Setting category to:', categoryId);
-      console.log('Available categories:', categories.map(c => ({ id: String(c.id), name: c.name })));
-
       setFormData({
         name: productData.name,
         slug: productData.slug,
@@ -345,7 +342,6 @@ export default function ProductEditPage() {
                                 key={productId}
                                 value={formData.category}
                                 onValueChange={(value) => {
-                                  console.log('Category selected:', value);
                                   setFormData({ ...formData, category: value });
                                 }}
                                 required

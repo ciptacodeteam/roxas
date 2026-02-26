@@ -201,9 +201,17 @@ CORS_ALLOW_HEADERS = [
     'pragma',  # Allow pragma header (used by browsers for cache control)
 ]
 
-# Throttle configuration - throttling disabled
-REST_FRAMEWORK_THROTTLE_CLASSES = []
-REST_FRAMEWORK_THROTTLE_RATES = {}
+# Throttle configuration
+# Rates per window: "number/period" where period = second/minute/hour/day
+REST_FRAMEWORK_THROTTLE_CLASSES = [
+    'rest_framework.throttling.AnonRateThrottle',
+    'rest_framework.throttling.UserRateThrottle',
+]
+REST_FRAMEWORK_THROTTLE_RATES = {
+    'anon': os.environ.get('THROTTLE_RATE_ANON', '60/minute'),
+    'user': os.environ.get('THROTTLE_RATE_USER', '300/minute'),
+    'login': os.environ.get('THROTTLE_RATE_LOGIN', '10/minute'),  # For token endpoint
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -265,11 +273,27 @@ AUTH_USER_MODEL = "account.CustomUser"
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 
 # ============================================
+# ENVIRONMENT MODE
+# Set ENVIRONMENT=production in prod .env, leave default (development) for local dev.
+# Both Midtrans and Digiflazz derive their sandbox/production mode from this single flag.
+# Individual per-service overrides (MIDTRANS_IS_PRODUCTION / DIGIFLAZZ_IS_PRODUCTION) are
+# still respected when explicitly set, so existing deployments keep working.
+# ============================================
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
+IS_PRODUCTION = ENVIRONMENT == "production"
+
+# ============================================
 # MIDTRANS PAYMENT GATEWAY CONFIGURATION
 # ============================================
 MIDTRANS_SERVER_KEY = os.environ.get("MIDTRANS_SERVER_KEY", "")
 MIDTRANS_CLIENT_KEY = os.environ.get("MIDTRANS_CLIENT_KEY", "")
-MIDTRANS_PRODUCTION = get_env_bool("MIDTRANS_IS_PRODUCTION", False)
+# Allow per-service override; fall back to global IS_PRODUCTION
+_midtrans_production_override = os.environ.get("MIDTRANS_IS_PRODUCTION", "").strip()
+MIDTRANS_PRODUCTION = (
+    (_midtrans_production_override.lower() == "true")
+    if _midtrans_production_override
+    else IS_PRODUCTION
+)
 
 # ============================================
 # DIGIFLAZZ GAME TOP-UP CONFIGURATION
@@ -278,14 +302,28 @@ DIGIFLAZZ_USERNAME = os.environ.get("DIGIFLAZZ_USERNAME", "")
 DIGIFLAZZ_API_KEY = os.environ.get("DIGIFLAZZ_API_KEY", "")
 DIGIFLAZZ_API_URL = os.environ.get("DIGIFLAZZ_API_URL", "https://api.digiflazz.com/v1")
 DIGIFLAZZ_WEBHOOK_SECRET = os.environ.get("DIGIFLAZZ_WEBHOOK_SECRET", "")
-DIGIFLAZZ_PRODUCTION = get_env_bool("DIGIFLAZZ_IS_PRODUCTION", False)
+# Allow per-service override; fall back to global IS_PRODUCTION
+_digiflazz_production_override = os.environ.get("DIGIFLAZZ_IS_PRODUCTION", "").strip()
+DIGIFLAZZ_PRODUCTION = (
+    (_digiflazz_production_override.lower() == "true")
+    if _digiflazz_production_override
+    else IS_PRODUCTION
+)
 DIGIFLAZZ_ENVIRONMENT = "production" if DIGIFLAZZ_PRODUCTION else "sandbox"
+# Minimum balance threshold for low-balance alert emails (IDR)
+DIGIFLAZZ_LOW_BALANCE_THRESHOLD = int(os.environ.get('DIGIFLAZZ_LOW_BALANCE_THRESHOLD', '100000'))
+# Admin email for operational alerts (low balance, system errors)
+ADMIN_ALERT_EMAIL = os.environ.get('ADMIN_ALERT_EMAIL', '')
+# Webhook IP allowlists (comma-separated CIDRs or IPs; empty = no restriction)
+# In production, Midtrans defaults to 103.208.23.0/24,103.179.188.0/28 when empty
+MIDTRANS_WEBHOOK_ALLOWED_IPS = os.environ.get('MIDTRANS_WEBHOOK_ALLOWED_IPS', '')
+DIGIFLAZZ_WEBHOOK_ALLOWED_IPS = os.environ.get('DIGIFLAZZ_WEBHOOK_ALLOWED_IPS', '')
 
 # CSRF Settings for cookie-based authentication
 CSRF_COOKIE_HTTPONLY = False  # Must be False so frontend can read CSRF token if needed
 CSRF_COOKIE_SAMESITE = COOKIE_SAMESITE  # Match AUTH_COOKIE_SAMESITE
 CSRF_COOKIE_SECURE = COOKIE_SECURE  # Use secure cookies in production
-CSRF_TRUSTED_ORIGINS = get_env_list("CSRF_TRUSTED_ORIGINS")
+# Note: CSRF_TRUSTED_ORIGINS is already set at the top of this file from env var
 
 # Session Settings
 SESSION_COOKIE_SAMESITE = COOKIE_SAMESITE
@@ -326,20 +364,27 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
-CELERY_TASK_SOFT_TIME_LIMIT = 60  # 1 minute
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard kill
+CELERY_TASK_SOFT_TIME_LIMIT = 15 * 60  # 15 minutes soft (sends SoftTimeLimitExceeded for graceful shutdown)
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # Fix deprecation warning: explicitly enable broker connection retry on startup
 # This will be required in Celery 6.0+
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-# CELERY_BEAT_SCHEDULE = {
-#     'expire-old-itinerary-transactions': {
-#         'task': 'itinerary.tasks.expire_old_itinerary_transactions',
-#         'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
-#     },
-# }
+CELERY_BEAT_SCHEDULE = {
+    # Clean up API logs older than 30 days — runs daily at 02:00 UTC
+    'cleanup-old-api-logs': {
+        'task': 'main.tasks.cleanup_old_api_logs',
+        'schedule': crontab(hour=2, minute=0),
+        'kwargs': {'days': 30},
+    },
+    # Sync Digiflazz balance for monitoring — runs every hour
+    'sync-digiflazz-balance': {
+        'task': 'main.tasks.sync_digiflazz_balance',
+        'schedule': crontab(minute=0),  # Every hour at :00
+    },
+}
 
 # API Documentation (drf-spectacular)
 SPECTACULAR_SETTINGS = {

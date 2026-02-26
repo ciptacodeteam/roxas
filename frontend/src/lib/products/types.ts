@@ -1,3 +1,23 @@
+export interface InputFieldValidation {
+    pattern?: string;
+    min_length?: number;
+    max_length?: number;
+}
+
+export interface InputFieldDefinition {
+    key: string;
+    label: string;
+    type: "text" | "tel" | "number" | "email";
+    placeholder?: string;
+    hint?: string;
+    required: boolean;
+    validation?: InputFieldValidation;
+    dialog?: {
+        title: string;
+        content: string;
+    };
+}
+
 export interface Product {
     id: string;
     category: string | { id: string; name: string; slug: string; product_count: number };
@@ -18,7 +38,9 @@ export interface Product {
     description: string;
     image: string | null;
     banner_image: string | null;
-    input_fields: any[];
+    input_fields: InputFieldDefinition[];
+    customer_no_template: string;
+    supports_validation: boolean;
     instructions: string;
     is_active: boolean;
     sort_order: number;
@@ -56,6 +78,8 @@ export type CreateProductRequest = Omit<Product, "id" | "created_at" | "updated_
     category: string;
     image?: File | string | null;
     banner_image?: File | string | null;
+    customer_no_template?: string;
+    supports_validation?: boolean;
 };
 
 export type UpdateProductRequest = Partial<CreateProductRequest>;

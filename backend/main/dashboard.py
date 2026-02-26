@@ -4,6 +4,7 @@ Optimized with caching and efficient queries.
 """
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, Avg, Q, F, Prefetch
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.core.cache import cache
 from datetime import timedelta
@@ -119,31 +120,35 @@ def dashboard_stats(request):
         'orders_change': round(orders_change, 1),
     }
 
-    # Revenue by month (current year)
-    revenue_by_month = []
-    for month in range(1, 13):
-        month_start = this_year_start.replace(month=month)
-        if month == 12:
-            month_end = this_year_start.replace(year=this_year_start.year + 1, month=1)
-        else:
-            month_end = month_start.replace(month=month + 1)
-        
-        revenue = Order.objects.filter(
-            created_at__gte=month_start,
-            created_at__lt=month_end,
-            status__in=['PAID', 'PROCESSING', 'COMPLETED']
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
-        
-        orders_count = Order.objects.filter(
-            created_at__gte=month_start,
-            created_at__lt=month_end
-        ).count()
-        
-        revenue_by_month.append({
-            'month': month_start.strftime('%B'),
-            'revenue': float(revenue),
-            'orders': orders_count,
-        })
+    # Revenue by month (current year) — single query with TruncMonth
+    monthly_data = (
+        Order.objects.filter(created_at__gte=this_year_start)
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(
+            revenue=Sum(
+                "total_amount",
+                filter=Q(status__in=["PAID", "PROCESSING", "COMPLETED"]),
+            ),
+            orders=Count("id"),
+        )
+        .order_by("month")
+    )
+
+    # Build a lookup: month-number → data
+    monthly_lookup = {
+        row["month"].month: {"revenue": float(row["revenue"] or 0), "orders": row["orders"]}
+        for row in monthly_data
+    }
+
+    revenue_by_month = [
+        {
+            "month": this_year_start.replace(month=m).strftime("%B"),
+            "revenue": monthly_lookup.get(m, {}).get("revenue", 0.0),
+            "orders": monthly_lookup.get(m, {}).get("orders", 0),
+        }
+        for m in range(1, 13)
+    ]
 
     # Order Statistics by Status
     order_stats = Order.objects.values('status').annotate(
