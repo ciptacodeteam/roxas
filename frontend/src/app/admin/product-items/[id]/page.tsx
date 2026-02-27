@@ -89,8 +89,6 @@ export default function ProductItemEditPage() {
 
     if (iconFile) {
       submitData.icon_image = iconFile;
-    } else if (!iconPreview) {
-      submitData.icon_image = null;
     }
 
     updateItemMutation.mutate(

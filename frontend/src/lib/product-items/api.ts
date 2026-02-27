@@ -201,7 +201,7 @@ export async function updateProductItem(
     }
 
     return fetchAPI<ProductItem>(`/api/v1/admin/product-items/${id}/`, {
-        method: "PUT",
+        method: "PATCH",
         headers,
         body,
     });
