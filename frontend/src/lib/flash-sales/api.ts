@@ -14,6 +14,7 @@ import type {
   PaginatedResponse,
 } from "./types";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -131,7 +132,7 @@ export async function createFlashSale(
       detail: "Failed to create flash sale",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to create flash sale",
+      extractApiErrorMessage(error, "Failed to create flash sale"),
       error.errors
     );
   }
@@ -160,7 +161,7 @@ export async function updateFlashSale(
       detail: "Failed to update flash sale",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to update flash sale",
+      extractApiErrorMessage(error, "Failed to update flash sale"),
       error.errors
     );
   }
@@ -182,7 +183,7 @@ export async function deleteFlashSale(id: string): Promise<void> {
       detail: "Failed to delete flash sale",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to delete flash sale",
+      extractApiErrorMessage(error, "Failed to delete flash sale"),
       error.errors
     );
   }
@@ -259,7 +260,7 @@ export async function createFlashSaleItem(
       detail: "Failed to create flash sale item",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to create flash sale item",
+      extractApiErrorMessage(error, "Failed to create flash sale item"),
       error.errors
     );
   }
@@ -291,7 +292,7 @@ export async function updateFlashSaleItem(
       detail: "Failed to update flash sale item",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to update flash sale item",
+      extractApiErrorMessage(error, "Failed to update flash sale item"),
       error.errors
     );
   }
@@ -316,7 +317,7 @@ export async function deleteFlashSaleItem(id: string): Promise<void> {
       detail: "Failed to delete flash sale item",
     }));
     throw new FlashSalesApiError(
-      error.detail || "Failed to delete flash sale item",
+      extractApiErrorMessage(error, "Failed to delete flash sale item"),
       error.errors
     );
   }

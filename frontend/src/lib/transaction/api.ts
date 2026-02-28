@@ -1,5 +1,6 @@
 import { API_URL } from "@/lib/api-url";
 import type { Order, OrderDetail, OrderFilters, OrderListResponse } from "./types";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -30,8 +31,8 @@ export async function getUserOrdersApi(filters?: OrderFilters): Promise<OrderLis
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || "Failed to fetch orders");
+    const error = await response.json().catch(() => ({} as Record<string, unknown>));
+    throw new Error(extractApiErrorMessage(error, "Failed to fetch orders"));
   }
 
   const data = await response.json();
@@ -56,8 +57,8 @@ export async function getOrderDetailsApi(orderId: string): Promise<OrderDetail> 
     if (response.status === 404) {
       throw new Error("Transaction not found");
     }
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || "Failed to fetch order details");
+    const error = await response.json().catch(() => ({} as Record<string, unknown>));
+    throw new Error(extractApiErrorMessage(error, "Failed to fetch order details"));
   }
 
   const data = await response.json();

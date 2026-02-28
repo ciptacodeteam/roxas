@@ -76,6 +76,7 @@ class ProductItemSerializer(serializers.ModelSerializer):
     """Full product item serializer (admin)."""
     product = serializers.SerializerMethodField()
     product_details = serializers.SerializerMethodField()
+    group = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
 
     class Meta:
         model = ProductItem
@@ -87,6 +88,9 @@ class ProductItemSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'product_details',
         ]
         read_only_fields = ['id', 'last_synced_at', 'digiflazz_status', 'created_at', 'updated_at']
+
+    def validate_group(self, value):
+        return value if value is not None else ''
 
     def get_product(self, obj):
         if obj.product_id:

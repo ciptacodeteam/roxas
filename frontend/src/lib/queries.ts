@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions, type UseMutationOptions } from "@tanstack/react-query";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 // ============================================
 // Query Keys Factory
@@ -146,13 +147,8 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    const message =
-      error.detail ||
-      error.message ||
-      (typeof error.error?.message === "string" ? error.error.message : null) ||
-      `HTTP error! status: ${response.status}`;
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    const error = await response.json().catch(() => ({} as Record<string, unknown>));
+    throw new Error(extractApiErrorMessage(error, `HTTP error! status: ${response.status}`));
   }
 
   const data = await response.json();
@@ -1126,8 +1122,8 @@ export function useRateOrder(
       );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Failed to submit rating" }));
-        throw new Error(error.error || error.message || "Failed to submit rating");
+        const error = await response.json().catch(() => ({} as Record<string, unknown>));
+        throw new Error(extractApiErrorMessage(error, "Failed to submit rating"));
       }
 
       return response.json();

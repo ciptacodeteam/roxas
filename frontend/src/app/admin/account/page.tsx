@@ -50,21 +50,23 @@ export default function AdminAccountPage() {
   const {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
-    formState: { errors: profileErrors },
+    formState: { errors: profileErrors, isValid: profileIsValid, isSubmitted: profileIsSubmitted },
     control: profileControl,
     setValue: setProfileValue,
   } = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
+    mode: "onChange",
   });
 
   // Form: Password
   const {
     register: registerPassword,
     handleSubmit: handlePasswordSubmit,
-    formState: { errors: passwordErrors },
+    formState: { errors: passwordErrors, isValid: passwordIsValid, isSubmitted: passwordIsSubmitted },
     reset: resetPasswordForm,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
+    mode: "onChange",
   });
 
   // Redirect if not authenticated
@@ -98,8 +100,8 @@ export default function AdminAccountPage() {
   // Populate form when profile data loads
   useEffect(() => {
     if (profileData) {
-      setProfileValue("full_name", profileData.full_name || "");
-      setProfileValue("contact_phone", profileData.contact_phone || "");
+      setProfileValue("full_name", profileData.full_name || "", { shouldValidate: true });
+      setProfileValue("contact_phone", profileData.contact_phone || "", { shouldValidate: true });
     }
   }, [profileData, setProfileValue]);
 
@@ -298,7 +300,7 @@ export default function AdminAccountPage() {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={updateProfile.isPending}
+                              disabled={updateProfile.isPending || (profileIsSubmitted && !profileIsValid)}
                               className="bg-primary hover:bg-primary/90"
                             >
                               {updateProfile.isPending ? (
@@ -445,7 +447,7 @@ export default function AdminAccountPage() {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={changePasswordMutation.isPending}
+                              disabled={changePasswordMutation.isPending || (passwordIsSubmitted && !passwordIsValid)}
                               className="bg-primary hover:bg-primary/90"
                             >
                               {changePasswordMutation.isPending ? (

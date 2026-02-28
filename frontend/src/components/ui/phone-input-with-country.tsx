@@ -86,8 +86,10 @@ export function PhoneInputWithCountry({
   const [phoneNumber, setPhoneNumber] = React.useState(initialNumber);
   const lastEmittedValue = React.useRef<string | null>(null);
 
-  // Update internal state when value prop changes (for controlled component behavior)
+  // Update internal state when value prop changes (for controlled component behavior).
+  // Guard: if value matches what we last emitted, it's our own round-trip — skip to break the cycle.
   React.useEffect(() => {
+    if (value === lastEmittedValue.current) return;
     const { countryCode, number } = parsePhoneNumber(value);
     setSelectedCountry(countryCode);
     setPhoneNumber(number);

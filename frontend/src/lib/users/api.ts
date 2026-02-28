@@ -12,6 +12,7 @@ import type {
   PaginatedResponse,
 } from "./types";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -145,7 +146,7 @@ export async function createStaffUser(
       detail: "Failed to create user",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to create user",
+      extractApiErrorMessage(error, "Failed to create user"),
       error.errors
     );
   }
@@ -173,7 +174,7 @@ export async function createCustomerUser(
       detail: "Failed to create user",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to create user",
+      extractApiErrorMessage(error, "Failed to create user"),
       error.errors
     );
   }
@@ -202,7 +203,7 @@ export async function updateStaffUser(
       detail: "Failed to update user",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to update user",
+      extractApiErrorMessage(error, "Failed to update user"),
       error.errors
     );
   }
@@ -231,7 +232,7 @@ export async function updateCustomerUser(
       detail: "Failed to update user",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to update user",
+      extractApiErrorMessage(error, "Failed to update user"),
       error.errors
     );
   }
@@ -264,7 +265,7 @@ export async function toggleUserActive(
       detail: "Failed to update user status",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to update user status",
+      extractApiErrorMessage(error, "Failed to update user status"),
       error.errors
     );
   }
@@ -287,7 +288,7 @@ export async function sendEmailVerification(userId: number): Promise<void> {
       detail: "Failed to send verification email",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to send verification email",
+      extractApiErrorMessage(error, "Failed to send verification email"),
       error.errors
     );
   }
@@ -310,7 +311,7 @@ export async function sendPasswordReset(userId: number): Promise<void> {
       detail: "Failed to send password reset email",
     }));
     throw new UsersApiError(
-      error.detail || "Failed to send password reset email",
+      extractApiErrorMessage(error, "Failed to send password reset email"),
       error.errors
     );
   }

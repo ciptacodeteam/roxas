@@ -5,6 +5,7 @@ import type {
     UpdateCategoryRequest,
 } from "./types";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -112,7 +113,7 @@ export async function createCategory(data: CreateCategoryRequest): Promise<Categ
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new CategoriesApiError(
-            error.detail || "Failed to create category",
+            extractApiErrorMessage(error, "Failed to create category"),
             error
         );
     }
@@ -142,7 +143,7 @@ export async function updateCategory(
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new CategoriesApiError(
-            error.detail || "Failed to update category",
+            extractApiErrorMessage(error, "Failed to update category"),
             error
         );
     }
@@ -165,7 +166,7 @@ export async function deleteCategory(id: string): Promise<void> {
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new CategoriesApiError(
-            error.detail || "Failed to delete category",
+            extractApiErrorMessage(error, "Failed to delete category"),
             error
         );
     }

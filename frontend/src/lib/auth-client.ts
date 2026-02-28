@@ -2,6 +2,7 @@
 
 import React from "react";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 // Django API base URL
 const API_BASE_URL = API_URL;
@@ -24,8 +25,8 @@ export const authClient = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Login failed");
+      const error = await response.json().catch(() => ({} as Record<string, unknown>));
+      throw new Error(extractApiErrorMessage(error, "Login failed"));
     }
 
     return response.json();
@@ -66,8 +67,8 @@ export const authClient = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Registration failed");
+      const error = await response.json().catch(() => ({} as Record<string, unknown>));
+      throw new Error(extractApiErrorMessage(error, "Registration failed"));
     }
 
     return response.json();

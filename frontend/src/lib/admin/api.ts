@@ -8,6 +8,7 @@ import type {
   UpdateProfileRequest,
   ChangePasswordRequest,
 } from "./types";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -55,7 +56,7 @@ export async function createStaffProfile(data: UpdateProfileRequest): Promise<St
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to create profile" }));
-    throw new AdminApiError(error.detail || "Failed to create profile", error.errors);
+    throw new AdminApiError(extractApiErrorMessage(error, "Failed to create profile"), error.errors);
   }
 
   return response.json();
@@ -76,7 +77,7 @@ export async function updateStaffProfile(data: UpdateProfileRequest): Promise<St
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to update profile" }));
-    throw new AdminApiError(error.detail || "Failed to update profile", error.errors);
+    throw new AdminApiError(extractApiErrorMessage(error, "Failed to update profile"), error.errors);
   }
 
   return response.json();
@@ -97,6 +98,6 @@ export async function changePassword(data: ChangePasswordRequest): Promise<void>
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to change password" }));
-    throw new AdminApiError(error.detail || "Failed to change password", error.errors);
+    throw new AdminApiError(extractApiErrorMessage(error, "Failed to change password"), error.errors);
   }
 }

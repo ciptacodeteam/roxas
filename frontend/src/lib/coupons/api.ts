@@ -11,6 +11,7 @@ import type {
   PaginatedResponse,
 } from "./types";
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -102,7 +103,7 @@ export async function createCoupon(
       detail: "Failed to create coupon",
     }));
     throw new CouponsApiError(
-      error.detail || "Failed to create coupon",
+      extractApiErrorMessage(error, "Failed to create coupon"),
       error.errors
     );
   }
@@ -131,7 +132,7 @@ export async function updateCoupon(
       detail: "Failed to update coupon",
     }));
     throw new CouponsApiError(
-      error.detail || "Failed to update coupon",
+      extractApiErrorMessage(error, "Failed to update coupon"),
       error.errors
     );
   }
@@ -153,7 +154,7 @@ export async function deleteCoupon(id: string): Promise<void> {
       detail: "Failed to delete coupon",
     }));
     throw new CouponsApiError(
-      error.detail || "Failed to delete coupon",
+      extractApiErrorMessage(error, "Failed to delete coupon"),
       error.errors
     );
   }

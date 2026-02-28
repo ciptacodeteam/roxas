@@ -12,6 +12,7 @@ import type {
   SessionResponse,
   ChangePasswordRequest,
 } from "./types";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -48,7 +49,7 @@ export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
     }));
 
     throw new AuthApiError(
-      error.detail || error.message || "Login failed",
+      extractApiErrorMessage(error, "Login failed"),
       error.errors
     );
   }
@@ -158,7 +159,7 @@ export async function registerApi(
     }));
 
     throw new AuthApiError(
-      error.detail || "Registration failed",
+      extractApiErrorMessage(error, "Registration failed"),
       error.errors
     );
   }
@@ -187,9 +188,9 @@ export async function changePasswordApi(
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({ detail: "Password change failed" }));
     throw new AuthApiError(
-      error.detail || "Password change failed",
+      extractApiErrorMessage(error, "Password change failed"),
       error.errors
     );
   }

@@ -1,4 +1,5 @@
 import { API_URL } from "@/lib/api-url";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 const API_BASE_URL = API_URL;
 
@@ -58,7 +59,7 @@ export async function getProfileApi(): Promise<CustomerProfile> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to fetch profile" }));
-    throw new Error(error.detail || "Failed to fetch profile");
+    throw new Error(extractApiErrorMessage(error, "Failed to fetch profile"));
   }
 
   return response.json();
@@ -79,7 +80,7 @@ export async function updateProfileApi(data: UpdateProfileRequest): Promise<Cust
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to update profile" }));
-    throw new Error(error.detail || "Failed to update profile");
+    throw new Error(extractApiErrorMessage(error, "Failed to update profile"));
   }
 
   return response.json();
@@ -100,16 +101,7 @@ export async function changePasswordApi(data: ChangePasswordRequest): Promise<Ch
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to change password" }));
-    
-    // Handle specific error messages
-    if (error.old_password) {
-      throw new Error(Array.isArray(error.old_password) ? error.old_password[0] : error.old_password);
-    }
-    if (error.new_password) {
-      throw new Error(Array.isArray(error.new_password) ? error.new_password[0] : error.new_password);
-    }
-    
-    throw new Error(error.detail || "Failed to change password");
+    throw new Error(extractApiErrorMessage(error, "Failed to change password"));
   }
 
   return response.json();
@@ -130,7 +122,7 @@ export async function uploadProfilePhotoApi(file: File): Promise<{ photo: string
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Failed to upload photo" }));
-    throw new Error(error.detail || "Failed to upload photo");
+    throw new Error(extractApiErrorMessage(error, "Failed to upload photo"));
   }
 
   return response.json();

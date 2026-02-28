@@ -113,22 +113,24 @@ export default function ProfileContent() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid: profileIsValid, isSubmitted: profileIsSubmitted },
     setValue,
     watch,
     control,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(ProfileSchema),
+    mode: "onChange",
   });
 
   // Password form
   const {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
-    formState: { errors: passwordErrors },
+    formState: { errors: passwordErrors, isValid: passwordIsValid, isSubmitted: passwordIsSubmitted },
     reset: resetPassword,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(ChangePasswordSchema),
+    mode: "onChange",
   });
 
   // Show welcome toast on first load
@@ -154,8 +156,8 @@ export default function ProfileContent() {
   // Populate form when profile loads
   useEffect(() => {
     if (profile && !isEditing) {
-      setValue("full_name", profile.full_name || "");
-      setValue("contact_phone", profile.contact_phone || "");
+      setValue("full_name", profile.full_name || "", { shouldValidate: true });
+      setValue("contact_phone", profile.contact_phone || "", { shouldValidate: true });
     }
   }, [profile, setValue, isEditing]);
 
@@ -453,7 +455,7 @@ export default function ProfileContent() {
                   <div className="flex gap-3 pt-4">
                     <Button
                       type="submit"
-                      disabled={isSaving}
+                      disabled={isSaving || (profileIsSubmitted && !profileIsValid)}
                       className="bg-primary hover:bg-primary/90 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -558,7 +560,7 @@ export default function ProfileContent() {
                   <div className="flex gap-3 pt-4">
                     <Button
                       type="submit"
-                      disabled={isSaving}
+                      disabled={isSaving || (passwordIsSubmitted && !passwordIsValid)}
                       className="bg-primary hover:bg-primary/90 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />

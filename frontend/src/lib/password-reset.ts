@@ -5,6 +5,7 @@
 
 import { API_URL } from "@/lib/api-url";
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 // ==================== TYPES ====================
 
@@ -44,7 +45,7 @@ export async function requestPasswordReset(
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.detail || "Failed to request password reset");
+    throw new Error(extractApiErrorMessage(result as Record<string, unknown>, "Failed to request password reset"));
   }
 
   return result;
@@ -72,15 +73,7 @@ export async function resetPasswordConfirm(
   const result = await response.json();
 
   if (!response.ok) {
-    // Handle validation errors
-    if (result.new_password) {
-      throw new Error(
-        Array.isArray(result.new_password)
-          ? result.new_password.join(" ")
-          : result.new_password
-      );
-    }
-    throw new Error(result.detail || "Failed to reset password");
+    throw new Error(extractApiErrorMessage(result as Record<string, unknown>, "Failed to reset password"));
   }
 
   return result;
