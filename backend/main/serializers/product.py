@@ -75,13 +75,19 @@ class ProductItemPublicSerializer(serializers.ModelSerializer):
 class ProductItemSerializer(serializers.ModelSerializer):
     """Full product item serializer (admin)."""
     product = serializers.SerializerMethodField()
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source='product',
+        write_only=True,
+        required=False,
+    )
     product_details = serializers.SerializerMethodField()
     group = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
 
     class Meta:
         model = ProductItem
         fields = [
-            'id', 'product', 'name', 'sku_code', 'icon_image', 'group',
+            'id', 'product', 'product_id', 'name', 'sku_code', 'icon_image', 'group',
             'base_price', 'normal_price', 'discounted_price', 'sell_price',
             'is_active', 'is_validation_item', 'sort_order',
             'last_synced_at', 'digiflazz_status',

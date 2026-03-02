@@ -20,6 +20,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useProductItem, useUpdateProductItem } from "@/lib/product-items";
+import { useProducts } from "@/lib/products";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTime } from "@/lib/date-utils";
 
 export default function ProductItemEditPage() {
@@ -30,6 +38,9 @@ export default function ProductItemEditPage() {
   const { data: productItem, isLoading, isError } = useProductItem(itemId);
   const updateItemMutation = useUpdateProductItem();
 
+  const { data: products = [] } = useProducts();
+
+  const [selectedProduct, setSelectedProduct] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
@@ -43,6 +54,7 @@ export default function ProductItemEditPage() {
 
   useEffect(() => {
     if (productItem) {
+      setSelectedProduct(productItem.product_details?.id || (typeof productItem.product === 'string' ? productItem.product : ""));
       setIsActive(productItem.is_active);
       setIconPreview(productItem.icon_image || null);
       setGroup(productItem.group || "");
@@ -78,6 +90,7 @@ export default function ProductItemEditPage() {
     setSaving(true);
 
     const submitData: Record<string, unknown> = {
+      product_id: selectedProduct,
       is_active: isActive,
       group: group || null,
       normal_price: normalPrice || 0,
@@ -202,6 +215,32 @@ export default function ProductItemEditPage() {
                       </CardHeader>
                       <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
+                          {/* Product */}
+                          <div className="space-y-2">
+                            <Label htmlFor="product" className="flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              Product
+                            </Label>
+                            <Select
+                              value={selectedProduct}
+                              onValueChange={setSelectedProduct}
+                            >
+                              <SelectTrigger className="bg-gray-800 border-gray-700">
+                                <SelectValue placeholder="Select a product" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-800 border-gray-700">
+                                {products.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-gray-400">
+                              The product this item belongs to
+                            </p>
+                          </div>
+
                           {/* Name */}
                           <div className="space-y-2">
                             <Label className="flex items-center gap-2">

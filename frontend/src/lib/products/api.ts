@@ -47,7 +47,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getProducts(): Promise<Product[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/?page_size=100`, {
         credentials: "include",
         headers: {
             "Content-Type": "application/json",
