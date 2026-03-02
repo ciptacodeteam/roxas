@@ -500,6 +500,7 @@ _BRAND_MAP: dict[str, str] = {
     "one punch man":            "GAME_WITH_SERVER",
     "super sus":                "GAME_WITH_SERVER",
     "tom and jerry":            "GAME_WITH_SERVER",
+    "magic chess":              "GAME_WITH_SERVER",
 
     # ── Games needing User ID only ────────────────────────────────────────
     "free fire":                "GAME_USER_ONLY",
