@@ -41,12 +41,7 @@ def digiflazz_webhook(request):
         User-Agent: Digiflazz-Hookshot (prepaid) atau Digiflazz-Pasca-Hookshot (postpaid)
     """
     try:
-        # IP allowlist check
         client_ip = get_client_ip(request)
-        allowed_ips = _get_webhook_ip_allowlist('DIGIFLAZZ_WEBHOOK_ALLOWED_IPS')
-        if allowed_ips and not _is_ip_allowed(client_ip, allowed_ips):
-            logger.warning(f"Digiflazz webhook rejected — IP not in allowlist: {client_ip}")
-            return JsonResponse({'error': 'Forbidden'}, status=403)
         logger.info(f"Digiflazz webhook received from IP: {client_ip}")
 
         # Get webhook secret
@@ -415,17 +410,7 @@ def midtrans_webhook(request):
         - signature_key: SHA512 hash untuk validasi
     """
     try:
-        # IP allowlist check (Midtrans known production IPs used as default in prod)
-        _MIDTRANS_DEFAULT_IPS = ['103.208.23.0/24', '103.179.188.0/28']
         client_ip = get_client_ip(request)
-        is_production = getattr(django_settings, 'MIDTRANS_PRODUCTION', False)
-        allowed_ips = _get_webhook_ip_allowlist(
-            'MIDTRANS_WEBHOOK_ALLOWED_IPS',
-            default_cidrs=_MIDTRANS_DEFAULT_IPS if is_production else [],
-        )
-        if allowed_ips and not _is_ip_allowed(client_ip, allowed_ips):
-            logger.warning(f"Midtrans webhook rejected — IP not in allowlist: {client_ip}")
-            return JsonResponse({'error': 'Forbidden'}, status=403)
         logger.info(f"Midtrans webhook received from IP: {client_ip}")
 
         # Parse notification JSON
