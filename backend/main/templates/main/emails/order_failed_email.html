@@ -24,7 +24,7 @@
               </p>
 
               <!-- Order Details -->
-              <div style="background-color:rgba(239,68,68,0.08);border-left:4px solid #ef4444;padding:20px;margin:24px 0;border-radius:8px;">
+              <div style="background-color:#2a1e1e;border-left:4px solid #ef4444;padding:20px;margin:24px 0;border-radius:8px;">
                 <p style="margin:0 0 10px 0;color:#ef4444;font-size:13px;font-weight:700;letter-spacing:0.5px;">DETAIL PESANAN</p>
                 <table style="width:100%;border-collapse:collapse;">
                   <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;width:40%;">No. Pesanan</td><td style="color:#ffffff;font-size:14px;font-weight:600;">{{ order.order_number }}</td></tr>
@@ -36,7 +36,7 @@
 
               <!-- Failure Reason -->
               {% if order.failure_reason %}
-              <div style="background-color:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);padding:14px 18px;margin:20px 0;border-radius:8px;">
+              <div style="background-color:#251c1c;border:1px solid #5c2020;padding:14px 18px;margin:20px 0;border-radius:8px;">
                 <p style="margin:0 0 4px 0;color:#a0a0a0;font-size:12px;font-weight:600;">ALASAN KEGAGALAN</p>
                 <p style="margin:0;color:#fca5a5;font-size:14px;">{{ order.failure_reason }}</p>
               </div>
@@ -58,9 +58,9 @@
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid #252f3a;">
               <p style="margin:0 0 8px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store. All rights reserved.</p>
-              <p style="margin:0;color:#606060;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
+              <p style="margin:0;color:#888888;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
             </td>
           </tr>
         </table>

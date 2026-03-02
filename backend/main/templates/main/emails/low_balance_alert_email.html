@@ -31,12 +31,12 @@
               </p>
 
               <!-- Balance Box -->
-              <div style="background-color:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:24px;margin:0 0 28px 0;text-align:center;">
+              <div style="background-color:#2a1e1e;border:1px solid #7a2020;border-radius:10px;padding:24px;margin:0 0 28px 0;text-align:center;">
                 <p style="margin:0 0 6px 0;color:#a0a0a0;font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Saldo Saat Ini</p>
                 <p style="margin:0 0 16px 0;color:#ef4444;font-size:36px;font-weight:800;">
                   Rp {{ deposit|floatformat:"0" }}
                 </p>
-                <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 0 16px 0;"></div>
+                <div style="height:1px;background:#2d3748;margin:0 0 16px 0;"></div>
                 <p style="margin:0 0 6px 0;color:#a0a0a0;font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Batas Minimum</p>
                 <p style="margin:0;color:#f97316;font-size:22px;font-weight:700;">
                   Rp {{ threshold|floatformat:"0" }}
@@ -55,8 +55,8 @@
                 </a>
               </div>
 
-              <div style="background-color:rgba(255,255,255,0.03);border-radius:8px;padding:14px 18px;border:1px solid rgba(255,255,255,0.07);">
-                <p style="margin:0;color:#606060;font-size:12px;line-height:1.5;">
+              <div style="background-color:#1e262e;border-radius:8px;padding:14px 18px;border:1px solid #252f3a;">
+                <p style="margin:0;color:#8a9ab0;font-size:12px;line-height:1.5;">
                   Email ini dikirim secara otomatis oleh sistem monitoring saldo Roxas Store.
                   Alert dikirim ketika saldo di bawah <strong style="color:#a0a0a0;">Rp {{ threshold|floatformat:"0" }}</strong>.
                   Untuk mengubah batas minimum, atur environment variable <code style="color:#f97316;">DIGIFLAZZ_LOW_BALANCE_THRESHOLD</code>.
@@ -67,9 +67,9 @@
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid #252f3a;">
               <p style="margin:0 0 4px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store — System Alert</p>
-              <p style="margin:0;color:#606060;font-size:12px;">Email ini hanya dikirim ke alamat admin yang terdaftar.</p>
+              <p style="margin:0;color:#888888;font-size:12px;">Email ini hanya dikirim ke alamat admin yang terdaftar.</p>
             </td>
           </tr>
         </table>

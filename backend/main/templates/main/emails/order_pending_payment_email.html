@@ -24,7 +24,7 @@
               </p>
 
               <!-- Order Details -->
-              <div style="background-color:rgba(99,102,241,0.08);border-left:4px solid #6366f1;padding:20px;margin:24px 0;border-radius:8px;">
+              <div style="background-color:#1e2040;border-left:4px solid #6366f1;padding:20px;margin:24px 0;border-radius:8px;">
                 <p style="margin:0 0 10px 0;color:#6366f1;font-size:13px;font-weight:700;letter-spacing:0.5px;">DETAIL PESANAN</p>
                 <table style="width:100%;border-collapse:collapse;">
                   <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;width:40%;">No. Pesanan</td><td style="color:#ffffff;font-size:14px;font-weight:600;">{{ order.order_number }}</td></tr>
@@ -40,14 +40,14 @@
                   {% if order.vat_amount > 0 %}
                   <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">PPN</td><td style="color:#ffffff;font-size:14px;">Rp {{ order.vat_amount|floatformat:"0" }}</td></tr>
                   {% endif %}
-                  <tr><td colspan="2" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;"></td></tr>
+                  <tr><td colspan="2" style="border-top:1px solid #2d3748;padding-top:8px;"></td></tr>
                   <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;font-weight:700;">Total Bayar</td><td style="color:#6366f1;font-size:16px;font-weight:700;">Rp {{ order.total_amount|floatformat:"0" }}</td></tr>
                 </table>
               </div>
 
               <!-- Payment Expiry Warning -->
               {% if order.payment_expires_at %}
-              <div style="background-color:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);padding:14px 18px;margin:20px 0;border-radius:8px;text-align:center;">
+              <div style="background-color:#272010;border:1px solid #7a5c10;padding:14px 18px;margin:20px 0;border-radius:8px;text-align:center;">
                 <p style="margin:0 0 4px 0;color:#f59e0b;font-size:13px;font-weight:600;">⏰ BATAS WAKTU PEMBAYARAN</p>
                 <p style="margin:0;color:#ffffff;font-size:15px;font-weight:600;">{{ order.payment_expires_at|date:"d M Y, H:i" }} WIB</p>
               </div>
@@ -68,9 +68,9 @@
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid #252f3a;">
               <p style="margin:0 0 8px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store. All rights reserved.</p>
-              <p style="margin:0;color:#606060;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
+              <p style="margin:0;color:#888888;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
             </td>
           </tr>
         </table>

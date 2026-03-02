@@ -24,7 +24,7 @@
               </p>
 
               <!-- Order Details -->
-              <div style="background-color:rgba(99,102,241,0.08);border-left:4px solid #6366f1;padding:20px;margin:24px 0;border-radius:8px;">
+              <div style="background-color:#1e2040;border-left:4px solid #6366f1;padding:20px;margin:24px 0;border-radius:8px;">
                 <p style="margin:0 0 10px 0;color:#6366f1;font-size:13px;font-weight:700;letter-spacing:0.5px;">DETAIL REFUND</p>
                 <table style="width:100%;border-collapse:collapse;">
                   <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;width:45%;">No. Pesanan</td><td style="color:#ffffff;font-size:14px;font-weight:600;">{{ order.order_number }}</td></tr>
@@ -38,7 +38,7 @@
               </div>
 
               {% if order.refund_reason %}
-              <div style="background-color:rgba(255,255,255,0.03);padding:14px 18px;margin:0 0 20px 0;border-radius:8px;border:1px solid rgba(255,255,255,0.07);">
+              <div style="background-color:#1e262e;padding:14px 18px;margin:0 0 20px 0;border-radius:8px;border:1px solid #252f3a;">
                 <p style="margin:0 0 4px 0;color:#a0a0a0;font-size:12px;font-weight:600;">ALASAN REFUND</p>
                 <p style="margin:0;color:#d0d0d0;font-size:14px;">{{ order.refund_reason }}</p>
               </div>
@@ -61,9 +61,9 @@
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid #252f3a;">
               <p style="margin:0 0 8px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store. All rights reserved.</p>
-              <p style="margin:0;color:#606060;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
+              <p style="margin:0;color:#888888;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
             </td>
           </tr>
         </table>
