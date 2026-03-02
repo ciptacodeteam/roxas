@@ -5,7 +5,8 @@ const withNextIntl = createNextIntlPlugin();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone", // For Docker production builds
+  // "standalone" is for Docker deployments only — Vercel manages its own output
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
 
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
