@@ -24,7 +24,7 @@ export default function IndexPage() {
       <HomeVerificationToast />
       <HeroSection />
       <FlashSaleSection />
-      <FavoriteSection />
+      {/* <FavoriteSection /> */}
       <GameSection />
       <InformationSection />
     </>
