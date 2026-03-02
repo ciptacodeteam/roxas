@@ -210,7 +210,7 @@ REST_FRAMEWORK_THROTTLE_CLASSES = [
 REST_FRAMEWORK_THROTTLE_RATES = {
     'anon': os.environ.get('THROTTLE_RATE_ANON', '60/minute'),
     'user': os.environ.get('THROTTLE_RATE_USER', '300/minute'),
-    'login': os.environ.get('THROTTLE_RATE_LOGIN', '10/minute'),  # For token endpoint
+    'login': os.environ.get('THROTTLE_RATE_LOGIN', '50/minute'),  # For token endpoint
 }
 
 REST_FRAMEWORK = {
