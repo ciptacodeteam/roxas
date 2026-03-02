@@ -314,6 +314,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 exc_info=True,
             )
 
+        # Send pending payment email notification
+        try:
+            from main.tasks import send_order_notification
+            send_order_notification.delay(str(order.id), 'PENDING_PAYMENT')
+        except Exception as exc:
+            logger.error("Failed to send pending payment email for %s: %s", order.order_number, exc)
+
         return order
 
     def create(self, request, *args, **kwargs):

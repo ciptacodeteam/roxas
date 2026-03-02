@@ -248,9 +248,9 @@ def send_password_reset_email(self, user_id, reset_token):
             from django.utils.encoding import force_bytes
             from django.utils.http import urlsafe_base64_encode
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{reset_token}/"
+            reset_url = f"{settings.FRONTEND_URL}/id/reset-password/{uid}/{reset_token}/"
         else:
-            reset_url = f"{settings.FRONTEND_URL}/reset-password/{reset_token}/"
+            reset_url = f"{settings.FRONTEND_URL}/id/reset-password/{reset_token}/"
         
         subject = "Reset your password"
         html_message = render_to_string('account/password_reset.html', {

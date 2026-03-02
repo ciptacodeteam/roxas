@@ -631,19 +631,26 @@ def send_order_notification(self, order_id, notification_type):
 
     Args:
         order_id: UUID string of the Order
-        notification_type: 'COMPLETED' | 'FAILED' | 'PROCESSING' | 'REFUNDED'
+        notification_type: 'PENDING_PAYMENT' | 'PAYMENT_SUCCESS' | 'PAYMENT_FAILED' |
+                           'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
     """
     TEMPLATES = {
-        'COMPLETED':  'main/emails/order_completed_email.html',
-        'FAILED':     'main/emails/order_failed_email.html',
-        'PROCESSING': 'main/emails/order_processing_email.html',
-        'REFUNDED':   'main/emails/order_refunded_email.html',
+        'PENDING_PAYMENT': 'main/emails/order_pending_payment_email.html',
+        'PAYMENT_SUCCESS': 'main/emails/payment_success_email.html',
+        'PAYMENT_FAILED':  'main/emails/payment_failed_email.html',
+        'PROCESSING':      'main/emails/order_processing_email.html',
+        'COMPLETED':       'main/emails/order_completed_email.html',
+        'FAILED':          'main/emails/order_failed_email.html',
+        'REFUNDED':        'main/emails/order_refunded_email.html',
     }
     SUBJECTS = {
-        'COMPLETED':  '✅ Top-up Berhasil - {order_number}',
-        'FAILED':     '❌ Top-up Gagal - {order_number}',
-        'PROCESSING': '⏳ Pembayaran Diterima - {order_number}',
-        'REFUNDED':   '💰 Refund Diproses - {order_number}',
+        'PENDING_PAYMENT': '🛒 Pesanan Dibuat - Menunggu Pembayaran - {order_number}',
+        'PAYMENT_SUCCESS': '💳 Pembayaran Berhasil - {order_number}',
+        'PAYMENT_FAILED':  '❌ Pembayaran Gagal - {order_number}',
+        'PROCESSING':      '⏳ Pembayaran Diterima - {order_number}',
+        'COMPLETED':       '✅ Top-up Berhasil - {order_number}',
+        'FAILED':          '❌ Top-up Gagal - {order_number}',
+        'REFUNDED':        '💰 Refund Diproses - {order_number}',
     }
     try:
         order = Order.objects.select_related(

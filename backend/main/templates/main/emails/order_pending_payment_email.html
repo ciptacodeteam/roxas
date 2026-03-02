@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pesanan Dibuat - Menunggu Pembayaran</title>
+</head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background-color:#13171C;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#13171C;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;background-color:#1B2129;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.3);">
+          {% include "account/_email_header_logo.html" with header_subtitle="Game Top-Up & Digital Services" %}
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:40px 30px;">
+              <h2 style="margin:0 0 20px 0;color:#ffffff;font-size:24px;font-weight:600;">
+                🛒 Pesanan Dibuat!
+              </h2>
+              <p style="margin:0 0 20px 0;color:#d0d0d0;font-size:16px;line-height:1.6;">
+                Halo, <strong style="color:#ffffff;">{{ order.user.email }}</strong>!
+                Pesanan Anda telah berhasil dibuat. Silakan segera selesaikan pembayaran sebelum batas waktu.
+              </p>
+
+              <!-- Order Details -->
+              <div style="background-color:rgba(99,102,241,0.08);border-left:4px solid #6366f1;padding:20px;margin:24px 0;border-radius:8px;">
+                <p style="margin:0 0 10px 0;color:#6366f1;font-size:13px;font-weight:700;letter-spacing:0.5px;">DETAIL PESANAN</p>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;width:40%;">No. Pesanan</td><td style="color:#ffffff;font-size:14px;font-weight:600;">{{ order.order_number }}</td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Produk</td><td style="color:#ffffff;font-size:14px;">{{ order.product_item.name }}</td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Game</td><td style="color:#ffffff;font-size:14px;">{{ order.product_item.product.name }}</td></tr>
+                  {% if order.payment_method %}
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Metode Bayar</td><td style="color:#ffffff;font-size:14px;">{{ order.payment_method.name }}</td></tr>
+                  {% endif %}
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Harga Produk</td><td style="color:#ffffff;font-size:14px;">Rp {{ order.final_price|floatformat:"0" }}</td></tr>
+                  {% if order.payment_fee > 0 %}
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">Biaya Layanan</td><td style="color:#ffffff;font-size:14px;">Rp {{ order.payment_fee|floatformat:"0" }}</td></tr>
+                  {% endif %}
+                  {% if order.vat_amount > 0 %}
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;">PPN</td><td style="color:#ffffff;font-size:14px;">Rp {{ order.vat_amount|floatformat:"0" }}</td></tr>
+                  {% endif %}
+                  <tr><td colspan="2" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;"></td></tr>
+                  <tr><td style="color:#a0a0a0;font-size:14px;padding:4px 0;font-weight:700;">Total Bayar</td><td style="color:#6366f1;font-size:16px;font-weight:700;">Rp {{ order.total_amount|floatformat:"0" }}</td></tr>
+                </table>
+              </div>
+
+              <!-- Payment Expiry Warning -->
+              {% if order.payment_expires_at %}
+              <div style="background-color:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);padding:14px 18px;margin:20px 0;border-radius:8px;text-align:center;">
+                <p style="margin:0 0 4px 0;color:#f59e0b;font-size:13px;font-weight:600;">⏰ BATAS WAKTU PEMBAYARAN</p>
+                <p style="margin:0;color:#ffffff;font-size:15px;font-weight:600;">{{ order.payment_expires_at|date:"d M Y, H:i" }} WIB</p>
+              </div>
+              {% endif %}
+
+              <p style="margin:20px 0;color:#d0d0d0;font-size:15px;line-height:1.6;">
+                Segera selesaikan pembayaran Anda agar top-up dapat diproses. Pesanan akan <strong style="color:#f59e0b;">otomatis dibatalkan</strong> jika pembayaran tidak diterima sebelum batas waktu.
+              </p>
+
+              <div style="text-align:center;margin:32px 0;">
+                <a href="{{ FRONTEND_URL }}/id/my-transactions"
+                   style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;">
+                  Bayar Sekarang
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#171D25;padding:24px;text-align:center;border-top:1px solid rgba(255,255,255,0.08);">
+              <p style="margin:0 0 8px 0;color:#a0a0a0;font-size:13px;">© {% now "Y" %} Roxas Store. All rights reserved.</p>
+              <p style="margin:0;color:#606060;font-size:12px;">Email ini dikirim ke {{ order.user.email }}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

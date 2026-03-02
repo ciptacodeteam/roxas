@@ -580,10 +580,16 @@ def handle_midtrans_notification(notification: dict) -> str:
             )
             payment.save()  # Still save payment to update transaction_id and webhook_data
         
-        # Send PROCESSING notification when payment is confirmed
-        if new_order_status == OrderStatus.PROCESSING and new_priority >= current_priority:
+        # Send payment status email notifications
+        if new_priority >= current_priority:
             from main.tasks import send_order_notification
-            send_order_notification.delay(str(order.id), 'PROCESSING')
+            if new_order_status == OrderStatus.PROCESSING:
+                # Payment confirmed - send payment success email, then processing email
+                send_order_notification.delay(str(order.id), 'PAYMENT_SUCCESS')
+                send_order_notification.delay(str(order.id), 'PROCESSING')
+            elif new_order_status == OrderStatus.FAILED:
+                # Payment failed/expired/denied
+                send_order_notification.delay(str(order.id), 'PAYMENT_FAILED')
 
         return f"Order {order_id} status: {order.status}"
         

@@ -918,6 +918,14 @@ class RegisterCustomerView(APIView):
                     logger = logging.getLogger(__name__)
                     logger.error(f"Failed to send verification email for customer: {str(e)}", exc_info=True)
 
+                # Send welcome email
+                try:
+                    send_welcome_email.delay(user.id)
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to send welcome email for customer: {str(e)}", exc_info=True)
+
                 # Auto-login after registration
                 try:
                     
@@ -1093,6 +1101,12 @@ class GoogleAuthView(APIView):
                     
                     logger.info(f"Successfully created customer account: {user.email}")
                     is_new_user = True
+
+                    # Send welcome email for new Google OAuth users
+                    try:
+                        send_welcome_email.delay(user.id)
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome email for Google user: {str(e)}", exc_info=True)
                 
                 # Generate JWT tokens
                 refresh = RefreshToken.for_user(user)
