@@ -41,6 +41,7 @@ export default function ProductItemEditPage() {
   const { data: products = [] } = useProducts();
 
   const [selectedProduct, setSelectedProduct] = useState("");
+  const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function ProductItemEditPage() {
   useEffect(() => {
     if (productItem) {
       setSelectedProduct(productItem.product_details?.id || (typeof productItem.product === 'string' ? productItem.product : ""));
+      setName(productItem.name || "");
       setIsActive(productItem.is_active);
       setIconPreview(productItem.icon_image || null);
       setGroup(productItem.group || "");
@@ -91,6 +93,7 @@ export default function ProductItemEditPage() {
 
     const submitData: Record<string, unknown> = {
       product_id: selectedProduct,
+      name: name,
       is_active: isActive,
       group: group || null,
       normal_price: normalPrice || 0,
@@ -221,21 +224,28 @@ export default function ProductItemEditPage() {
                               <Package className="h-4 w-4" />
                               Product
                             </Label>
-                            <Select
-                              value={selectedProduct}
-                              onValueChange={setSelectedProduct}
-                            >
-                              <SelectTrigger className="bg-gray-800 border-gray-700">
-                                <SelectValue placeholder="Select a product" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-800 border-gray-700">
-                                {products.map((p) => (
-                                  <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            {selectedProduct && products.length > 0 ? (
+                              <Select
+                                key={itemId}
+                                value={selectedProduct}
+                                onValueChange={setSelectedProduct}
+                              >
+                                <SelectTrigger className="w-full bg-gray-800 text-gray-100 border-gray-700">
+                                  <SelectValue placeholder="Select a product" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                                  {products.map((p) => (
+                                    <SelectItem key={p.id} value={p.id} className="hover:bg-gray-700">
+                                      {p.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="h-10 w-full bg-gray-800 border border-gray-700 rounded-md flex items-center px-3">
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                              </div>
+                            )}
                             <p className="text-xs text-gray-400">
                               The product this item belongs to
                             </p>
@@ -243,13 +253,16 @@ export default function ProductItemEditPage() {
 
                           {/* Name */}
                           <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
+                            <Label htmlFor="name" className="flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Name
                             </Label>
-                            <div className="text-sm text-gray-200 bg-gray-800 px-3 py-2 rounded-md">
-                              {productItem.name}
-                            </div>
+                            <Input
+                              id="name"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              className="bg-gray-800 text-gray-100 border-gray-700"
+                            />
                           </div>
 
                           {/* SKU Code */}
