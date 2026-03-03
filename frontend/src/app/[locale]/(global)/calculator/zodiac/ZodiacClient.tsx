@@ -15,13 +15,13 @@ export default function ZodiacPage() {
   }, [point]);
 
   return (
-    <section className="mt-42 mb-14 flex mx-auto max-w-4xl">
+    <section className="lg:mt-42 mt-26 lg:mb-14 mb-8 flex mx-auto lg:max-w-4xl w-11/12">
       <div className="items-center justify-center w-full">
         <Card className="border-0">
-          <CardContent className="space-y-10 p-10">
+          <CardContent className="space-y-6 lg:p-10 p-4">
             {/* Header */}
             <div className="space-y-3 text-center">
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="lg:text-3xl text-xl lg:font-bold font-semibold text-white">
                 Kalkulator Zodiac
               </h1>
               <p className="mx-auto max-w-2xl text-slate-400">
@@ -48,7 +48,7 @@ export default function ZodiacPage() {
             </div>
 
             {/* Result */}
-            <div className="grid gap-6 text-center md:grid-cols-2">
+            <div className="grid gap-2 text-center md:grid-cols-2">
               <div className="text-lg font-semibold text-white">
                 Poin Bintang Kamu{" "}
                 <span className="text-primary text-xl">{point}</span>
@@ -62,7 +62,7 @@ export default function ZodiacPage() {
             </div>
 
             {/* CTA */}
-            <Button className="bg-primary hover:bg-primary/90 w-full cursor-pointer rounded-full py-6 text-lg font-semibold text-white">
+            <Button className="bg-primary hover:bg-primary/90 w-full cursor-pointer rounded-full lg:py-6 py-4 lg:text-lg font-semibold text-white">
               Top Up Diamond Sekarang!
             </Button>
           </CardContent>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -13,7 +14,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInputWithCountry } from "@/components/ui/phone-input-with-country";
-import { User, Mail, Phone, Edit2, Save, X, Lock, Eye, EyeOff, Loader, AlertCircle, CheckCircle2, Send } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Edit2,
+  Save,
+  X,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader,
+  AlertCircle,
+  CheckCircle2,
+  Send,
+} from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,18 +40,23 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 // ==================== VALIDATION SCHEMAS ====================
 
 const ProfileSchema = z.object({
-  full_name: z.string().min(1, "Nama wajib diisi").max(100, "Nama terlalu panjang"),
+  full_name: z
+    .string()
+    .min(1, "Nama wajib diisi")
+    .max(100, "Nama terlalu panjang"),
   contact_phone: z.string().optional(),
 });
 
-const ChangePasswordSchema = z.object({
-  old_password: z.string().min(1, "Kata sandi lama wajib diisi"),
-  new_password: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
-  confirm_password: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
-}).refine((data) => data.new_password === data.confirm_password, {
-  message: "Kata sandi baru tidak cocok",
-  path: ["confirm_password"],
-});
+const ChangePasswordSchema = z
+  .object({
+    old_password: z.string().min(1, "Kata sandi lama wajib diisi"),
+    new_password: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
+    confirm_password: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
+  })
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: "Kata sandi baru tidak cocok",
+    path: ["confirm_password"],
+  });
 
 type ProfileFormData = z.infer<typeof ProfileSchema>;
 type ChangePasswordFormData = z.infer<typeof ChangePasswordSchema>;
@@ -48,7 +68,7 @@ export default function ProfileContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { session, isLoading: authLoading } = useAuth();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -58,7 +78,12 @@ export default function ProfileContent() {
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
 
   // Fetch profile data
-  const { data: profile, isLoading: profileLoading, error: profileError, refetch } = useProfile({
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch,
+  } = useProfile({
     enabled: !!session?.user,
   });
 
@@ -74,7 +99,8 @@ export default function ProfileContent() {
     },
     onError: (error) => {
       toast.error("Gagal Memperbarui", {
-        description: error.message || "Terjadi kesalahan saat memperbarui profil.",
+        description:
+          error.message || "Terjadi kesalahan saat memperbarui profil.",
       });
     },
   });
@@ -90,7 +116,8 @@ export default function ProfileContent() {
     },
     onError: (error) => {
       toast.error("Gagal Mengubah Kata Sandi", {
-        description: error.message || "Terjadi kesalahan saat mengubah kata sandi.",
+        description:
+          error.message || "Terjadi kesalahan saat mengubah kata sandi.",
       });
     },
   });
@@ -104,7 +131,8 @@ export default function ProfileContent() {
     },
     onError: (error: any) => {
       toast.error("Gagal Mengirim Email", {
-        description: error.message || "Terjadi kesalahan saat mengirim email verifikasi.",
+        description:
+          error.message || "Terjadi kesalahan saat mengirim email verifikasi.",
       });
     },
   });
@@ -113,7 +141,11 @@ export default function ProfileContent() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid: profileIsValid, isSubmitted: profileIsSubmitted },
+    formState: {
+      errors,
+      isValid: profileIsValid,
+      isSubmitted: profileIsSubmitted,
+    },
     setValue,
     watch,
     control,
@@ -126,7 +158,11 @@ export default function ProfileContent() {
   const {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
-    formState: { errors: passwordErrors, isValid: passwordIsValid, isSubmitted: passwordIsSubmitted },
+    formState: {
+      errors: passwordErrors,
+      isValid: passwordIsValid,
+      isSubmitted: passwordIsSubmitted,
+    },
     reset: resetPassword,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(ChangePasswordSchema),
@@ -157,7 +193,9 @@ export default function ProfileContent() {
   useEffect(() => {
     if (profile && !isEditing) {
       setValue("full_name", profile.full_name || "", { shouldValidate: true });
-      setValue("contact_phone", profile.contact_phone || "", { shouldValidate: true });
+      setValue("contact_phone", profile.contact_phone || "", {
+        shouldValidate: true,
+      });
     }
   }, [profile, setValue, isEditing]);
 
@@ -167,7 +205,7 @@ export default function ProfileContent() {
     if (authLoading || profileLoading) {
       return;
     }
-    
+
     // Only redirect if we're sure there's no session
     if (!session?.user) {
       const locale = pathname.split("/")[1] ?? "id";
@@ -210,7 +248,7 @@ export default function ProfileContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
           body: JSON.stringify({
             access_token: response.access_token,
@@ -219,14 +257,17 @@ export default function ProfileContent() {
 
         if (res.ok) {
           toast.success("Google Terhubung", {
-            description: "Akun Google Anda berhasil terhubung ke akun Roxas Anda.",
+            description:
+              "Akun Google Anda berhasil terhubung ke akun Roxas Anda.",
           });
           // Refetch profile to get updated data
           refetch?.();
         } else {
           const error = await res.json();
           toast.error("Gagal Terhubung", {
-            description: error.detail || "Terjadi kesalahan saat menghubungkan akun Google.",
+            description:
+              error.detail ||
+              "Terjadi kesalahan saat menghubungkan akun Google.",
           });
         }
       } catch (error) {
@@ -248,24 +289,25 @@ export default function ProfileContent() {
 
   // Loading states
   const isLoading = authLoading || profileLoading;
-  const isSaving = updateProfileMutation.isPending || changePasswordMutation.isPending;
+  const isSaving =
+    updateProfileMutation.isPending || changePasswordMutation.isPending;
 
   // Show loading skeleton
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl pb-12 pt-40">
+      <div className="mx-auto max-w-7xl pt-40 pb-12">
         <div className="bg-card rounded-lg p-8">
-          <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
+          <div className="flex flex-col items-center gap-8 md:flex-row md:items-start">
             <div className="flex flex-col items-center">
               <Skeleton className="h-32 w-32 rounded-full" />
               <div className="mt-4 text-center">
-                <Skeleton className="h-6 w-32 rounded mb-2" />
+                <Skeleton className="mb-2 h-6 w-32 rounded" />
                 <Skeleton className="h-4 w-40 rounded" />
               </div>
             </div>
             <div className="flex-1 space-y-6">
-              <Card className="bg-gray-800/50 border-gray-700 p-6">
-                <Skeleton className="h-7 w-48 rounded mb-4" />
+              <Card className="border-gray-700 bg-gray-800/50 p-6">
+                <Skeleton className="mb-4 h-7 w-48 rounded" />
                 <div className="space-y-4">
                   <Skeleton className="h-16 w-full rounded" />
                   <Skeleton className="h-16 w-full rounded" />
@@ -289,58 +331,62 @@ export default function ProfileContent() {
   }
 
   const displayName = profile.full_name || user?.email?.split("@")[0] || "User";
-  const displayInitials = (displayName || "U")
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "U";
+  const displayInitials =
+    (displayName || "U")
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "U";
 
   return (
-    <div className="mx-auto max-w-7xl pb-12 pt-40">
-      <div className="bg-card rounded-2xl p-8">
-        <div className="flex flex-col items-center md:flex-row md:items-start gap-8">
+    <div className="mx-auto lg:max-w-7xl w-11/12 lg:pt-40 pt-26 pb-12">
+      <div className="rounded-2xl">
+        <div className="flex flex-col items-center gap-8 md:flex-row md:items-start">
           {/* Avatar Section */}
           <div className="flex flex-col items-center">
-            <Avatar className="h-32 w-32 border-4 border-purple-500/30">
+            <Avatar className="h-32 w-32 border-2">
               <AvatarImage src={profile.photo || undefined} alt={displayName} />
-              <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500 text-white text-3xl font-bold">
+              <AvatarFallback className="bg-primary text-6xl lg:font-bold font-medium text-white">
                 {displayInitials}
               </AvatarFallback>
             </Avatar>
             <div className="mt-4 text-center">
-              <h2 className="text-xl font-bold text-white">{displayName}</h2>
+              <h2 className="text-2xl capitalize font-semibold text-white">{displayName}</h2>
               <p className="text-sm text-gray-200">{user?.email || ""}</p>
             </div>
           </div>
 
           {/* Profile Info Section */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 space-y-4">
             {/* Email Verification Alert */}
             {profile.user_data && !profile.user_data.email_verified && (
-              <Alert className="bg-yellow-500/10 border-yellow-500/50">
+              <Alert className="border-yellow-500/50 bg-yellow-500/10">
                 <AlertCircle className="h-5 w-5 text-yellow-500" />
-                <AlertTitle className="text-yellow-500 font-semibold">
+                <AlertTitle className="font-semibold text-yellow-500">
                   Email Belum Diverifikasi
                 </AlertTitle>
-                <AlertDescription className="text-yellow-200 mt-2">
+                <AlertDescription className="mt-2 text-yellow-200">
                   <p className="mb-3">
-                    Akun Anda belum diverifikasi. Silakan verifikasi email untuk keamanan akun Anda.
+                    Akun Anda belum diverifikasi. Silakan verifikasi email untuk
+                    keamanan akun Anda.
                   </p>
                   <Button
                     size="sm"
-                    onClick={() => sendVerificationMutation.mutate(profile.user_data.id)}
+                    onClick={() =>
+                      sendVerificationMutation.mutate(profile.user_data.id)
+                    }
                     disabled={sendVerificationMutation.isPending}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                    className="bg-yellow-500 text-black hover:bg-yellow-600"
                   >
                     {sendVerificationMutation.isPending ? (
                       <>
-                        <Loader className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
                         Mengirim...
                       </>
                     ) : (
                       <>
-                        <Send className="h-4 w-4 mr-2" />
+                        <Send className="mr-2 h-4 w-4" />
                         Kirim Email Verifikasi
                       </>
                     )}
@@ -351,15 +397,17 @@ export default function ProfileContent() {
 
             {/* Email Verified Success */}
             {profile.user_data && profile.user_data.email_verified && (
-              <Alert className="bg-green-500/10 border-green-500/50">
+              <Alert className="border-green-500/50 bg-green-500/10">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <AlertTitle className="text-green-500 font-semibold">
+                <AlertTitle className="font-semibold text-green-500">
                   Email Terverifikasi
                 </AlertTitle>
                 <AlertDescription className="text-green-200">
                   Email Anda telah berhasil diverifikasi pada{" "}
                   {profile.user_data.email_verified_at
-                    ? new Date(profile.user_data.email_verified_at).toLocaleDateString("id-ID", {
+                    ? new Date(
+                        profile.user_data.email_verified_at,
+                      ).toLocaleDateString("id-ID", {
                         day: "numeric",
                         month: "long",
                         year: "numeric",
@@ -371,9 +419,11 @@ export default function ProfileContent() {
             )}
 
             {/* Basic Info Card */}
-            <Card className="bg-card border-border/50 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Informasi Profil</h3>
+            <Card className="bg-card border-none lg:p-6 p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Informasi Profil
+                </h3>
                 {!isEditing && (
                   <Button
                     variant="outline"
@@ -381,20 +431,22 @@ export default function ProfileContent() {
                     onClick={() => setIsEditing(true)}
                     className="border-primary/50 text-primary hover:bg-primary/10"
                   >
-                    <Edit2 className="h-4 w-4 mr-2" />
+                    <Edit2 className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
                 )}
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="lg:space-y-4 space-y-6">
                 {/* Full Name */}
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
+                    <User className="text-primary h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <Label className="text-sm text-white mb-1">Nama Lengkap</Label>
+                    <Label className="text-sm text-white">
+                      Nama Lengkap
+                    </Label>
                     {isEditing ? (
                       <div>
                         <Input
@@ -404,33 +456,37 @@ export default function ProfileContent() {
                           disabled={isSaving}
                         />
                         {errors.full_name && (
-                          <p className="text-sm text-red-400 mt-1">{errors.full_name.message}</p>
+                          <p className="mt-1 text-sm text-red-400">
+                            {errors.full_name.message}
+                          </p>
                         )}
                       </div>
                     ) : (
-                      <p className="text-white">{profile.full_name || "-"}</p>
+                      <p className="text-gray-400">{profile.full_name || "-"}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Email */}
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Mail className="h-5 w-5 text-primary" />
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
+                    <Mail className="text-primary h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <Label className="text-sm text-white mb-1">Email</Label>
-                    <p className="text-white">{user?.email || ""}</p>
+                    <Label className="text-sm text-white">Email</Label>
+                    <p className="text-gray-400">{user?.email || ""}</p>
                   </div>
                 </div>
 
                 {/* Phone */}
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Phone className="h-5 w-5 text-primary" />
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
+                    <Phone className="text-primary h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <Label className="text-sm text-white mb-1">Nomor Telepon</Label>
+                    <Label className="text-sm text-white">
+                      Nomor Telepon
+                    </Label>
                     {isEditing ? (
                       <Controller
                         name="contact_phone"
@@ -445,7 +501,9 @@ export default function ProfileContent() {
                         )}
                       />
                     ) : (
-                      <p className="text-white">{profile.contact_phone || "-"}</p>
+                      <p className="text-gray-400">
+                        {profile.contact_phone || "-"}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -455,10 +513,12 @@ export default function ProfileContent() {
                   <div className="flex gap-3 pt-4">
                     <Button
                       type="submit"
-                      disabled={isSaving || (profileIsSubmitted && !profileIsValid)}
+                      disabled={
+                        isSaving || (profileIsSubmitted && !profileIsValid)
+                      }
                       className="bg-primary hover:bg-primary/90 text-white"
                     >
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="mr-2 h-4 w-4" />
                       {isSaving ? "Menyimpan..." : "Simpan"}
                     </Button>
                     <Button
@@ -466,9 +526,9 @@ export default function ProfileContent() {
                       variant="outline"
                       onClick={handleCancelEdit}
                       disabled={isSaving}
-                      className="border-border text-white hover:bg-foreground/10"
+                      className="border-border hover:bg-foreground/10 text-white"
                     >
-                      <X className="h-4 w-4 mr-2" />
+                      <X className="mr-2 h-4 w-4" />
                       Batal
                     </Button>
                   </div>
@@ -477,82 +537,111 @@ export default function ProfileContent() {
             </Card>
 
             {/* Change Password Card */}
-            <Card className="bg-card border-border/50 p-6">
-              <div className="mb-4">
+            <Card className="bg-card border-none lg:p-6 p-5">
+              <div>
                 <h3 className="text-lg font-semibold text-white">Keamanan</h3>
               </div>
 
               {isChangingPassword ? (
-                <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4">
+                <form
+                  onSubmit={handleSubmitPassword(onPasswordSubmit)}
+                  className="space-y-4"
+                >
                   {/* Old Password */}
                   <div>
-                    <Label className="text-sm text-white mb-1">Kata Sandi Lama</Label>
+                    <Label className="mb-1 text-sm text-white">
+                      Kata Sandi Lama
+                    </Label>
                     <div className="relative">
                       <Input
                         {...registerPassword("old_password")}
                         type={showOldPassword ? "text" : "password"}
                         placeholder="Masukkan kata sandi lama"
-                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        className="bg-foreground/50 border-border pr-10 text-white placeholder-white"
                         disabled={isSaving}
                       />
                       <button
                         type="button"
                         onClick={() => setShowOldPassword(!showOldPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-300 hover:text-gray-100"
                       >
-                        {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showOldPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {passwordErrors.old_password && (
-                      <p className="text-sm text-red-400 mt-1">{passwordErrors.old_password.message}</p>
+                      <p className="mt-1 text-sm text-red-400">
+                        {passwordErrors.old_password.message}
+                      </p>
                     )}
                   </div>
 
                   {/* New Password */}
                   <div>
-                    <Label className="text-sm text-white mb-1">Kata Sandi Baru</Label>
+                    <Label className="mb-1 text-sm text-white">
+                      Kata Sandi Baru
+                    </Label>
                     <div className="relative">
                       <Input
                         {...registerPassword("new_password")}
                         type={showNewPassword ? "text" : "password"}
                         placeholder="Masukkan kata sandi baru"
-                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        className="bg-foreground/50 border-border pr-10 text-white placeholder-white"
                         disabled={isSaving}
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-300 hover:text-gray-100"
                       >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {passwordErrors.new_password && (
-                      <p className="text-sm text-red-400 mt-1">{passwordErrors.new_password.message}</p>
+                      <p className="mt-1 text-sm text-red-400">
+                        {passwordErrors.new_password.message}
+                      </p>
                     )}
                   </div>
 
                   {/* Confirm Password */}
                   <div>
-                    <Label className="text-sm text-white mb-1">Konfirmasi Kata Sandi Baru</Label>
+                    <Label className="mb-1 text-sm text-white">
+                      Konfirmasi Kata Sandi Baru
+                    </Label>
                     <div className="relative">
                       <Input
                         {...registerPassword("confirm_password")}
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Konfirmasi kata sandi baru"
-                        className="bg-foreground/50 border-border text-white placeholder-white pr-10"
+                        className="bg-foreground/50 border-border pr-10 text-white placeholder-white"
                         disabled={isSaving}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-100"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-300 hover:text-gray-100"
                       >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {passwordErrors.confirm_password && (
-                      <p className="text-sm text-red-400 mt-1">{passwordErrors.confirm_password.message}</p>
+                      <p className="mt-1 text-sm text-red-400">
+                        {passwordErrors.confirm_password.message}
+                      </p>
                     )}
                   </div>
 
@@ -560,10 +649,12 @@ export default function ProfileContent() {
                   <div className="flex gap-3 pt-4">
                     <Button
                       type="submit"
-                      disabled={isSaving || (passwordIsSubmitted && !passwordIsValid)}
+                      disabled={
+                        isSaving || (passwordIsSubmitted && !passwordIsValid)
+                      }
                       className="bg-primary hover:bg-primary/90 text-white"
                     >
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="mr-2 h-4 w-4" />
                       {isSaving ? "Menyimpan..." : "Simpan"}
                     </Button>
                     <Button
@@ -571,9 +662,9 @@ export default function ProfileContent() {
                       variant="outline"
                       onClick={handleCancelPasswordChange}
                       disabled={isSaving}
-                      className="border-border text-white hover:bg-foreground/10"
+                      className="border-border hover:bg-foreground/10 text-white"
                     >
-                      <X className="h-4 w-4 mr-2" />
+                      <X className="mr-2 h-4 w-4" />
                       Batal
                     </Button>
                   </div>
@@ -582,36 +673,39 @@ export default function ProfileContent() {
                 <div className="space-y-6">
                   {/* Password Change Section */}
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-white font-semibold">Kata Sandi</h4>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="font-semibold text-white">Kata Sandi</h4>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setIsChangingPassword(true)}
                         className="border-primary/50 text-primary hover:bg-primary/10"
                       >
-                        <Lock className="h-4 w-4 mr-2" />
+                        <Lock className="mr-2 h-4 w-4" />
                         Ubah
                       </Button>
                     </div>
-                    <p className="text-white text-sm">
-                      Ubah kata sandi Anda secara berkala untuk menjaga keamanan akun.
+                    <p className="text-sm text-white">
+                      Ubah kata sandi Anda secara berkala untuk menjaga keamanan
+                      akun.
                     </p>
                   </div>
 
                   {/* Google Connection Section */}
-                  <div className="border-t border-border/50 pt-6">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="border-border/50 border-t pt-6">
+                    <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                          <Mail className="h-5 w-5 text-primary" />
+                        <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
+                          <Mail className="text-primary h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="text-white font-semibold">Google</h4>
+                          <h4 className="font-semibold text-white">Google</h4>
                           {profile?.user_data?.google_id ? (
                             <p className="text-xs text-green-400">Terhubung</p>
                           ) : (
-                            <p className="text-xs text-gray-400">Tidak terhubung</p>
+                            <p className="text-xs text-gray-400">
+                              Tidak terhubung
+                            </p>
                           )}
                         </div>
                       </div>
@@ -624,16 +718,19 @@ export default function ProfileContent() {
                           className="border-primary/50 text-primary hover:bg-primary/10"
                         >
                           {isConnectingGoogle ? (
-                            <Loader className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
-                            <Mail className="h-4 w-4 mr-2" />
+                            <Mail className="mr-2 h-4 w-4" />
                           )}
-                          {isConnectingGoogle ? "Menghubungkan..." : "Hubungkan"}
+                          {isConnectingGoogle
+                            ? "Menghubungkan..."
+                            : "Hubungkan"}
                         </Button>
                       )}
                     </div>
-                    <p className="text-white text-sm">
-                      Hubungkan akun Google Anda untuk memudahkan login dan keamanan akun yang lebih baik.
+                    <p className="text-sm text-white">
+                      Hubungkan akun Google Anda untuk memudahkan login dan
+                      keamanan akun yang lebih baik.
                     </p>
                   </div>
                 </div>

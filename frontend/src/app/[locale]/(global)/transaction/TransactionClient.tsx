@@ -93,7 +93,7 @@ export default function TransactionPage() {
         {/* <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
           <Search className="h-7 w-7 text-white" />
         </div> */}
-        <h1 className="text-3xl font-bold text-white">Cek Status Pesanan</h1>
+        <h1 className="lg:text-3xl text-2xl lg:font-bold font-semibold text-white">Cek Status Pesanan</h1>
         <p className="mt-2 text-white/60 lg:text-base text-sm">
           Masukkan nomor invoice untuk melihat status pesanan Anda.
         </p>
@@ -105,10 +105,10 @@ export default function TransactionPage() {
           <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-white/40" />
           <Input
             type="text"
-            placeholder="Contoh: ROX-20260226-ABCD"
+            placeholder="ROX-20260226-ABCD"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="border-white/10 bg-white/5 pl-10 text-white uppercase placeholder:text-white/30 focus:border-white/20"
+            className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/30 focus:border-white/20 placeholder:text-sm"
           />
         </div>
         <Button

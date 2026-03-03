@@ -33,14 +33,14 @@ export default function WinRatePage() {
   return (
     <>
       <section>
-        <div className="mt-42 mb-14">
-          <div className="mx-auto max-w-7xl">
+        <div className="lg:mt-42 mt-26 mb-8">
+          <div className="mx-auto lg:max-w-7xl w-11/12">
             <div className="flex gap-6">
-              <Card className="w-full border-0 p-10">
+              <Card className="w-full border-0 lg:p-10 p-4">
                 <div className="space-y-6 bg-transparent">
                   {/* Header */}
                   <div className="mb-8 space-y-2">
-                    <h1 className="text-3xl font-bold text-white">
+                    <h1 className="lg:text-3xl text-xl lg:font-bold font-semibold text-white">
                       Kalkulator Win Rate
                     </h1>
                     <p className="text-sm text-slate-400">
