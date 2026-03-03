@@ -21,6 +21,7 @@ import {
   SquareChartGantt,
   LogOut,
   UserCircle,
+  ChevronDown,
 } from "lucide-react";
 
 import {
@@ -59,7 +60,10 @@ const Navigationbar = () => {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { session, isLoading: isPending, isAdmin } = useAuth();
-  const { logout } = useLogout({ redirectTo: `/${pathname.split("/")[1] || "id"}` });
+  const { logout } = useLogout({
+    redirectTo: `/${pathname.split("/")[1] || "id"}`,
+  });
+  const [mobileCalcOpen, setMobileCalcOpen] = useState(false);
 
   // Fetch profile data for avatar and name
   const { data: profile } = useProfile({
@@ -111,7 +115,7 @@ const Navigationbar = () => {
     debouncedQuery,
     {
       enabled: debouncedQuery.length >= 2, // Only search when 2+ characters
-    }
+    },
   );
 
   return (
@@ -337,10 +341,11 @@ const Navigationbar = () => {
                     {/* TRIGGER (BUKAN LINK) */}
                     <button
                       type="button"
-                      className={`relative flex cursor-pointer items-center gap-2 text-sm transition ${isCalculatorActive
-                        ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
-                        : "text-gray-300 hover:text-white"
-                        }`}
+                      className={`relative flex h-8 cursor-pointer items-center gap-2 text-sm transition ${
+                        isCalculatorActive
+                          ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                          : "text-gray-300 hover:text-white"
+                      }`}
                     >
                       <Calculator className="h-5 w-5" />
                       {t("calculator")}
@@ -381,10 +386,11 @@ const Navigationbar = () => {
                 <Link
                   key={item.href}
                   href={`/${locale}${item.href}`}
-                  className={`relative flex items-center gap-2 text-sm transition ${active
-                    ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
-                    : "text-gray-300 hover:text-white"
-                    }`}
+                  className={`relative flex h-8 items-center gap-2 text-sm transition ${
+                    active
+                      ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                      : "text-gray-300 hover:text-white"
+                  }`}
                 >
                   {Icon && <Icon className="h-5 w-5" />}
                   {t(item.key)}
@@ -402,15 +408,16 @@ const Navigationbar = () => {
                 {/* TRIGGER BUTTON */}
                 <button
                   type="button"
-                  className="relative flex cursor-pointer items-center gap-2 text-sm text-gray-300 transition hover:text-white"
+                  className="flex items-center gap-2 text-sm leading-none text-gray-300 hover:text-white"
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="size-8 shrink-0 overflow-hidden rounded-full">
                     <AvatarImage src={displayImage} alt={displayName} />
-                    <AvatarFallback className="bg-gray-700 text-white">
+                    <AvatarFallback className="flex items-center justify-center bg-gray-700 text-xs text-white">
                       {displayInitials}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="font-medium text-white">{displayName}</p>
+
+                  <span className="font-medium text-white">{displayName}</span>
                 </button>
 
                 {/* DROPDOWN */}
@@ -505,10 +512,11 @@ const Navigationbar = () => {
 
       {/* MOBILE SIDEBAR */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${open
-          ? "pointer-events-auto opacity-100"
-          : "pointer-events-none opacity-0"
-          }`}
+        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${
+          open
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        }`}
       >
         {/* OVERLAY */}
         <div
@@ -554,24 +562,87 @@ const Navigationbar = () => {
               onClick={() => setOpen(false)}
             />
 
-            <MobileNavItem
-              href={`/${locale}/calculator`}
-              icon={Calculator}
-              label="Kalkulator"
-              onClick={() => setOpen(false)}
-            />
+            <div>
+              <button
+                onClick={() => setMobileCalcOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between text-base text-white"
+              >
+                <div className="flex items-center gap-3">
+                  <Calculator className="h-5 w-5" />
+                  Kalkulator
+                </div>
+
+                <span
+                  className={`transition-transform duration-200 ${
+                    mobileCalcOpen ? "rotate-180" : ""
+                  }`}
+                >
+                  <ChevronDown />
+                </span>
+              </button>
+
+              {/* SUBMENU */}
+              {mobileCalcOpen && (
+                <div className="mt-3 ml-8 space-y-3">
+                  <MobileNavItem
+                    href={`/${locale}/calculator/winrate`}
+                    icon={SquareChartGantt}
+                    label="Win Rate"
+                    onClick={() => setOpen(false)}
+                  />
+
+                  <MobileNavItem
+                    href={`/${locale}/calculator/magicwheel`}
+                    icon={SquareChartGantt}
+                    label="Magic Wheel"
+                    onClick={() => setOpen(false)}
+                  />
+
+                  <MobileNavItem
+                    href={`/${locale}/calculator/zodiac`}
+                    icon={SquareChartGantt}
+                    label="Zodiac"
+                    onClick={() => setOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="my-4 border-t border-gray-800" />
 
             {/* AUTH */}
-            {session?.user ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 text-red-400"
-              >
-                <LogOut className="h-5 w-5" />
-                Logout
-              </button>
+            {session?.user && !isAdmin ? (
+              <>
+                {/* PROFILE */}
+                <MobileNavItem
+                  href={`/${locale}/profile`}
+                  icon={UserCircle}
+                  label="Profile"
+                  onClick={() => setOpen(false)}
+                />
+
+                {/* MY TRANSACTIONS */}
+                <MobileNavItem
+                  href={`/${locale}/my-transactions`}
+                  icon={ReceiptText}
+                  label="Transaksi Saya"
+                  onClick={() => setOpen(false)}
+                />
+
+                <div className="my-4 border-t border-gray-800" />
+
+                {/* LOGOUT */}
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-3 text-red-400"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Logout
+                </button>
+              </>
             ) : (
               <>
                 <MobileNavItem

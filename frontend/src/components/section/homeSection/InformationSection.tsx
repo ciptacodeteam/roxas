@@ -36,7 +36,7 @@ export default function InformationSection() {
                     <Wallet size={32} className="text-primary" />
                   </div>
                   <div className="text-white">
-                    <h1 className="text-primary mb-2 text-xl font-medium">
+                    <h1 className="text-primary mb-2 lg:text-xl text-lg font-medium">
                       Harga Terbaik
                     </h1>
                     <p className="text-muted text-sm">
@@ -53,7 +53,7 @@ export default function InformationSection() {
                     <ShieldCheck size={32} className="text-primary" />
                   </div>
                   <div className="text-white">
-                    <h1 className="text-primary mb-2 text-xl font-medium">
+                    <h1 className="text-primary mb-2 lg:text-xl text-lg font-medium">
                       Transaksi Aman
                     </h1>
                     <p className="text-muted text-sm">
@@ -70,7 +70,7 @@ export default function InformationSection() {
                     <CircleStar size={32} className="text-primary" />
                   </div>
                   <div className="text-white">
-                    <h1 className="text-primary mb-2 text-xl font-medium">
+                    <h1 className="text-primary mb-2 lg:text-xl text-lg font-medium">
                       Pengiriman Cepat
                     </h1>
                     <p className="text-muted text-sm">

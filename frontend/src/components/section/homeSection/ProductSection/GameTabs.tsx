@@ -9,17 +9,17 @@ export default function GameTabs({ categories, active, setActive }: any) {
   return (
     <>
       <div>
-        <div className="flex items-center justify-between">
+        <div className="mt-8 flex items-center justify-between lg:mt-10">
           <div className="flex gap-3 overflow-x-auto pb-4">
             {categories.map((cat: string) => (
               <button
                 key={cat}
                 onClick={() => setActive(cat)}
-                className={`cursor-pointer rounded-full px-5 py-2 transition ${
+                className={`cursor-pointer rounded-full px-5 py-2 whitespace-nowrap transition ${
                   active === cat
                     ? "bg-primary text-white"
                     : "bg-card hover:bg-muted-foreground transition-300 text-white"
-                } `}
+                }`}
               >
                 {cat}
               </button>

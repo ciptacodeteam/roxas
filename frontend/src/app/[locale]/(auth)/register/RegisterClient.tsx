@@ -27,9 +27,13 @@ export default function RegisterPage() {
   const router = useRouter();
   const { session, isLoading: isPending } = useAuth();
   const locale = pathname?.split("/")[1] ?? "id";
-  
+
   // Register mutation with auto-login
-  const { register, isPending: isRegistering, error: registerError } = useRegister({
+  const {
+    register,
+    isPending: isRegistering,
+    error: registerError,
+  } = useRegister({
     isAdmin: false,
     redirectTo: `/${locale}/profile`,
   });
@@ -56,21 +60,24 @@ export default function RegisterPage() {
 
     try {
       // First, get user info from Google using the access token
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: {
-          Authorization: `Bearer ${tokenResponse.access_token}`,
+      const userInfoResponse = await fetch(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponse.access_token}`,
+          },
         },
-      });
+      );
 
       if (!userInfoResponse.ok) {
-        throw new Error('Failed to get user info from Google');
+        throw new Error("Failed to get user info from Google");
       }
 
       const userInfo = await userInfoResponse.json();
 
       // Get the backend API URL
       const backendUrl = API_URL;
-      
+
       // Send the user info to your Django backend
       const response = await fetch(`${backendUrl}/api/v1/auth/google/`, {
         method: "POST",
@@ -92,11 +99,14 @@ export default function RegisterPage() {
       toast.dismiss(loadingToast);
 
       if (response.ok) {
-        toast.success(data.is_new_user ? "Akun Berhasil Dibuat!" : "Login Berhasil!", {
-          description: data.is_new_user 
-            ? "Selamat datang! Mengarahkan ke profil Anda..." 
-            : "Mengarahkan ke profil Anda...",
-        });
+        toast.success(
+          data.is_new_user ? "Akun Berhasil Dibuat!" : "Login Berhasil!",
+          {
+            description: data.is_new_user
+              ? "Selamat datang! Mengarahkan ke profil Anda..."
+              : "Mengarahkan ke profil Anda...",
+          },
+        );
 
         const locale = pathname.split("/")[1] ?? "id";
         // Force full page reload to ensure cookies are loaded
@@ -104,11 +114,13 @@ export default function RegisterPage() {
       } else {
         if (data.error_code === "STAFF_ACCOUNT") {
           toast.error("Akun Staff Terdeteksi", {
-            description: "Akun Google ini terhubung dengan akun staff. Silakan gunakan login admin.",
+            description:
+              "Akun Google ini terhubung dengan akun staff. Silakan gunakan login admin.",
           });
         } else {
           toast.error("Registrasi Google Gagal", {
-            description: data.detail || "Terjadi kesalahan saat registrasi dengan Google.",
+            description:
+              data.detail || "Terjadi kesalahan saat registrasi dengan Google.",
           });
         }
       }
@@ -123,6 +135,7 @@ export default function RegisterPage() {
 
   // Google login hook (must be called before early returns)
   const googleLogin = useGoogleLogin({
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onSuccess: handleGoogleSuccess,
     onError: () => {
       toast.error("Registrasi Google Gagal", {
@@ -135,7 +148,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (session?.user) {
       const isStaff = session.user.role === "STAFF";
-      
+
       if (isStaff) {
         // Staff user trying to access public register - redirect to admin
         router.replace("/admin");
@@ -197,21 +210,19 @@ export default function RegisterPage() {
     setErrors({});
 
     // Call register mutation - it will auto-login and redirect
-    register(
-      {
-        email: form.email,
-        password: form.password,
-        full_name: `${form.firstName} ${form.lastName}`.trim(),
-        contact_phone: form.phone,
-      }
-    );
+    register({
+      email: form.email,
+      password: form.password,
+      full_name: `${form.firstName} ${form.lastName}`.trim(),
+      contact_phone: form.phone,
+    });
   };
 
   // Show loading while checking session
   if (isPending) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-        <div className="text-white text-lg">Memuat...</div>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="text-lg text-white">Memuat...</div>
       </div>
     );
   }
@@ -224,33 +235,33 @@ export default function RegisterPage() {
   return (
     <>
       <section>
-        <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
+        <div className="h-full bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat lg:h-screen">
           <div className="absolute inset-0 bg-linear-to-b from-black/20 to-black/40"></div>
 
-          <div className="relative z-10 flex min-h-screen items-center justify-center mx-3 lg:mx-0">
-            <div className="bg-card rounded-2xl p-6">
-              <div className="grid lg:grid-cols-2 lg:gap-8">
-                <div>
+          <div className="relative z-10 mx-auto flex min-h-screen w-full items-center justify-center px-4 py-8 lg:w-11/12 lg:max-w-7xl">
+            <div className="bg-card mx-auto w-full max-w-md rounded-2xl p-4 sm:p-6 lg:max-w-none">
+              <div className="grid items-stretch lg:grid-cols-2 lg:gap-8">
+                <div className="hidden h-full lg:block">
                   <Image
                     src={img4}
                     alt=""
-                    className="w-[600] rounded-xl bg-cover bg-no-repeat lg:block hidden"
+                    className="h-full w-full rounded-xl object-cover"
                   />
                 </div>
 
                 <div className="flex w-full flex-col justify-center">
                   <div className="flex flex-col items-center justify-center">
-                    <h1 className="lg:mt-4 text-2xl font-semibold text-white">
-                      Selamat Datang di Roxas Store
+                    <h1 className="text-xl font-semibold text-white lg:mt-4 lg:text-2xl">
+                      Selamat Datang
                     </h1>
-                    <p className="mt-1 font-light text-white">
+                    <p className="mt-1 text-base font-light text-white">
                       Masukkan informasi pendaftaran yang valid.
                     </p>
                   </div>
 
                   <div>
                     {/* Nama depan & belakang */}
-                    <div className="flex lg:flex-row flex-col lg:gap-3">
+                    <div className="flex flex-col lg:flex-row lg:gap-3">
                       <div className="mt-8 grid w-full gap-1">
                         <Label
                           htmlFor="firstName"
@@ -277,7 +288,8 @@ export default function RegisterPage() {
                           htmlFor="lastName"
                           className="text-sm text-white"
                         >
-                          Nama Belakang <span className="text-gray-400">(opsional)</span>
+                          Nama Belakang{" "}
+                          <span className="text-gray-400">(opsional)</span>
                         </Label>
                         <Input
                           type="text"
@@ -294,10 +306,11 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6 grid w-full gap-1">
+                    <div className="relative mt-5 grid w-full gap-1">
                       <Label htmlFor="phone" className="text-sm text-white">
                         Nomor WhatsApp
                       </Label>
+
                       <PhoneInputAuth
                         id="phone"
                         value={form.phone}
@@ -306,10 +319,9 @@ export default function RegisterPage() {
                         }
                         placeholder="812 3456 7890"
                       />
+
                       {errors.phone && (
-                        <p className="text-xs text-red-400">
-                          {errors.phone}
-                        </p>
+                        <p className="text-xs text-red-400">{errors.phone}</p>
                       )}
                     </div>
 
@@ -329,7 +341,7 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    <div className="flex lg:flex-row flex-col lg:gap-3">
+                    <div className="flex flex-col lg:flex-row lg:gap-3">
                       <div className="mt-6 grid w-full gap-1">
                         <Label
                           htmlFor="password"
@@ -381,7 +393,9 @@ export default function RegisterPage() {
                           />
                           <button
                             type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
                             className="absolute top-1/2 right-4 -translate-y-1/2 cursor-pointer text-white"
                           >
                             {showConfirmPassword ? (
@@ -413,7 +427,10 @@ export default function RegisterPage() {
                       />
                       <Label htmlFor="terms" className="text-sm text-white">
                         Saya setuju dengan{" "}
-                        <Link href={"/termsconditions"} className="text-blue-400">
+                        <Link
+                          href={"/termsconditions"}
+                          className="text-blue-400"
+                        >
                           Syarat & Ketentuan
                         </Link>{" "}
                         dan{" "}
@@ -442,21 +459,12 @@ export default function RegisterPage() {
 
                     {env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
                       <>
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-300"></div>
-                          </div>
-                          <div className="relative flex justify-center text-sm">
-                            <span className="bg-card px-2 text-white">atau</span>
-                          </div>
-                        </div>
-                        
                         <Button
                           type="button"
                           onClick={() => googleLogin()}
-                          className="bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 w-full"
+                          className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
                         >
-                          <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                          <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
                             <path
                               fill="currentColor"
                               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

@@ -43,13 +43,13 @@ export default function TopLeaderboardPage() {
   }
 
   return (
-    <main className="mx-auto mt-8 max-w-7xl pb-14">
+    <main className="mx-auto mt-8 lg:max-w-7xl w-11/12 pb-14 lg:pt-0 pt-16">
       <div className="grid gap-6 md:grid-cols-3">
         {data.map((group, idx) => (
           <section
             key={idx}
             aria-labelledby={`leaderboard-${idx}`}
-            className="relative overflow-hidden rounded-xl border border-gray-800/60 bg-linear-to-b from-card to-card/20 p-6 backdrop-blur-sm"
+            className="relative overflow-hidden rounded-xl border border-gray-800/60 bg-linear-to-b from-card to-card/20 lg:p-6 p-4 backdrop-blur-sm"
           >
             <h2
               id={`leaderboard-${idx}`}

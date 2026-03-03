@@ -56,7 +56,7 @@ export default function TransactionDetailPage() {
 
     // Success state - Display transaction details
     return (
-        <div className="min-h-screen bg-gradient-to-b from-card via-muted-foreground to-foreground/20 text-white">
+        <div className="min-h-screen bg-linear-to-b from-card via-muted-foreground to-foreground/20 text-white">
             <div className="mx-auto max-w-7xl px-4 pb-14 pt-40">
                 {/* Header */}
                 <div className="mb-10">
