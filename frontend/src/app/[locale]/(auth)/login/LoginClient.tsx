@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 "use client";
 
 import img4 from "public/img/img-4.webp";
@@ -257,10 +258,10 @@ export default function LoginPage() {
   return (
     <>
       <section>
-        <div className="h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
-          <div className="absolute inset-0 bg-linear-to-b lg:from-black/20 lg:to-black/40 from-black/50 to-black/80"></div>
+        <div className="relative min-h-screen bg-[url(/img/img-2.webp)] bg-cover bg-no-repeat">
+          <div className="absolute inset-0 bg-linear-to-b from-black/50 to-black/80"></div>
 
-          <div className="relative z-10 flex min-h-screen items-center justify-center">
+          <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
             <div className="bg-card rounded-2xl p-6">
               <div className="grid lg:grid-cols-2 lg:gap-8">
 
