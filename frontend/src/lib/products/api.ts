@@ -47,21 +47,29 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getProducts(): Promise<Product[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/?page_size=100`, {
-        credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
+    const allProducts: Product[] = [];
+    let url: string | null = `${API_BASE_URL}/api/v1/admin/products/?page_size=100`;
 
-    const data = await handleResponse<PaginatedProductsResponse | Product[]>(response);
+    while (url) {
+        const response = await fetch(url, {
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
 
-    // Handle both paginated and non-paginated responses
-    if (Array.isArray(data)) {
-        return data;
+        const data = await handleResponse<PaginatedProductsResponse | Product[]>(response);
+
+        // Handle both paginated and non-paginated responses
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        allProducts.push(...data.results);
+        url = data.next;
     }
 
-    return data.results;
+    return allProducts;
 }
 
 /**

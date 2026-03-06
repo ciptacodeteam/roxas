@@ -72,6 +72,8 @@ export interface ProductItem {
 export interface PaginatedProductsResponse {
     results: Product[];
     count: number;
+    next: string | null;
+    previous: string | null;
 }
 
 export type CreateProductRequest = Omit<Product, "id" | "created_at" | "updated_at" | "category_name"> & {
