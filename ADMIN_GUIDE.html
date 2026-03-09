@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roxas Game Store — Admin User Guide</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:      #7c3aed;
+      --brand-dark: #5b21b6;
+      --brand-light:#ede9fe;
+      --accent:     #f59e0b;
+      --danger:     #dc2626;
+      --success:    #16a34a;
+      --info:       #0284c7;
+      --gray-50:    #f9fafb;
+      --gray-100:   #f3f4f6;
+      --gray-200:   #e5e7eb;
+      --gray-300:   #d1d5db;
+      --gray-600:   #4b5563;
+      --gray-700:   #374151;
+      --gray-900:   #111827;
+      --font:       'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: var(--font);
+      color: var(--gray-900);
+      background: #fff;
+      line-height: 1.6;
+    }
+
+    /* ── Cover Page ───────────────────────────────────── */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, #a78bfa 100%);
+      color: #fff;
+      text-align: center;
+      padding: 3rem;
+      page-break-after: always;
+    }
+
+    .cover .logo-ring {
+      width: 110px; height: 110px;
+      border: 4px solid rgba(255,255,255,0.4);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .cover h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    .cover .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.88;
+      margin-bottom: 2.5rem;
+    }
+
+    .cover .meta {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      border-top: 1px solid rgba(255,255,255,0.25);
+      padding-top: 1.5rem;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .cover .version-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      padding: 0.3rem 1rem;
+      font-size: 0.8rem;
+      margin-bottom: 2rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── Table of Contents ────────────────────────────── */
+    .toc-page {
+      padding: 3rem 4rem;
+      page-break-after: always;
+    }
+
+    .toc-page h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--brand-dark);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 3px solid var(--brand);
+    }
+
+    .toc-list { list-style: none; }
+
+    .toc-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      padding: 0.35rem 0;
+      font-size: 0.95rem;
+    }
+
+    .toc-list li.section-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--brand-dark);
+      margin-top: 0.8rem;
+    }
+
+    .toc-list li.sub {
+      padding-left: 1.6rem;
+      color: var(--gray-700);
+      font-size: 0.88rem;
+    }
+
+    .toc-dots {
+      flex: 1;
+      border-bottom: 1px dotted var(--gray-300);
+      margin: 0 0.4rem;
+    }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 4rem;
+    }
+
+    @media print {
+      .page { padding: 2rem 2.5rem; }
+      .section { page-break-inside: avoid; }
+    }
+
+    /* Chapter break */
+    .chapter {
+      page-break-before: always;
+    }
+
+    /* ── Chapter Header ───────────────────────────────── */
+    .chapter-header {
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%);
+      color: #fff;
+      padding: 2rem 3rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .chapter-header .ch-icon {
+      font-size: 2.2rem;
+      flex-shrink: 0;
+    }
+
+    .chapter-header h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .chapter-header .ch-num {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.75;
+      margin-bottom: 0.2rem;
+    }
+
+    /* ── Section ──────────────────────────────────────── */
+    .section {
+      margin-bottom: 2.5rem;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--brand-dark);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3::before {
+      content: '';
+      display: inline-block;
+      width: 4px; height: 1.1em;
+      background: var(--brand);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin: 1rem 0 0.4rem;
+    }
+
+    p {
+      margin-bottom: 0.75rem;
+      color: var(--gray-700);
+      line-height: 1.65;
+    }
+
+    /* ── Tables ───────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead tr {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    thead th {
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    tbody tr:nth-child(even) { background: var(--gray-50); }
+    tbody tr:hover { background: var(--brand-light); }
+
+    tbody td {
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: top;
+    }
+
+    /* ── Call-out Boxes ───────────────────────────────── */
+    .callout {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.88rem;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .callout.info    { border-color: var(--info);    background: #e0f2fe; color: #0c4a6e; }
+    .callout.warning { border-color: var(--accent);  background: #fef3c7; color: #78350f; }
+    .callout.danger  { border-color: var(--danger);  background: #fee2e2; color: #7f1d1d; }
+    .callout.success { border-color: var(--success); background: #dcfce7; color: #14532d; }
+    .callout.tip     { border-color: var(--brand);   background: var(--brand-light); color: var(--brand-dark); }
+
+    /* ── Steps ────────────────────────────────────────── */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 0.9rem;
+      margin-bottom: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .steps li::before {
+      content: counter(step);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 26px;
+      background: var(--brand);
+      color: #fff;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 0.78rem;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+
+    .steps li span { color: var(--gray-700); line-height: 1.55; }
+
+    /* ── Bullet Lists ─────────────────────────────────── */
+    ul.styled, ol.styled {
+      margin: 0.5rem 0 1rem 1.2rem;
+      color: var(--gray-700);
+    }
+
+    ul.styled li, ol.styled li {
+      margin-bottom: 0.35rem;
+      line-height: 1.55;
+      font-size: 0.88rem;
+    }
+
+    /* ── Badges / Status pills ────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-green  { background: #dcfce7; color: #15803d; }
+    .badge-red    { background: #fee2e2; color: #b91c1c; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+    .badge-purple { background: var(--brand-light); color: var(--brand-dark); }
+    .badge-gray   { background: var(--gray-100); color: var(--gray-600); }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
+
+    /* ── Code / Inline ────────────────────────────────── */
+    code {
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 0.83em;
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: 3px;
+      padding: 0.05em 0.35em;
+      color: var(--brand-dark);
+    }
+
+    pre {
+      background: var(--gray-900);
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      overflow-x: auto;
+      margin: 0.75rem 0 1.25rem;
+    }
+
+    /* ── Screenshot Placeholder ───────────────────────── */
+    .screenshot {
+      border: 2px dashed var(--gray-300);
+      border-radius: 8px;
+      background: var(--gray-50);
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--gray-600);
+      font-size: 0.82rem;
+      margin: 1rem 0;
+    }
+
+    /* ── Two-column layout ────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .card {
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      background: var(--gray-50);
+    }
+
+    .card h4 {
+      margin-bottom: 0.5rem;
+      font-size: 0.88rem;
+    }
+
+    /* ── Flow diagram ─────────────────────────────────── */
+    .flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 1rem 0;
+      font-size: 0.82rem;
+    }
+
+    .flow-step {
+      background: var(--brand);
+      color: #fff;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .flow-arrow {
+      font-size: 1.1rem;
+      color: var(--gray-600);
+      padding: 0 0.3rem;
+    }
+
+    .flow-step.alt  { background: var(--accent); }
+    .flow-step.done { background: var(--success); }
+    .flow-step.err  { background: var(--danger); }
+
+    /* ── Footer / Page number area ────────────────────── */
+    @page {
+      margin: 1.8cm 1.5cm;
+      @bottom-center {
+        content: "Roxas Game Store — Admin Guide  |  Page " counter(page);
+        font-size: 9pt;
+        color: #6b7280;
+      }
+    }
+
+    /* ── Print-specific ───────────────────────────────── */
+    @media print {
+      body { font-size: 11pt; }
+      .cover { break-after: page; min-height: unset; padding: 6cm 3cm; }
+      .toc-page { break-after: page; }
+      .chapter { break-before: page; }
+      .callout { break-inside: avoid; }
+      table { break-inside: avoid; }
+      h3, h4 { break-after: avoid; }
+    }
+
+    /* ── Divider ──────────────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      margin: 1.5rem 0;
+    }
+
+    /* ── Highlight row ────────────────────────────────── */
+    .highlight-row td { background: #fef9c3 !important; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COVER PAGE
+════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-ring">🎮</div>
+  <div class="version-badge">Admin User Guide — v1.0</div>
+  <h1>Roxas Game Store</h1>
+  <p class="subtitle">Comprehensive Administrator Reference Manual</p>
+  <div class="meta">
+    <p>March 2026 &nbsp;·&nbsp; Confidential — Internal Use Only</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+════════════════════════════════════════════════════════════ -->
+<div class="page toc-page">
+  <h2>Table of Contents</h2>
+  <ul class="toc-list">
+    <li class="section-header">1. Getting Started</li>
+    <li class="sub"><span>1.1 Logging In</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>1.2 Admin Dashboard Overview</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>1.3 Admin Panel vs. Django Admin</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>1.4 Password &amp; Account Settings</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">2. Category Management</li>
+    <li class="sub"><span>2.1 Creating a Category</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>2.2 Editing &amp; Reordering Categories</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>2.3 Instruction Images</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">3. Product Management</li>
+    <li class="sub"><span>3.1 Creating a Product</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>3.2 Input Field Presets</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>3.3 Managing Product Items (Denominations)</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>3.4 Pricing: Base Price vs. Sell Price</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">4. Digiflazz Integration</li>
+    <li class="sub"><span>4.1 Price List Sync</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>4.2 Balance Monitoring</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>4.3 Raw Price List Viewer</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">5. Order Management</li>
+    <li class="sub"><span>5.1 Order Lifecycle</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>5.2 Viewing &amp; Filtering Orders</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>5.3 Order Detail Page</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>5.4 Handling Failed Transactions</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>5.5 Refunds</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">6. Payment Methods</li>
+    <li class="sub"><span>6.1 Adding a Payment Method</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>6.2 Fee &amp; VAT Configuration</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">7. Promotions</li>
+    <li class="sub"><span>7.1 Coupons</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>7.2 Flash Sales</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">8. Marketing Banners</li>
+
+    <li class="section-header">9. User Management</li>
+    <li class="sub"><span>9.1 Customer Accounts</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>9.2 Staff Accounts</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">10. Ratings &amp; Reviews</li>
+
+    <li class="section-header">11. Logs &amp; Monitoring</li>
+    <li class="sub"><span>11.1 API Logs</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>11.2 Audit Logs</span><span class="toc-dots"></span></li>
+    <li class="sub"><span>11.3 Email Queue</span><span class="toc-dots"></span></li>
+
+    <li class="section-header">12. Django Admin Panel</li>
+
+    <li class="section-header">Appendix A — Order Status Reference</li>
+    <li class="section-header">Appendix B — Digiflazz Status Codes</li>
+    <li class="section-header">Appendix C — Input Field Presets Reference</li>
+    <li class="section-header">Appendix D — API Endpoint Quick Reference</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 1 — GETTING STARTED
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🚀</div>
+    <div>
+      <div class="ch-num">Chapter 1</div>
+      <h2>Getting Started</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.1 Logging In</h3>
+    <p>The admin panel is accessible at <code>/admin/login</code>. Use your staff email address and password. After a successful login, you will be redirected to the dashboard.</p>
+
+    <ol class="steps">
+      <li><span>Navigate to <code>https://&lt;your-domain&gt;/admin/login</code> in your browser.</span></li>
+      <li><span>Enter your <strong>email address</strong> and <strong>password</strong>.</span></li>
+      <li><span>Click <strong>Sign In</strong>. Authentication is handled via JWT tokens stored in HttpOnly cookies — no further action is required.</span></li>
+      <li><span>If you have forgotten your password, click <strong>Forgot Password?</strong> to receive a reset link by email.</span></li>
+    </ol>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Google Login</div>
+      Admins may also sign in using a linked Google account if Google OAuth has been configured by the system administrator.
+    </div>
+    <div class="callout warning">
+      <div class="callout-title">⚠️ Session Expiry</div>
+      Access tokens expire after a short period. The system will attempt a silent refresh. If your session expires completely, you will be redirected to the login page.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.2 Admin Dashboard Overview</h3>
+    <p>After login you land on the <strong>Dashboard</strong> (<code>/admin/</code>). It provides a real-time (30-second cache) snapshot of the entire store.</p>
+
+    <div class="two-col">
+      <div class="card">
+        <h4>📊 Overview Stats Cards</h4>
+        <ul class="styled">
+          <li>Total Orders (current vs. previous month %)</li>
+          <li>Total Revenue (IDR)</li>
+          <li>Total Registered Customers</li>
+          <li>Active Products</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>💰 Revenue Chart</h4>
+        <ul class="styled">
+          <li>Monthly revenue bar/line chart (full year)</li>
+          <li>Breakdown per month</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>📦 Order Status Breakdown</h4>
+        <ul class="styled">
+          <li>Count and total value (IDR) per status</li>
+          <li>PENDING, PAID, PROCESSING, COMPLETED, FAILED, REFUNDED, EXPIRED</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>🔌 API Health Status</h4>
+        <ul class="styled">
+          <li>Digiflazz connection status &amp; current wallet balance</li>
+          <li>Midtrans connection status</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>📋 Recent Orders</h4>
+        <ul class="styled">
+          <li>Last 10 orders across all customers</li>
+          <li>Clickable rows link to order detail</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>🚨 Notifications</h4>
+        <ul class="styled">
+          <li>Failed transactions needing attention</li>
+          <li>Pending orders awaiting processing</li>
+          <li>New orders since last visit</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Tip</div>
+      The dashboard refreshes its statistics every 30 seconds server-side. You can also hard-refresh the browser page to get the latest data immediately.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.3 Admin Panel vs. Django Admin</h3>
+    <p>Roxas Game Store has <strong>two</strong> admin interfaces:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Interface</th><th>URL</th><th>Best For</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Next.js Admin Panel</strong> (primary)</td><td><code>/admin/</code></td><td>Day-to-day operations: orders, products, coupons, banners, users, analytics</td></tr>
+          <tr><td><strong>Django Admin</strong> (advanced)</td><td><code>/api/admin-portal/</code></td><td>Low-level data edits, advanced filtering, email queue management, raw audit/API log viewing</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warning">
+      <div class="callout-title">⚠️ Caution</div>
+      The Django Admin provides direct database access. Use it only when the primary panel does not expose the required control. Changes here may bypass business logic and validations.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>1.4 Password &amp; Account Settings</h3>
+    <p>Access your own account settings at <code>/admin/account/</code>. Here you can:</p>
+    <ul class="styled">
+      <li>Update your display name, contact phone, and profile photo</li>
+      <li>Change your password (requires current password)</li>
+      <li>View your account role (STAFF)</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 2 — CATEGORY MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🗂️</div>
+    <div>
+      <div class="ch-num">Chapter 2</div>
+      <h2>Category Management</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Categories are top-level groupings that organise products in the store (e.g., <em>Mobile Games</em>, <em>Pulsa</em>, <em>PLN Prepaid</em>). Navigate to <code>/admin/categories/</code>.</p>
+
+    <h3>2.1 Creating a Category</h3>
+    <ol class="steps">
+      <li><span>Click <strong>New Category</strong> (top-right button).</span></li>
+      <li><span>Enter the <strong>Name</strong>. The slug is auto-generated (lowercase, hyphenseparated) but can be customised.</span></li>
+      <li><span>Set <strong>Sort Order</strong> — lower numbers appear first in the store front.</span></li>
+      <li><span>Toggle <strong>Is Active</strong> to make the category visible to customers.</span></li>
+      <li><span>Click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Name</td><td>✅ Yes</td><td>Must be unique across all categories</td></tr>
+          <tr><td>Slug</td><td>✅ Yes</td><td>URL-safe identifier; auto-derived from Name</td></tr>
+          <tr><td>Sort Order</td><td>✅ Yes</td><td>Default 0; lower = displayed earlier</td></tr>
+          <tr><td>Is Active</td><td>—</td><td>Inactive categories are hidden from the storefront</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>2.2 Editing &amp; Reordering Categories</h3>
+    <p>Click any category row in the list to open the edit form. Change any field and press <strong>Save</strong>. To reorder, update <strong>Sort Order</strong> values and save each row.</p>
+    <div class="callout danger">
+      <div class="callout-title">🗑️ Deleting a Category</div>
+      Deleting a category will cascade-delete all associated products and product items. Ensure all products are reassigned or deactivated first. This action is <strong>irreversible</strong>.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>2.3 Instruction Images</h3>
+    <p>Each category can have one or more <strong>instruction images</strong> — screenshots that guide customers on where to find their Game ID (e.g., how to locate a User ID in Mobile Legends). These appear on the product detail page.</p>
+    <ol class="steps">
+      <li><span>Open a Category (edit form).</span></li>
+      <li><span>Scroll to the <strong>Instruction Images</strong> section.</span></li>
+      <li><span>Click <strong>Add Image</strong>. Enter the <strong>Image URL</strong>, <strong>Alt Text</strong> (accessibility description), and <strong>Sort Order</strong>.</span></li>
+      <li><span>Add as many images as needed, then click <strong>Save</strong>.</span></li>
+    </ol>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 3 — PRODUCT MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🎁</div>
+    <div>
+      <div class="ch-num">Chapter 3</div>
+      <h2>Product Management</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Products represent individual games or services (e.g., <em>Mobile Legends</em>, <em>Free Fire</em>, <em>PLN Prepaid</em>). Each product has many <strong>Product Items</strong> (denominations). Navigate to <code>/admin/products/</code>.</p>
+
+    <h3>3.1 Creating a Product</h3>
+    <ol class="steps">
+      <li><span>Click <strong>New Product</strong>.</span></li>
+      <li><span>Select the <strong>Category</strong>.</span></li>
+      <li><span>Enter the <strong>Name</strong> and optional <strong>Description</strong>.</span></li>
+      <li><span>Upload a <strong>Product Image</strong> (shown in the product card) and optional <strong>Banner Image</strong> (shown at top of product page).</span></li>
+      <li><span>Choose an <strong>Input Field Preset</strong> (see Section 3.2) to auto-fill the input form configuration.</span></li>
+      <li><span>Review/edit the generated <strong>Input Fields</strong> JSON if needed.</span></li>
+      <li><span>Review/edit the <strong>Customer No Template</strong> (e.g., <code>{userId}{serverId}</code>) — this assembles the fields into the final game ID string sent to Digiflazz.</span></li>
+      <li><span>Add <strong>Instructions</strong> text explaining how customers find their Game ID.</span></li>
+      <li><span>Set <strong>Sort Order</strong> and toggle <strong>Is Active</strong>.</span></li>
+      <li><span>Click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Category</td><td>✅</td><td>Parent category</td></tr>
+          <tr><td>Name</td><td>✅</td><td>Display name (e.g., "Mobile Legends")</td></tr>
+          <tr><td>Slug</td><td>✅</td><td>Auto-generated; used in URLs</td></tr>
+          <tr><td>Input Fields (JSON)</td><td>✅</td><td>Defines form fields shown to customer. Best set via Preset.</td></tr>
+          <tr><td>Customer No Template</td><td>✅</td><td>Python format string, e.g. <code>{userId}{serverId}</code></td></tr>
+          <tr><td>Product Image</td><td>—</td><td>Square image for product card (recommended 400×400 px)</td></tr>
+          <tr><td>Banner Image</td><td>—</td><td>Wide image for product page header (recommended 1200×300 px)</td></tr>
+          <tr><td>Instructions</td><td>—</td><td>How to find Game ID (shown below the input form)</td></tr>
+          <tr><td>Sort Order</td><td>✅</td><td>Lower = listed earlier</td></tr>
+          <tr><td>Is Active</td><td>—</td><td>Inactive products are hidden from storefront</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>3.2 Input Field Presets</h3>
+    <p>Instead of manually writing the <code>input_fields</code> JSON, you can pick a preset that automatically fills in the correct field configuration and customer number template:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Preset Name</th><th>Fields</th><th>Example Product</th></tr></thead>
+        <tbody>
+          <tr><td><code>GAME_WITH_SERVER</code></td><td>User ID + Server ID</td><td>Mobile Legends, Arena of Valor</td></tr>
+          <tr><td><code>GAME_USER_ONLY</code></td><td>User ID only</td><td>Free Fire, PUBG Mobile</td></tr>
+          <tr><td><code>PHONE_NUMBER</code></td><td>Phone number</td><td>Pulsa, Data / Internet packages</td></tr>
+          <tr><td><code>PLN_PREPAID</code></td><td>Meter number</td><td>PLN Token Listrik</td></tr>
+          <tr><td><code>PLN_POSTPAID</code></td><td>Customer ID</td><td>Tagihan PLN</td></tr>
+          <tr><td><code>PDAM</code></td><td>Customer number</td><td>Tagihan PDAM</td></tr>
+          <tr><td><code>INTERNET_TV</code></td><td>Customer number</td><td>Indihome, Firstmedia</td></tr>
+          <tr><td><code>BPJS</code></td><td>BPJS number</td><td>BPJS Kesehatan</td></tr>
+          <tr><td><code>BPJS_TK</code></td><td>BPJS TK number</td><td>BPJS Ketenagakerjaan</td></tr>
+          <tr><td><code>GAS_NEGARA</code></td><td>Customer number</td><td>PGN (Gas)</td></tr>
+          <tr><td><code>MULTIFINANCE</code></td><td>Contract number</td><td>Adira, FIF, dll</td></tr>
+          <tr><td><code>PBB_TAX</code></td><td>NOP / year</td><td>Pajak Bumi &amp; Bangunan</td></tr>
+          <tr><td><code>SAMSAT</code></td><td>Plat nomor</td><td>Pajak Kendaraan Bermotor</td></tr>
+          <tr><td><code>E_WALLET</code></td><td>Phone number</td><td>OVO, Dana, Link Aja</td></tr>
+          <tr><td><code>HP_POSTPAID</code></td><td>Phone number</td><td>Tagihan HP pasca-bayar</td></tr>
+          <tr><td><code>VOUCHER_ACCOUNT</code></td><td>Account ID</td><td>Steam Wallet, Google Play</td></tr>
+          <tr><td><code>GENERIC</code></td><td>Single text input</td><td>Generic products</td></tr>
+          <tr><td><code>NO_INPUT</code></td><td>No fields</td><td>Fixed-destination products</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout tip">
+      <div class="callout-title">💡 Tip</div>
+      After selecting a preset the <strong>Input Fields</strong> and <strong>Customer No Template</strong> fields are automatically populated. You can still manually edit the JSON for advanced customisation.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>3.3 Managing Product Items (Denominations)</h3>
+    <p>Product Items are the individual purchasable denominations within a product (e.g., <em>86 Diamonds</em>, <em>172 Diamonds</em>). Navigate to <code>/admin/product-items/</code>.</p>
+
+    <h4>Creating a Product Item manually</h4>
+    <ol class="steps">
+      <li><span>Click <strong>New Product Item</strong>.</span></li>
+      <li><span>Select the parent <strong>Product</strong>.</span></li>
+      <li><span>Enter the <strong>Name</strong> (e.g., "86 Diamonds") and optional <strong>Group</strong> label (e.g., "Diamond", "Weekly Pass").</span></li>
+      <li><span>Enter the <strong>SKU Code</strong> — this must match the <code>buyer_sku_code</code> provided by Digiflazz exactly.</span></li>
+      <li><span>Set the <strong>Normal Price</strong>, optional <strong>Discounted Price</strong>, and <strong>Sell Price</strong>. <em>Sell Price</em> is what the customer will actually be charged.</span></li>
+      <li><span>Toggle <strong>Is Active</strong> and <strong>Is Validation Item</strong> as needed (validation items are hidden from the storefront).</span></li>
+      <li><span>Click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Recommended: Use Digiflazz Sync</div>
+      Rather than creating items manually, use <strong>Digiflazz Price Sync</strong> (Chapter 4) to automatically import all SKUs and their base prices. You will then only need to set the sell price.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>3.4 Pricing: Base Price vs. Sell Price</h3>
+
+    <div class="flow">
+      <div class="flow-step">Digiflazz Base Price<br/><small>(auto-synced cost)</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step alt">Admin sets Sell Price<br/><small>(what customer pays)</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step done">Effective price at checkout</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Who Sets It</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Base Price</strong></td><td>Digiflazz Sync (automatic)</td><td>Your cost from Digiflazz. Never edit manually; it is overwritten on every sync.</td></tr>
+          <tr><td><strong>Normal Price</strong></td><td>Admin</td><td>The "regular" price shown with strikethrough when a discount applies.</td></tr>
+          <tr><td><strong>Discounted Price</strong></td><td>Admin (optional)</td><td>An alternate display price — for cosmetic purposes only.</td></tr>
+          <tr><td><strong>Sell Price</strong></td><td>Admin</td><td>The <em>actual</em> price the customer is charged. Sync will NEVER overwrite this field.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-title">⚠️ Margin Reminder</div>
+      Ensure your <strong>Sell Price</strong> is always higher than <strong>Base Price</strong> to maintain a positive margin. The dashboard displays this for monitoring.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 4 — DIGIFLAZZ INTEGRATION
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">⚡</div>
+    <div>
+      <div class="ch-num">Chapter 4</div>
+      <h2>Digiflazz Integration</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Digiflazz is the top-up provider that fulfils all game and digital product orders. The integration handles price syncing, transaction submission, and balance monitoring.</p>
+
+    <h3>4.1 Price List Sync</h3>
+    <p>Navigate to <code>/admin/price-syncs/</code> (or the Django Admin under <em>Price Syncs</em>). The sync imports the full Digiflazz product catalog into your database.</p>
+
+    <h4>Starting a Sync</h4>
+    <ol class="steps">
+      <li><span>Click <strong>Trigger Sync</strong>.</span></li>
+      <li><span>Choose the sync type:
+        <ul class="styled" style="margin-top:0.3rem">
+          <li><strong>PREPAID</strong> — prepaid products (game top-ups, pulsa, data)</li>
+          <li><strong>PASCA</strong> — postpaid bills (PLN postpaid, PDAM, etc.)</li>
+          <li><strong>FULL</strong> — both PREPAID and PASCA in one operation</li>
+        </ul>
+      </span></li>
+      <li><span>Optionally filter by <strong>Category</strong> or <strong>Brand</strong> to refresh only specific products.</span></li>
+      <li><span>Click <strong>Start Sync</strong>. The task runs asynchronously — refresh the list to see the result.</span></li>
+    </ol>
+
+    <h4>Sync Behaviour</h4>
+    <ul class="styled">
+      <li>New SKUs are automatically created as Product Items and linked to the correct Product and Category.</li>
+      <li>Existing items' <strong>Base Price</strong> is updated from the Digiflazz data.</li>
+      <li><strong>Sell Price is never overwritten</strong> — your margin is preserved.</li>
+      <li>Input field presets are automatically assigned to newly created products based on the Digiflazz category.</li>
+      <li>If a Category or Product does not exist yet, it is created automatically.</li>
+    </ul>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column in Sync History</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Sync Type</td><td>PREPAID, PASCA, or FULL</td></tr>
+          <tr><td>Status</td><td><span class="badge badge-blue">IN_PROGRESS</span> <span class="badge badge-green">SUCCESS</span> <span class="badge badge-red">FAILED</span></td></tr>
+          <tr><td>Items Synced</td><td>Total SKUs received from Digiflazz</td></tr>
+          <tr><td>Items Updated</td><td>Existing items whose base price changed</td></tr>
+          <tr><td>Items Created</td><td>Brand-new SKUs added to the database</td></tr>
+          <tr><td>Error Message</td><td>First 10 errors (if any)</td></tr>
+          <tr><td>Started At / Completed At</td><td>Timestamps</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>4.2 Balance Monitoring</h3>
+    <p>The Digiflazz wallet balance is displayed on the main dashboard under <strong>API Health</strong>. The system automatically checks the balance on a scheduled basis.</p>
+    <ul class="styled">
+      <li>If the balance falls below the configured <code>DIGIFLAZZ_LOW_BALANCE_THRESHOLD</code>, an alert email is sent to the <code>ADMIN_ALERT_EMAIL</code> address.</li>
+      <li>Monitor the live balance on the dashboard at all times — a depleted wallet will cause all top-up orders to fail.</li>
+      <li>Top up the Digiflazz wallet directly through the Digiflazz reseller portal.</li>
+    </ul>
+
+    <div class="callout danger">
+      <div class="callout-title">🚨 Critical</div>
+      If the Digiflazz balance reaches zero, in-progress orders will fail and customers cannot receive their top-ups. Always maintain a sufficient balance buffer, especially during peak hours.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>4.3 Raw Price List Viewer</h3>
+    <p>Navigate to <code>/admin/digiflazz-json/</code> to see the raw JSON response from Digiflazz's price list API. This is useful for:</p>
+    <ul class="styled">
+      <li>Verifying exact <code>buyer_sku_code</code> values before creating a product item manually.</li>
+      <li>Checking Digiflazz status (<code>ACTIVE</code> / <code>INACTIVE</code>) for individual SKUs.</li>
+      <li>Debugging sync discrepancies.</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 5 — ORDER MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">📦</div>
+    <div>
+      <div class="ch-num">Chapter 5</div>
+      <h2>Order Management</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.1 Order Lifecycle</h3>
+
+    <div class="flow" style="flex-wrap:wrap; gap:4px; margin-bottom:1rem;">
+      <div class="flow-step">PENDING<br/><small>Order created</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step alt">PAID<br/><small>Payment confirmed</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="background:#0891b2">PROCESSING<br/><small>Sent to Digiflazz</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step done">COMPLETED<br/><small>Top-up delivered</small></div>
+    </div>
+
+    <div class="flow" style="flex-wrap:wrap; gap:4px;">
+      <div class="flow-step" style="background:#9ca3af">PENDING / PAID</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step err">FAILED<br/><small>Digiflazz error</small></div>
+      <span class="flow-arrow">&nbsp;&nbsp;</span>
+      <div class="flow-step" style="background:#9ca3af">PENDING (unpaid)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="background:#78716c">EXPIRED<br/><small>Payment timeout</small></div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:1rem;">
+      <table>
+        <thead><tr><th>Status</th><th>Meaning</th><th>Next Action</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-yellow">PENDING</span></td><td>Order exists but payment not yet received</td><td>Await Midtrans webhook</td></tr>
+          <tr><td><span class="badge badge-blue">PAID</span></td><td>Payment confirmed; awaiting processing</td><td>System auto-dispatches to Digiflazz</td></tr>
+          <tr><td><span class="badge badge-purple">PROCESSING</span></td><td>Top-up request sent to Digiflazz</td><td>Await Digiflazz webhook or check status</td></tr>
+          <tr><td><span class="badge badge-green">COMPLETED</span></td><td>Top-up delivered successfully</td><td>No action needed</td></tr>
+          <tr><td><span class="badge badge-red">FAILED</span></td><td>Digiflazz reported failure</td><td>Investigate (see §5.4); issue refund if required</td></tr>
+          <tr><td><span class="badge badge-gray">EXPIRED</span></td><td>Payment not made within the window</td><td>No action; order is closed</td></tr>
+          <tr><td><span class="badge badge-orange">REFUNDED</span></td><td>Refund processed manually</td><td>Confirm with customer</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.2 Viewing &amp; Filtering Orders</h3>
+    <p>Navigate to <code>/admin/orders/</code>. The table supports:</p>
+    <ul class="styled">
+      <li><strong>Status filter</strong> — filter by any order status (Pending, Paid, Processing, Completed, Failed, Expired, Refunded)</li>
+      <li><strong>Search</strong> — search by order number (e.g., <code>ORD-20231217-XXXX</code>), customer email, or product name</li>
+      <li><strong>Date range</strong> — filter orders by creation date</li>
+      <li><strong>Pagination &amp; sorting</strong> — all columns are sortable</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>5.3 Order Detail Page</h3>
+    <p>Click any order row to open its detail page at <code>/admin/orders/[id]/</code>. It displays:</p>
+
+    <div class="two-col">
+      <div class="card">
+        <h4>Order Info</h4>
+        <ul class="styled">
+          <li>Order number &amp; status badge</li>
+          <li>Customer name &amp; email</li>
+          <li>Product &amp; item name</li>
+          <li>Customer data (game ID / phone entered)</li>
+          <li>Timestamps (created, paid, completed)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Pricing Breakdown</h4>
+        <ul class="styled">
+          <li>Original price &amp; final price</li>
+          <li>Coupon discount (if applied)</li>
+          <li>Payment fee &amp; VAT amount</li>
+          <li>Total amount charged</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Payment Info</h4>
+        <ul class="styled">
+          <li>Payment method &amp; Midtrans transaction ID</li>
+          <li>VA number / QRIS data / deeplink</li>
+          <li>Payment status &amp; expiry</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Digiflazz Transaction</h4>
+        <ul class="styled">
+          <li>Ref ID &amp; Digiflazz Trx ID</li>
+          <li>SKU code &amp; customer number sent</li>
+          <li>Status (SUKSES / PENDING / GAGAL)</li>
+          <li>Serial number (for voucher products)</li>
+          <li>Raw response data</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.4 Handling Failed Transactions</h3>
+    <p>When an order shows status <span class="badge badge-red">FAILED</span>, follow these steps:</p>
+    <ol class="steps">
+      <li><span>Open the order detail. Check the <strong>Failure Reason</strong> field and the Digiflazz <strong>Message</strong> field.</span></li>
+      <li><span>Cross-reference with the Digiflazz portal to confirm the status there.</span></li>
+      <li><span>Common causes:
+        <ul class="styled">
+          <li>Insufficient Digiflazz balance → top up your wallet and retry</li>
+          <li>Invalid customer number (game ID) → contact customer to verify their ID</li>
+          <li>SKU temporarily unavailable → contact Digiflazz support</li>
+          <li>Network timeout → the status checker will retry automatically for up to 90 days</li>
+        </ul>
+      </span></li>
+      <li><span>If the top-up cannot be fulfilled, process a refund (§5.5).</span></li>
+    </ol>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Automatic Retry</div>
+      For PENDING Digiflazz transactions, the system automatically polls for status updates with exponential backoff. The process_order_topup task retries up to 5 times. Manual intervention is only needed for definitive GAGAL failures.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>5.5 Refunds</h3>
+    <p>Refunds are managed manually through the Django Admin or directly in the database, as Midtrans refunds depend on the payment method. To issue a refund:</p>
+    <ol class="steps">
+      <li><span>Initiate the refund on the Midtrans dashboard (for the applicable payment method).</span></li>
+      <li><span>In the order detail (admin panel or Django Admin), update the order status to <span class="badge badge-orange">REFUNDED</span>, fill in <strong>Refund Amount</strong> and <strong>Refund Reason</strong>.</span></li>
+      <li><span>Contact the customer to confirm the refund timeline (typically 3–14 business days depending on payment method).</span></li>
+    </ol>
+    <div class="callout warning">
+      <div class="callout-title">⚠️ No Automatic Refund</div>
+      The system does not automatically trigger Midtrans refunds. This must be done manually through the Midtrans merchant dashboard.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 6 — PAYMENT METHODS
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">💳</div>
+    <div>
+      <div class="ch-num">Chapter 6</div>
+      <h2>Payment Methods</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Payment Methods define the Midtrans payment channels available to customers at checkout. Navigate to <code>/admin/payment-methods/</code>.</p>
+
+    <h3>6.1 Adding a Payment Method</h3>
+    <ol class="steps">
+      <li><span>Click <strong>New Payment Method</strong>.</span></li>
+      <li><span>Enter the <strong>Name</strong> displayed to customers (e.g., "BCA Virtual Account").</span></li>
+      <li><span>Select the <strong>Type</strong>: BANK_TRANSFER, QRIS, E_WALLET, MOBILE_BANKING, or CREDIT_CARD.</span></li>
+      <li><span>Enter the <strong>Midtrans Code</strong> (matching the exact code used in the Midtrans Core API, e.g., <code>bca</code>, <code>gopay</code>, <code>shopeepay</code>, <code>bni</code>, <code>bri</code>, <code>mandiri</code>, <code>permata</code>).</span></li>
+      <li><span>Upload an <strong>Icon</strong> image (transparent PNG recommended, 64×64 px).</span></li>
+      <li><span>Configure fees and VAT (see §6.2).</span></li>
+      <li><span>Toggle <strong>Is Active</strong> and click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Midtrans Code</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>bca</code></td><td>BANK_TRANSFER</td><td>BCA Virtual Account</td></tr>
+          <tr><td><code>bni</code></td><td>BANK_TRANSFER</td><td>BNI Virtual Account</td></tr>
+          <tr><td><code>bri</code></td><td>BANK_TRANSFER</td><td>BRI Virtual Account</td></tr>
+          <tr><td><code>mandiri</code></td><td>BANK_TRANSFER</td><td>Mandiri Bill Payment</td></tr>
+          <tr><td><code>permata</code></td><td>BANK_TRANSFER</td><td>Permata Virtual Account</td></tr>
+          <tr><td><code>gopay</code></td><td>E_WALLET</td><td>GoPay (deeplink + QRIS fallback)</td></tr>
+          <tr><td><code>shopeepay</code></td><td>E_WALLET</td><td>ShopeePay (deeplink)</td></tr>
+          <tr><td><code>qris</code></td><td>QRIS</td><td>Standalone QRIS (any QRIS-compatible wallet)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>6.2 Fee &amp; VAT Configuration</h3>
+    <p>Each payment method carries its own transaction fee and VAT that is added on top of the product price at checkout.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Options</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>Fee Type</td><td>PERCENTAGE or FIXED</td><td>PERCENTAGE</td></tr>
+          <tr><td>Fee Value</td><td>Decimal number</td><td><code>2.5</code> = 2.5% of order total</td></tr>
+          <tr><td>VAT Type</td><td>PERCENTAGE or FIXED</td><td>PERCENTAGE</td></tr>
+          <tr><td>VAT Value</td><td>Decimal number</td><td><code>11</code> = 11% PPN</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Fee Calculation</div>
+      At checkout: <strong>Total = Sell Price + Payment Fee + VAT</strong>. Fee and VAT are calculated on the product's final price (after any coupon discounts). Make sure fee configurations reflect actual Midtrans charges to avoid losses.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 7 — PROMOTIONS
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🏷️</div>
+    <div>
+      <div class="ch-num">Chapter 7</div>
+      <h2>Promotions</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>7.1 Coupons</h3>
+    <p>Coupons provide discount codes that customers enter at checkout. Navigate to <code>/admin/coupons/</code>.</p>
+
+    <h4>Creating a Coupon</h4>
+    <ol class="steps">
+      <li><span>Click <strong>New Coupon</strong>.</span></li>
+      <li><span>Enter the coupon <strong>Code</strong> (e.g., <code>WELCOME10</code>). This is case-insensitive from the customer's side; store it in uppercase by convention.</span></li>
+      <li><span>Select <strong>Discount Type</strong>: <em>PERCENTAGE</em> (e.g., 10% off) or <em>FIXED_AMOUNT</em> (e.g., Rp 5.000 off).</span></li>
+      <li><span>Set <strong>Discount Value</strong> (e.g., <code>10</code> for 10% or <code>5000</code> for Rp 5.000).</span></li>
+      <li><span>Set <strong>Min Purchase</strong> — minimum order total for the coupon to be applicable (set to 0 for no minimum).</span></li>
+      <li><span>For percentage coupons, set <strong>Max Discount</strong> — cap the maximum IDR discount (e.g., cap at Rp 50.000 even if 10% would be more).</span></li>
+      <li><span>Set <strong>Usage Limit</strong> (total uses across all customers; leave blank for unlimited) and <strong>User Limit</strong> (per-customer uses; default 1).</span></li>
+      <li><span>Optionally set <strong>Start Date</strong> and <strong>End Date</strong> for a validity window.</span></li>
+      <li><span>Toggle <strong>Is Active</strong> and click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Code</td><td>✅</td><td>Unique; case-insensitive for customers</td></tr>
+          <tr><td>Discount Type</td><td>✅</td><td>PERCENTAGE or FIXED_AMOUNT</td></tr>
+          <tr><td>Discount Value</td><td>✅</td><td>% integer or IDR integer</td></tr>
+          <tr><td>Min Purchase</td><td>✅</td><td>0 = no minimum</td></tr>
+          <tr><td>Max Discount</td><td>PERCENT only</td><td>Caps the discount in IDR (prevents over-discounting)</td></tr>
+          <tr><td>Usage Limit</td><td>—</td><td>Null = unlimited total uses</td></tr>
+          <tr><td>User Limit</td><td>—</td><td>Default 1 (each customer can use once)</td></tr>
+          <tr><td>Start Date</td><td>—</td><td>Null = active immediately</td></tr>
+          <tr><td>End Date</td><td>—</td><td>Null = never expires</td></tr>
+          <tr><td>Is Active</td><td>—</td><td>Must be active for customers to use it</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Monitoring Usage</h4>
+    <p>Click on a coupon row to see the <strong>Usage Count</strong> (auto-incremented). In the Django Admin, navigate to <em>Coupon Usages</em> to see which orders used which coupon, and the exact IDR discount applied.</p>
+  </div>
+
+  <div class="section">
+    <h3>7.2 Flash Sales</h3>
+    <p>Flash Sales are timed discount events that make selected product items available at a special price with limited stock. Navigate to <code>/admin/flash-sales/</code>.</p>
+
+    <h4>Creating a Flash Sale</h4>
+    <ol class="steps">
+      <li><span>Click <strong>New Flash Sale</strong>.</span></li>
+      <li><span>Enter a <strong>Name</strong> (e.g., "Weekend Special", "Harbolnas 12.12").</span></li>
+      <li><span>Set <strong>Start Time</strong> and <strong>End Time</strong> (exact datetime with timezone).</span></li>
+      <li><span>Toggle <strong>Is Active</strong>. The flash sale will only be shown to customers when both Is Active is true AND the current time is within Start–End Time.</span></li>
+      <li><span>Click <strong>Save</strong> to create the flash sale event.</span></li>
+    </ol>
+
+    <h4>Adding Items to a Flash Sale</h4>
+    <ol class="steps">
+      <li><span>Navigate to <code>/admin/flash-sale-items/</code> or use the inline editor within the flash sale form.</span></li>
+      <li><span>Click <strong>Add Flash Sale Item</strong>.</span></li>
+      <li><span>Select the <strong>Flash Sale</strong> and then the <strong>Product Item</strong>.</span></li>
+      <li><span>Set the <strong>Sale Price</strong> (the discounted price during the flash sale; replaces the item's regular Sell Price).</span></li>
+      <li><span>Set <strong>Stock</strong> — the maximum units available at this flash sale price (e.g., <code>100</code>). Set to a very large number if stock is effectively unlimited.</span></li>
+      <li><span>Click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Flash Sale</td><td>Parent flash sale event</td></tr>
+          <tr><td>Product Item</td><td>The specific denomination on sale</td></tr>
+          <tr><td>Sale Price</td><td>Flash sale price (must be lower than regular Sell Price to make sense)</td></tr>
+          <tr><td>Stock</td><td>Total units available at the flash sale price</td></tr>
+          <tr><td>Sold Count</td><td>Auto-incremented — how many units have been sold in this flash sale (read-only)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Best Practice</div>
+      Create the flash sale a few hours before start time, then set Is Active to true. This prevents the flash sale from appearing prematurely while you add items.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 8 — MARKETING BANNERS
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🖼️</div>
+    <div>
+      <div class="ch-num">Chapter 8</div>
+      <h2>Marketing Banners</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Marketing Banners appear as a carousel/slideshow in the hero section of the homepage. Navigate to <code>/admin/marketing-banners/</code>.</p>
+
+    <h3>Creating a Banner</h3>
+    <ol class="steps">
+      <li><span>Click <strong>New Banner</strong>.</span></li>
+      <li><span>Enter an optional <strong>Title</strong> and <strong>Description</strong>.</span></li>
+      <li><span>Upload the <strong>Image</strong> (recommended dimensions: 1200×450 px, JPG or WebP for best performance).</span></li>
+      <li><span>Enter an optional <strong>Link</strong> URL — the user is taken to this URL when clicking the banner (e.g., <code>/product/mobile-legends</code> or an external promotion page).</span></li>
+      <li><span>Set <strong>Sort Order</strong> — lower number = displayed first in the carousel.</span></li>
+      <li><span>Optionally set <strong>Start Date</strong> and <strong>End Date</strong> to schedule the banner automatically (leave blank to show indefinitely).</span></li>
+      <li><span>Toggle <strong>Is Active</strong> and click <strong>Save</strong>.</span></li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Image</td><td>✅</td><td>Recommended 1200×450 px; JPEG/WebP</td></tr>
+          <tr><td>Sort Order</td><td>✅</td><td>Lower = appears first in carousel</td></tr>
+          <tr><td>Link</td><td>—</td><td>Click destination; can be internal path or full URL</td></tr>
+          <tr><td>Start Date</td><td>—</td><td>Null = banner is immediately shown (once Is Active = true)</td></tr>
+          <tr><td>End Date</td><td>—</td><td>Null = banner never auto-hides</td></tr>
+          <tr><td>Is Active</td><td>—</td><td>Inactive banners are hidden from storefront regardless of dates</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Scheduling Logic</div>
+      A banner is visible to customers only when all three conditions are met: <strong>Is Active = true</strong> AND current date is ≥ Start Date (if set) AND current date is ≤ End Date (if set).
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 9 — USER MANAGEMENT
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">👥</div>
+    <div>
+      <div class="ch-num">Chapter 9</div>
+      <h2>User Management</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Navigate to <code>/admin/users/</code> to manage both customer accounts and staff accounts.</p>
+
+    <h3>9.1 Customer Accounts</h3>
+    <p>Customer accounts are created through the public registration page or via Google OAuth. As an admin, you can:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Action</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td>View customer list</td><td>Navigate to <code>/admin/users/</code>, filter by Role = CUSTOMER</td></tr>
+          <tr><td>Edit customer profile</td><td>Click customer row → edit name, phone, photo</td></tr>
+          <tr><td>Activate / Deactivate account</td><td>Toggle <strong>Is Active</strong> on the customer detail page. Inactive customers cannot log in.</td></tr>
+          <tr><td>Send verification email</td><td>Click <strong>Send Verification Email</strong> on the customer detail page</td></tr>
+          <tr><td>Reset password for customer</td><td>Click <strong>Reset Password</strong> — sends a reset link to the customer's email</td></tr>
+          <tr><td>View customer's orders</td><td>Use the Orders list filtered by customer email</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-title">⚠️ Deactivating Accounts</div>
+      Deactivating a customer account invalidates their active sessions and prevents re-login. Use this for accounts suspected of fraud or TOS violations.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>9.2 Staff Accounts</h3>
+    <p>Staff accounts have access to the admin panel. Only existing staff users can create new staff accounts.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Action</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td>View staff list</td><td>Navigate to <code>/admin/users/</code>, filter by Role = STAFF</td></tr>
+          <tr><td>Create staff account</td><td>Click <strong>New Staff</strong> → enter email, assign role STAFF, set temporary password</td></tr>
+          <tr><td>Edit staff profile</td><td>Click staff row → edit full name, contact phone, profile photo</td></tr>
+          <tr><td>Activate / Deactivate account</td><td>Toggle <strong>Is Active</strong> to revoke or restore admin access</td></tr>
+          <tr><td>Reset staff password</td><td>Click <strong>Reset Password</strong> on the staff detail page</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout danger">
+      <div class="callout-title">🔐 Security Note</div>
+      Staff accounts have full admin access. Only grant staff roles to trusted individuals. Immediately deactivate accounts of staff who leave the organisation.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 10 — RATINGS & REVIEWS
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">⭐</div>
+    <div>
+      <div class="ch-num">Chapter 10</div>
+      <h2>Ratings &amp; Reviews</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Customers can submit star ratings (1–5) and optional written comments for products after their orders are completed. Navigate to <code>/admin/ratings/</code>.</p>
+
+    <h3>Moderation</h3>
+    <p>Each review has an <strong>Is Active</strong> flag that controls whether it is shown publicly on the product page.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Product</td><td>Which product was reviewed</td></tr>
+          <tr><td>User</td><td>Reviewer's name (from their profile)</td></tr>
+          <tr><td>Rating</td><td>1–5 stars</td></tr>
+          <tr><td>Comment</td><td>Written text left by the customer (optional)</td></tr>
+          <tr><td>Order</td><td>Linked completed order</td></tr>
+          <tr><td>Is Active</td><td>Toggle to show or hide this review on the storefront</td></tr>
+          <tr><td>Sort Order</td><td>Controls display order on the product page</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Actions</h4>
+    <ul class="styled">
+      <li><strong>Deactivate a Review</strong> — click the review row, set Is Active to false, save. The review will no longer appear on the product page but is retained for audit purposes.</li>
+      <li><strong>Reorder Reviews</strong> — adjust Sort Order values to pin specific reviews to the top of the product page.</li>
+      <li><strong>Delete a Review</strong> — use the Django Admin (<code>/api/admin-portal/</code> → Product Ratings) for permanent deletion.</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Review Policy</div>
+      Only hide or remove reviews that violate community guidelines (spam, offensive language, irrelevant content). Hiding negative-but-genuine reviews can damage customer trust.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 11 — LOGS & MONITORING
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🔍</div>
+    <div>
+      <div class="ch-num">Chapter 11</div>
+      <h2>Logs &amp; Monitoring</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>11.1 API Logs</h3>
+    <p>Every outgoing API call to Digiflazz, Midtrans, and Mailgun is recorded. Navigate to <code>/api/admin-portal/</code> → <em>Api Logs</em> in the Django Admin.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Provider</td><td>DIGIFLAZZ, MIDTRANS, or MAILGUN</td></tr>
+          <tr><td>Endpoint</td><td>The API URL called</td></tr>
+          <tr><td>Method</td><td>HTTP method (GET, POST)</td></tr>
+          <tr><td>Status</td><td><span class="badge badge-green">SUCCESS</span> <span class="badge badge-red">FAILED</span> <span class="badge badge-yellow">TIMEOUT</span> <span class="badge badge-gray">ERROR</span></td></tr>
+          <tr><td>Status Code</td><td>HTTP response code</td></tr>
+          <tr><td>Response Time</td><td>Milliseconds</td></tr>
+          <tr><td>Request Data</td><td>Sanitized request payload (sensitive data removed)</td></tr>
+          <tr><td>Response Data</td><td>Response body</td></tr>
+          <tr><td>Error Message</td><td>Detailed error for FAILED calls</td></tr>
+          <tr><td>Order ID / Ref ID</td><td>Links the log to a specific order</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Logs older than 30 days are automatically purged by the <code>cleanup_old_api_logs</code> scheduled task.</p>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Filtering</div>
+      Filter by Provider to see only Digiflazz or Midtrans calls. Filter by Status to quickly identify failed external calls that may need investigation.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>11.2 Audit Logs</h3>
+    <p>The Audit Log records every Create, Update, or Delete action performed by any admin user on important entities. Navigate to <code>/api/admin-portal/</code> → <em>Audit Logs</em>.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Entity Type</td><td>The type of object changed (Order, Product, Coupon, etc.)</td></tr>
+          <tr><td>Entity ID</td><td>Database ID of the changed record</td></tr>
+          <tr><td>Action</td><td>CREATE, UPDATE, or DELETE</td></tr>
+          <tr><td>Changes</td><td>JSON diff showing old and new values</td></tr>
+          <tr><td>User</td><td>Which admin performed the action</td></tr>
+          <tr><td>Timestamp</td><td>When the action occurred</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Use Case</div>
+      Use Audit Logs to investigate incidents: e.g., find out who changed a product's sell price and when, or which admin triggered a price sync.
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>11.3 Email Queue</h3>
+    <p>All outgoing transactional emails (order confirmations, password resets, welcome emails) pass through an async email queue. View it at <code>/api/admin-portal/</code> → <em>Email Queues</em>.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Meaning</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-yellow">PENDING</span></td><td>Queued but not yet picked up by Celery</td><td>Wait; should process within seconds</td></tr>
+          <tr><td><span class="badge badge-blue">PROCESSING</span></td><td>Currently being sent</td><td>Wait</td></tr>
+          <tr><td><span class="badge badge-green">SENT</span></td><td>Successfully delivered to Mailgun</td><td>No action needed</td></tr>
+          <tr><td><span class="badge badge-red">FAILED</span></td><td>All retry attempts exhausted</td><td>Click <strong>Retry</strong> or investigate SMTP/Mailgun config</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Failed emails show the last error in the <strong>Last Error</strong> column. Common causes:</p>
+    <ul class="styled">
+      <li>Invalid Mailgun API key or domain configuration</li>
+      <li>Recipient email address bounced</li>
+      <li>Celery worker not running (check server health)</li>
+    </ul>
+
+    <h4>Retrying a Failed Email</h4>
+    <p>In the Django Admin, open the failed queue item and click <strong>Retry</strong>. Alternatively, use the API endpoint <code>POST /api/v1/admin/email-queue/{id}/retry/</code>.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHAPTER 12 — DJANGO ADMIN PANEL
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">⚙️</div>
+    <div>
+      <div class="ch-num">Chapter 12</div>
+      <h2>Django Admin Panel</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>The Django Admin at <code>/api/admin-portal/</code> is a low-level data management interface. Access it with a Django superuser account. It is branded as <em>"Roxas Game Store Administration"</em>.</p>
+
+    <div class="callout warning">
+      <div class="callout-title">⚠️ Caution</div>
+      Use the Django Admin only for tasks not available in the primary admin panel. Changes here may bypass application-level validations and business logic.
+    </div>
+
+    <h3>Registered Models &amp; Key Features</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Model</th><th>Key Capabilities</th></tr></thead>
+        <tbody>
+          <tr><td>Payment Method</td><td>Full CRUD with fieldset sections for Basic Info, Midtrans Config, and Fee Config</td></tr>
+          <tr><td>Category</td><td>Inline Category Instruction Images; auto slug from name; product count column</td></tr>
+          <tr><td>Product</td><td>Preset picker dropdown auto-fills input_fields; inline Product Items; shows field key summary</td></tr>
+          <tr><td>Product Item</td><td>Filter by category/product/status; readonly sync fields (last synced, Digiflazz status)</td></tr>
+          <tr><td>Price Sync</td><td>Read-only sync history with full audit</td></tr>
+          <tr><td>Coupon</td><td>Full CRUD; filter by active/type</td></tr>
+          <tr><td>Coupon Usage</td><td>Read-only — see every coupon redemption</td></tr>
+          <tr><td>Flash Sale</td><td>Full CRUD with inline Flash Sale Items</td></tr>
+          <tr><td>Marketing Banner</td><td>Full CRUD</td></tr>
+          <tr><td>Order</td><td>Full management; search by order number; filter by status/user/product</td></tr>
+          <tr><td>Payment</td><td>Read-only view linked to orders; shows raw Midtrans webhook data</td></tr>
+          <tr><td>Digiflazz Transaction</td><td>Read-only; filter by status; raw response viewer</td></tr>
+          <tr><td>Digiflazz Account Check</td><td>Read-only validation history</td></tr>
+          <tr><td>Product Rating</td><td>Full CRUD; activate/deactivate reviews; set sort order</td></tr>
+          <tr><td>API Log</td><td>Read-only; filter by provider and status</td></tr>
+          <tr><td>Audit Log</td><td>Read-only entity-level change history</td></tr>
+          <tr><td>Email Queue</td><td>View + Retry action for failed emails</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Access</h3>
+    <p>To access Django Admin, you need a user account with <code>is_staff = True</code> and <code>is_superuser = True</code>. These are set via the Django management command or by an existing superuser:</p>
+    <pre>python manage.py createsuperuser</pre>
+    <p>or to promote an existing staff user to superuser:</p>
+    <pre>python manage.py shell
+from account.models import CustomUser
+u = CustomUser.objects.get(email='admin@example.com')
+u.is_superuser = True
+u.save()</pre>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     APPENDIX A — ORDER STATUS REFERENCE
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">📋</div>
+    <div>
+      <div class="ch-num">Appendix A</div>
+      <h2>Order Status Reference</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Trigger</th><th>Payment State</th><th>Digiflazz State</th><th>Admin Action Required</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-yellow">PENDING</span></td>
+            <td>Order created by customer</td><td>Not yet paid</td><td>Not submitted</td><td>None — await payment</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-blue">PAID</span></td>
+            <td>Midtrans webhook: settlement</td><td>Paid</td><td>Not yet submitted</td><td>None — auto-dispatches to Digiflazz</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-purple">PROCESSING</span></td>
+            <td>Top-up request sent to Digiflazz</td><td>Paid</td><td>Pending at Digiflazz</td><td>None — await Digiflazz webhook</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-green">COMPLETED</span></td>
+            <td>Digiflazz webhook: SUKSES</td><td>Paid</td><td>Sukses</td><td>None</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">FAILED</span></td>
+            <td>Digiflazz webhook: GAGAL</td><td>Paid</td><td>Gagal</td><td>Investigate reason; refund if needed</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-gray">EXPIRED</span></td>
+            <td>Midtrans webhook: expire / Payment timeout</td><td>Not paid</td><td>Not submitted</td><td>None</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-orange">REFUNDED</span></td>
+            <td>Manual admin action</td><td>Refunded via Midtrans</td><td>N/A</td><td>Confirm with customer</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     APPENDIX B — DIGIFLAZZ STATUS CODES
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">⚡</div>
+    <div>
+      <div class="ch-num">Appendix B</div>
+      <h2>Digiflazz Status Codes</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Meaning</th><th>System Action</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-yellow">Pending</span></td>
+            <td>Transaction is being processed by Digiflazz</td>
+            <td>Schedules automatic status check with exponential backoff; retries up to 90 days</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-green">Sukses</span></td>
+            <td>Top-up delivered successfully</td>
+            <td>Sets order to COMPLETED; stores serial number; sends success email</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">Gagal</span></td>
+            <td>Transaction failed</td>
+            <td>Sets order to FAILED; stores failure reason; sends failure email</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Common RC (Response Code) Meanings</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>RC Code</th><th>Meaning</th><th>Recommended Action</th></tr></thead>
+        <tbody>
+          <tr><td><code>00</code></td><td>Sukses</td><td>No action needed</td></tr>
+          <tr><td><code>14</code></td><td>Nomor tujuan salah / invalid</td><td>Contact customer to verify game ID</td></tr>
+          <tr><td><code>61</code></td><td>Stok habis / product unavailable</td><td>Contact Digiflazz for availability; refund customer</td></tr>
+          <tr><td><code>62</code></td><td>SKU tidak ditemukan</td><td>Verify SKU code is correct; re-sync with Digiflazz</td></tr>
+          <tr><td><code>63</code></td><td>Saldo tidak mencukupi</td><td>Top up Digiflazz wallet immediately</td></tr>
+          <tr><td><code>68</code></td><td>Duplikasi ref_id</td><td>Internal error; contact support</td></tr>
+          <tr><td><code>101</code></td><td>Pending — sedang diproses</td><td>Wait for Digiflazz to process; automatic retry is active</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     APPENDIX C — INPUT FIELD PRESETS
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">📝</div>
+    <div>
+      <div class="ch-num">Appendix C</div>
+      <h2>Input Field Presets Reference</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>Each preset defines a set of form fields that are shown to the customer when purchasing a product. The <strong>Customer No Template</strong> defines how the fields are concatenated to form the final customer identifier sent to Digiflazz.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Preset</th><th>Fields Shown</th><th>Template</th><th>Example Output</th></tr></thead>
+        <tbody>
+          <tr><td><code>GAME_WITH_SERVER</code></td><td>User ID, Server ID</td><td><code>{userId}{serverId}</code></td><td><code>123456789(1234)</code></td></tr>
+          <tr><td><code>GAME_USER_ONLY</code></td><td>User ID</td><td><code>{userId}</code></td><td><code>123456789</code></td></tr>
+          <tr><td><code>PHONE_NUMBER</code></td><td>Phone Number</td><td><code>{phone}</code></td><td><code>08123456789</code></td></tr>
+          <tr><td><code>PLN_PREPAID</code></td><td>Meter Number</td><td><code>{meterNo}</code></td><td><code>123456789012</code></td></tr>
+          <tr><td><code>PLN_POSTPAID</code></td><td>Customer ID</td><td><code>{customerId}</code></td><td><code>123456789012</code></td></tr>
+          <tr><td><code>PDAM</code></td><td>Customer Number</td><td><code>{customerNo}</code></td><td><code>123456789</code></td></tr>
+          <tr><td><code>E_WALLET</code></td><td>Phone Number</td><td><code>{phone}</code></td><td><code>08123456789</code></td></tr>
+          <tr><td><code>VOUCHER_ACCOUNT</code></td><td>Account ID</td><td><code>{accountId}</code></td><td><code>steam_user123</code></td></tr>
+          <tr><td><code>GENERIC</code></td><td>Customer No</td><td><code>{customerNo}</code></td><td><code>any_value</code></td></tr>
+          <tr><td><code>NO_INPUT</code></td><td><em>None</em></td><td><em>empty</em></td><td><em>predetermined</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Custom Templates</div>
+      The Customer No Template is a Python <code>str.format()</code> string. You can combine multiple fields, e.g., <code>{userId}|{serverId}</code> or <code>{zone}{userId}</code>, depending on what Digiflazz expects for the specific product.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     APPENDIX D — API QUICK REFERENCE
+════════════════════════════════════════════════════════════ -->
+<div class="page chapter">
+  <div class="chapter-header">
+    <div class="ch-icon">🔗</div>
+    <div>
+      <div class="ch-num">Appendix D</div>
+      <h2>Admin API Endpoint Quick Reference</h2>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>All admin API endpoints require staff authentication (JWT token in HttpOnly cookie). Base path: <code>/api/v1/admin/</code>. Full documentation is available at <code>/api/docs/</code> (Swagger UI).</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Methods</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>dashboard/</code></td><td>GET</td><td>Comprehensive store statistics (30s cache)</td></tr>
+          <tr><td><code>categories/</code></td><td>GET, POST</td><td>List / create categories</td></tr>
+          <tr><td><code>categories/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Retrieve / update / delete category</td></tr>
+          <tr><td><code>category-instruction-images/</code></td><td>GET, POST</td><td>Manage instruction images</td></tr>
+          <tr><td><code>products/</code></td><td>GET, POST</td><td>List / create products</td></tr>
+          <tr><td><code>products/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Retrieve / update / delete product</td></tr>
+          <tr><td><code>product-items/</code></td><td>GET, POST</td><td>List / create product items</td></tr>
+          <tr><td><code>product-items/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Retrieve / update / delete product item</td></tr>
+          <tr><td><code>price-syncs/</code></td><td>GET, POST</td><td>View sync history / trigger new sync</td></tr>
+          <tr><td><code>payment-methods/</code></td><td>GET, POST</td><td>List / create payment methods</td></tr>
+          <tr><td><code>payment-methods/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Retrieve / update / delete method</td></tr>
+          <tr><td><code>coupons/</code></td><td>GET, POST</td><td>List / create coupons</td></tr>
+          <tr><td><code>coupons/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Retrieve / update / delete coupon</td></tr>
+          <tr><td><code>flash-sales/</code></td><td>GET, POST</td><td>List / create flash sales</td></tr>
+          <tr><td><code>flash-sale-items/</code></td><td>GET, POST</td><td>List / create flash sale items</td></tr>
+          <tr><td><code>marketing-banners/</code></td><td>GET, POST</td><td>List / create banners</td></tr>
+          <tr><td><code>orders/</code></td><td>GET</td><td>List all orders (admin view)</td></tr>
+          <tr><td><code>orders/{id}/</code></td><td>GET, PUT, PATCH</td><td>Retrieve / update order</td></tr>
+          <tr><td><code>ratings/</code></td><td>GET</td><td>List all ratings</td></tr>
+          <tr><td><code>ratings/{id}/</code></td><td>GET, PUT, PATCH, DELETE</td><td>Moderate / delete rating</td></tr>
+          <tr><td><code>api-logs/</code></td><td>GET</td><td>View external API call logs</td></tr>
+          <tr><td><code>audit-logs/</code></td><td>GET</td><td>View admin action audit trail</td></tr>
+          <tr><td><code>email-queue/</code></td><td>GET</td><td>View email queue</td></tr>
+          <tr><td><code>email-queue/{id}/retry/</code></td><td>POST</td><td>Retry a failed email</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Interactive Docs</div>
+      For full request/response schemas, visit <code>/api/docs/</code> (Swagger UI) or <code>/api/redoc/</code> (ReDoc). Both are auto-generated from the code.
+    </div>
+  </div>
+
+  <!-- Final footer note -->
+  <hr/>
+  <p style="text-align:center; color: var(--gray-600); font-size: 0.82rem; margin-top:1.5rem;">
+    Roxas Game Store — Admin User Guide &nbsp;·&nbsp; Version 1.0 &nbsp;·&nbsp; March 2026<br/>
+    Confidential — For Internal Use Only
+  </p>
+</div>
+
+</body>
+</html>
