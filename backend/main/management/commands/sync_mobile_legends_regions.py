@@ -162,10 +162,26 @@ class Command(BaseCommand):
                 )
 
                 if not dry_run:
+                    # Ensure SKU code is unique per DB constraint. If the template
+                    # SKU already exists on another product, generate a derived
+                    # SKU for this regional product (admin can later adjust it
+                    # to the real Digiflazz SKU if needed).
+                    base_sku = template_validation_item.sku_code
+                    sku_in_use = ProductItem.objects.filter(sku_code=base_sku).exclude(
+                        product=product
+                    ).exists()
+                    if sku_in_use:
+                        # Max length is 100 characters; keep it safe.
+                        suffix = f"-{product.slug}"
+                        max_base_len = 100 - len(suffix)
+                        new_sku = f"{base_sku[:max_base_len]}{suffix}"
+                    else:
+                        new_sku = base_sku
+
                     ProductItem.objects.create(
                         product=product,
                         name=template_validation_item.name,
-                        sku_code=template_validation_item.sku_code,
+                        sku_code=new_sku,
                         icon_image=template_validation_item.icon_image,
                         group=template_validation_item.group,
                         base_price=template_validation_item.base_price,
