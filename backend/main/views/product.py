@@ -191,14 +191,33 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         validation_item = product.get_validation_item()
 
         if not validation_item:
-            return Response(
-                {
-                    "valid": False,
-                    "error": "Validasi akun tidak tersedia untuk produk ini",
-                    "message": "No validation item configured for this product",
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            # Mobile Legends fallback: all ML variants use the same Digiflazz
+            # validation SKU (MLCU) that lives on the global product. Allow
+            # validation to proceed using that shared SKU even if this specific
+            # product has no validation item attached.
+            name = (product.name or "").lower()
+            if "mobile legends" in name or "mobile legend" in name:
+                from ..models import ProductItem  # local import to avoid cycles
+
+                validation_item = (
+                    ProductItem.objects.filter(
+                        is_active=True,
+                        is_validation_item=True,
+                        sku_code="MLCU",
+                    )
+                    .order_by("created_at")
+                    .first()
+                )
+
+            if not validation_item:
+                return Response(
+                    {
+                        "valid": False,
+                        "error": "Validasi akun tidak tersedia untuk produk ini",
+                        "message": "No validation item configured for this product",
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         # ── Accept either new or legacy payload ───────────────────────
         customer_data = request.data.get("customer_data")

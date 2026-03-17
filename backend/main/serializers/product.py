@@ -146,7 +146,23 @@ class ProductSerializer(serializers.ModelSerializer):
         return ProductItemPublicSerializer(items, many=True).data
 
     def get_supports_validation(self, obj) -> bool:
-        return obj.items.filter(is_active=True, is_validation_item=True).exists()
+        # 1) Native per-product validation item
+        if obj.items.filter(is_active=True, is_validation_item=True).exists():
+            return True
+
+        # 2) Mobile Legends fallback:
+        # All Mobile Legends variants share the same Digiflazz validation SKU (MLCU)
+        # on the "global" product, but we still want the frontend to show the
+        # validation button for every Mobile Legends region product.
+        name = (obj.name or "").lower()
+        if "mobile legends" in name or "mobile legend" in name:
+            return ProductItem.objects.filter(
+                is_active=True,
+                is_validation_item=True,
+                sku_code="MLCU",
+            ).exists()
+
+        return False
 
     def get_category_details(self, obj):
         if not obj.category_id:

@@ -25,7 +25,7 @@ convention differs.
 from django.core.management.base import BaseCommand
 from django.db import transaction, models
 
-from main.models import Product, ProductItem
+from main.models import Product
 
 
 # Slug of the canonical Mobile Legends product, if you have one.
@@ -73,17 +73,6 @@ class Command(BaseCommand):
         template_input_fields = template_product.input_fields
         template_customer_no_template = template_product.customer_no_template
 
-        # Validation item from template product (e.g. MLCU / 'Cek Username')
-        template_validation_item = template_product.get_validation_item()
-        if not template_validation_item:
-            self.stdout.write(
-                self.style.WARNING(
-                    "Template product has no validation item configured. "
-                    "Will sync input fields/templates only; no validation "
-                    "items will be created for regions."
-                )
-            )
-
         # Find all other Mobile Legends products (excluding the template)
         all_ml_products = self._find_all_mobile_legends_products().exclude(
             pk=template_product.pk
@@ -102,12 +91,10 @@ class Command(BaseCommand):
         )
 
         updated_config_count = 0
-        created_validation_count = 0
-        skipped_existing_validation = 0
 
         with transaction.atomic():
             for product in all_ml_products:
-                # ── 1) Sync input configuration ─────────────────────────────
+                # Sync input configuration
                 needs_update = (
                     product.input_fields != template_input_fields
                     or product.customer_no_template != template_customer_no_template
@@ -136,64 +123,6 @@ class Command(BaseCommand):
                         f"- {product.name} (slug={product.slug}): input config already in sync."
                     )
 
-                # ── 2) Ensure validation item exists ────────────────────────
-                if not template_validation_item:
-                    # Nothing to clone from; skip validation-item creation.
-                    continue
-
-                existing_validation = product.items.filter(
-                    is_validation_item=True, is_active=True
-                ).first()
-
-                if existing_validation:
-                    skipped_existing_validation += 1
-                    self.stdout.write(
-                        f"  · Validation item already present "
-                        f"({existing_validation.sku_code}) – skipping."
-                    )
-                    continue
-
-                self.stdout.write(
-                    self.style.WARNING(
-                        "  · No validation item found – WILL create one based on "
-                        f"template '{template_validation_item.name}' "
-                        f"({template_validation_item.sku_code})."
-                    )
-                )
-
-                if not dry_run:
-                    # Ensure SKU code is unique per DB constraint. If the template
-                    # SKU already exists on another product, generate a derived
-                    # SKU for this regional product (admin can later adjust it
-                    # to the real Digiflazz SKU if needed).
-                    base_sku = template_validation_item.sku_code
-                    sku_in_use = ProductItem.objects.filter(sku_code=base_sku).exclude(
-                        product=product
-                    ).exists()
-                    if sku_in_use:
-                        # Max length is 100 characters; keep it safe.
-                        suffix = f"-{product.slug}"
-                        max_base_len = 100 - len(suffix)
-                        new_sku = f"{base_sku[:max_base_len]}{suffix}"
-                    else:
-                        new_sku = base_sku
-
-                    ProductItem.objects.create(
-                        product=product,
-                        name=template_validation_item.name,
-                        sku_code=new_sku,
-                        icon_image=template_validation_item.icon_image,
-                        group=template_validation_item.group,
-                        base_price=template_validation_item.base_price,
-                        normal_price=template_validation_item.normal_price,
-                        discounted_price=template_validation_item.discounted_price,
-                        sell_price=template_validation_item.sell_price,
-                        is_active=True,
-                        is_validation_item=True,
-                        sort_order=template_validation_item.sort_order,
-                    )
-                    created_validation_count += 1
-
             if dry_run:
                 # Roll back any accidental writes within this atomic block
                 transaction.set_rollback(True)
@@ -207,10 +136,7 @@ class Command(BaseCommand):
         else:
             summary = (
                 f"Sync complete. "
-                f"Updated config for {updated_config_count} products, "
-                f"created {created_validation_count} validation items, "
-                f"skipped {skipped_existing_validation} products that already "
-                f"had validation items."
+                f"Updated config for {updated_config_count} products."
             )
             self.stdout.write(self.style.SUCCESS(summary))
 
