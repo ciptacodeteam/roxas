@@ -245,6 +245,16 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Determine which SKU to use for validation.
+        # For Mobile Legends, all regions share the same Digiflazz validation SKU (MLCU),
+        # even if individual region products have their own validation items with
+        # derived/local SKUs.
+        product_name_lower = (product.name or "").lower()
+        if ("mobile legends" in product_name_lower or "mobile legend" in product_name_lower) and validation_item.sku_code != "MLCU":
+            buyer_sku_code = "MLCU"
+        else:
+            buyer_sku_code = validation_item.sku_code
+
         # ── 24-h cache ────────────────────────────────────────────────
         recent = _get_cached_validation(product, customer_no)
         if recent:
@@ -266,7 +276,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         account_check = DigiflazzAccountCheck.objects.create(
             ref_id=ref_id,
             product=product,
-            sku_code=validation_item.sku_code,
+            sku_code=buyer_sku_code,
             customer_no=customer_no,
             user_id=customer_data.get("userId", ""),
             server_id=customer_data.get("serverId", ""),
@@ -277,7 +287,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             client = DigiflazzClient()
             result = _call_digiflazz_validation(
-                client, validation_item.sku_code, customer_no, ref_id
+                client, buyer_sku_code, customer_no, ref_id
             )
 
             account_check.status = result["status"]
