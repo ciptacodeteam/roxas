@@ -361,7 +361,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                         "serverId": check.server_id or "",
                     },
                     "account_name": check.account_name or None,
-                    "status": check.status,
+                    # Normalise status to uppercase so frontend checks like
+                    # `status === "SUKSES"` work regardless of Digiflazz casing.
+                    "status": (check.status or "").upper(),
                     "message": check.message,
                 }
             )
