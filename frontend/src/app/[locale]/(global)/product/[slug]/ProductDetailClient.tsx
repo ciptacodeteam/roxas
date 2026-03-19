@@ -22,6 +22,8 @@ import qris from "public/svg/QRIS_Logo.svg";
 import alfamart from "public/svg/alfamart.svg";
 import indomaret from "public/svg/indomaret.svg";
 
+import { useRef } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -150,6 +152,7 @@ export default function ProductDetailClient({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const paymentRef = useRef<HTMLDivElement | null>(null);
 
   const MIN_QTY = 1;
   const MAX_QTY = 99;
@@ -1122,10 +1125,18 @@ export default function ProductDetailClient({
                               key={item.id}
                               onClick={() => {
                                 setSelectedItem(item.id);
+
+                                // kasih delay biar state ke-render dulu (optional tapi recommended)
+                                setTimeout(() => {
+                                  paymentRef.current?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "start",
+                                  });
+                                }, 100);
                               }}
                               className={cn(
                                 "group relative cursor-pointer overflow-hidden border-0 bg-[#313C4C] bg-[url(/img/background.png)] bg-cover bg-no-repeat px-0 py-0 pt-4 transition-all hover:outline-2 hover:outline-rose-500",
-                                " flex-col", // TAMBAHKAN flex flex-col dan min-height (opsional)
+                                "flex-col", // TAMBAHKAN flex flex-col dan min-height (opsional)
                                 isSelected && "outline-2 outline-rose-500",
                               )}
                             >
@@ -1143,7 +1154,7 @@ export default function ProductDetailClient({
                                   {item.name}
                                 </CardTitle>
                               </CardHeader>
-                              <CardContent className="grow flex items-center gap-3 px-3 lg:gap-4 lg:px-4 -mb-2">
+                              <CardContent className="-mb-2 flex grow items-center gap-3 px-3 lg:gap-4 lg:px-4">
                                 <Image
                                   src={item.icon_image || wdp}
                                   alt={item.name}
@@ -1177,7 +1188,7 @@ export default function ProductDetailClient({
                                     )}
                                 </div>
                               </CardContent>
-                              <CardFooter className="mt-auto from-card to-card/40 flex justify-end bg-linear-to-t p-3 px-3">
+                              <CardFooter className="from-card to-card/40 mt-auto flex justify-end bg-linear-to-t p-3 px-3">
                                 {hasDiscount && discount > 0 && (
                                   <div className="flex gap-3">
                                     <div className="flex items-center rounded-sm bg-white p-1 px-2">
@@ -1270,7 +1281,10 @@ export default function ProductDetailClient({
               </div>
 
               {/* Step: Pilih Metode Pembayaran */}
-              <div className="overflow-hidden rounded-2xl bg-gray-800">
+              <div
+                ref={paymentRef}
+                className="overflow-hidden rounded-2xl bg-gray-800"
+              >
                 {/* Header */}
                 <div className="flex items-center gap-4 bg-black/40">
                   <div className="bg-primary flex h-10 w-10 items-center justify-center font-semibold text-white">
