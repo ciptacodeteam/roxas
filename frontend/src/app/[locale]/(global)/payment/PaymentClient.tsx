@@ -166,7 +166,7 @@ export default function PaymentPage() {
         orderNumber={order?.order_number}
       />
       
-      <div className="mx-auto max-w-7xl pt-38 pb-14">
+      <div className="mx-auto lg:max-w-7xl lg:pt-38 pb-14 pt-28 w-11/12">
         {/* HEADER */}
         <div className="mb-10 text-center">
           <p className="mb-2 text-sm text-gray-400">Terima Kasih!</p>
