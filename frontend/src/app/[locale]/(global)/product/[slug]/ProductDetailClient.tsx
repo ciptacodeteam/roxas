@@ -748,7 +748,7 @@ export default function ProductDetailClient({
       {/* Banner */}
       <div className="relative aspect-video w-full overflow-hidden lg:aspect-16/4">
         <Image
-          src={product.canvas || "/img/img-2.webp"}
+          src={productData?.banner_image || "/img/img-2.webp"}
           alt="Banner"
           fill
           priority
