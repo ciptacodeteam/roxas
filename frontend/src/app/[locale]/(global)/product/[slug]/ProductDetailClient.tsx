@@ -1820,11 +1820,11 @@ export default function ProductDetailClient({
                               </AccordionItem>
                             </div>
                           )}
-                      </Accordion>
-                      {/* Mobile Banking Methods */}
-                      {paymentMethods.filter(
-                        (pm: any) => pm.type === "MOBILE_BANKING",
-                      ).length > 0 && (
+
+                        {/* Mobile Banking Methods */}
+                        {paymentMethods.filter(
+                          (pm: any) => pm.type === "MOBILE_BANKING",
+                        ).length > 0 && (
                           <div className="overflow-hidden rounded-md bg-gray-800">
                             <AccordionItem
                               value="mobile-banking"
@@ -1896,10 +1896,10 @@ export default function ProductDetailClient({
                                                     </p>
                                                     {(pmTotal.paymentFee > 0 ||
                                                       pmTotal.vatAmount > 0) && (
-                                                        <p className="text-xs text-gray-400">
-                                                          Termasuk biaya & PPN
-                                                        </p>
-                                                      )}
+                                                      <p className="text-xs text-gray-400">
+                                                        Termasuk biaya & PPN
+                                                      </p>
+                                                    )}
                                                   </div>
                                                 );
                                               })()}
@@ -1912,6 +1912,7 @@ export default function ProductDetailClient({
                             </AccordionItem>
                           </div>
                         )}
+                      </Accordion>
 
                       {/* Convenience Store Methods */}
                       {paymentMethods.filter(
