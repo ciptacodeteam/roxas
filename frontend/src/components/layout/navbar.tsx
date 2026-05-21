@@ -39,12 +39,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import logo from "public/img/logo1.webp";
 import Indonesia from "public/img/indonesia-logo.webp";
 import uk from "public/img/uk-logo.webp";
+
 import { useProductSearch } from "@/lib/products/queries";
 import { useDebounce } from "@/hooks/useDebounce";
 import { getProductImage } from "@/lib/utils";
 
 type NavItem = {
-  key: string; // key i18n
+  key: string;
   href: string;
   icon?: React.ElementType;
 };
@@ -58,30 +59,36 @@ const navItems: NavItem[] = [
 
 const Navigationbar = () => {
   const [open, setOpen] = useState(false);
+
   const pathname = usePathname();
+
   const { session, isLoading: isPending, isAdmin } = useAuth();
+
   const { logout } = useLogout({
     redirectTo: `/${pathname.split("/")[1] || "id"}`,
   });
-  const [mobileCalcOpen, setMobileCalcOpen] = useState(false);
 
-  // Fetch profile data for avatar and name
   const { data: profile } = useProfile({
     enabled: !!session?.user && !isAdmin,
   });
 
   const t = useTranslations("Navigation");
+
   const router = useRouter();
 
   const locale = pathname.split("/")[1] ?? "id";
+
   const cleanPath = pathname.replace(`/${locale}`, "") || "/";
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  // Get display name and image from profile or session
+  const [mobileCalcOpen, setMobileCalcOpen] = useState(false);
+
   const displayName =
     profile?.full_name || session?.user?.email?.split("@")[0] || "User";
+
   const displayImage = profile?.photo || undefined;
+
   const displayInitials = displayName
     .split(" ")
     .map((n) => n[0])
@@ -92,7 +99,6 @@ const Navigationbar = () => {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
 
-    // CLEANUP (penting kalau pindah page)
     return () => {
       document.body.style.overflow = "auto";
     };
@@ -105,32 +111,34 @@ const Navigationbar = () => {
   const toggleMenu = () => setOpen((s) => !s);
 
   const [query, setQuery] = useState("");
+
   const [showResult, setShowResult] = useState(false);
 
-  // Debounce search query to reduce API calls
   const debouncedQuery = useDebounce(query, 300);
 
-  // Fetch search results from backend
-  const { data: searchResults = [], isLoading: isSearching } = useProductSearch(
-    debouncedQuery,
-    {
-      enabled: debouncedQuery.length >= 2, // Only search when 2+ characters
-    },
-  );
+  const { data: searchResults = [], isLoading: isSearching } =
+    useProductSearch(debouncedQuery, {
+      enabled: debouncedQuery.length >= 2,
+    });
 
   return (
-    <nav className="bg-foreground fixed top-0 left-0 z-50 w-full text-white">
+    <nav className="bg-foreground fixed top-0 left-0 z-50 w-full border-b border-white/5 text-white backdrop-blur-xl">
       <div className="mx-auto w-11/12 py-4 lg:max-w-7xl lg:px-4">
-        {/* TOP SECTION */}
+        {/* TOP */}
         <div className="flex items-center justify-between gap-4">
-          {/* Logo */}
-          <Link href={`/${locale}`} className="text-xl font-bold">
-            <Image alt="logo" src={logo} className="w-38 lg:w-48" />
+          {/* LOGO */}
+          <Link href={`/${locale}`}>
+            <Image
+              alt="logo"
+              src={logo}
+              className="w-32 lg:w-44"
+              priority
+            />
           </Link>
 
-          {/* Search */}
-          <div className="relative hidden flex-1 md:block">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-white" />
+          {/* SEARCH DESKTOP */}
+          <div className="relative hidden flex-1 lg:block">
+            <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400" />
 
             <Input
               value={query}
@@ -140,12 +148,11 @@ const Navigationbar = () => {
               }}
               onFocus={() => setShowResult(true)}
               placeholder="Cari game atau produk"
-              className="w-full rounded-full border-gray-600 pl-10 text-white placeholder:text-gray-300"
+              className="h-11 rounded-full border-white/10 bg-white/5 pl-11 text-white placeholder:text-gray-400"
             />
 
-            {/* RESULT */}
             {showResult && query && (
-              <div className="absolute top-full z-50 mt-2 w-full rounded-xl bg-[#141414] p-2 shadow-2xl">
+              <div className="absolute top-full z-50 mt-3 w-full rounded-2xl border border-white/10 bg-[#141414] p-2 shadow-2xl">
                 {isSearching ? (
                   <p className="p-3 text-sm text-gray-400">Mencari...</p>
                 ) : searchResults.length > 0 ? (
@@ -157,97 +164,93 @@ const Navigationbar = () => {
                         setQuery("");
                         setShowResult(false);
                       }}
-                      className="hover:bg-primary/30 flex items-center gap-3 rounded-lg p-3"
+                      className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-white/5"
                     >
                       <Image
                         src={getProductImage(product.image, product.slug)}
                         alt={product.name}
-                        width={40}
-                        height={40}
-                        className="rounded-md object-cover"
+                        width={44}
+                        height={44}
+                        className="rounded-lg object-cover"
                       />
 
                       <div>
                         <p className="text-sm font-semibold text-white">
                           {product.name}
                         </p>
+
                         <p className="text-xs text-gray-400">
                           {product.category_name}
                         </p>
                       </div>
                     </Link>
                   ))
-                ) : debouncedQuery.length >= 2 ? (
-                  <p className="p-3 text-sm text-gray-400">
-                    Produk tidak ditemukan
-                  </p>
                 ) : (
                   <p className="p-3 text-sm text-gray-400">
-                    Ketik minimal 2 karakter untuk mencari
+                    Produk tidak ditemukan
                   </p>
                 )}
               </div>
             )}
           </div>
 
-          <div className="flex gap-3">
+          {/* RIGHT */}
+          <div className="flex items-center gap-3">
+            {/* LANGUAGE */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="lg:bg-primary bg-foreground flex cursor-pointer items-center rounded-full border border-white/10 px-2 hover:bg-rose-500/90">
+                <Button className="bg-white/5 hover:bg-white/10 rounded-full border border-white/10 px-3">
                   <Image
                     alt=""
                     src={locale === "en" ? uk : Indonesia}
-                    className="w-5 lg:w-6"
+                    className="w-5"
                   />
-                  <p className="ml-1 text-sm lg:text-base">{t("language")}</p>
+
+                  <p className="ml-1 text-sm">{t("language")}</p>
                 </Button>
               </DialogTrigger>
 
-              <DialogContent className="max-w-xs border-0">
+              <DialogContent className="border-white/10 bg-[#111]">
                 <DialogHeader>
                   <DialogTitle className="text-white">
                     {t("chooseLanguage")}
                   </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex w-full flex-col gap-3 lg:flex lg:flex-row">
-                  {/* Indonesia */}
+                <div className="flex flex-col gap-3">
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/id${cleanPath}`)}
-                    className={`flex flex-1 cursor-pointer items-center gap-2 p-2 ${locale === "id" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className="border-white/10 bg-transparent text-white hover:bg-white/5"
                   >
-                    <Image alt="" src={Indonesia} width={24} />
-                    <p className="ml-1 text-white">Bahasa Indonesia</p>
+                    <Image alt="" src={Indonesia} width={20} />
+                    Bahasa Indonesia
                   </Button>
 
-                  {/* English */}
                   <Button
                     variant="outline"
                     onClick={() => router.push(`/en${cleanPath}`)}
-                    className={`flex flex-1 cursor-pointer items-center gap-2 p-2 ${locale === "en" ? "border-rose-500 text-rose-500" : "border-gray-600 text-white"} hover:bg-gray-800`}
+                    className="border-white/10 bg-transparent text-white hover:bg-white/5"
                   >
-                    <Image alt="" src={uk} width={24} />
-                    <p className="ml-1 text-white">English</p>
+                    <Image alt="" src={uk} width={20} />
+                    English
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
 
-            {/* Mobile Menu Button */}
-            <div className="flex gap-2 lg:hidden">
-              <div className="flex items-center gap-3">
-                {/* SEARCH TOGGLE */}
-                <button
-                  onClick={() => setMobileSearchOpen((prev) => !prev)}
-                  className="rounded-sm border border-white/10 p-1.5 text-white"
-                >
-                  {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
-                </button>
-              </div>
+            {/* MOBILE BUTTONS */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                onClick={() => setMobileSearchOpen((prev) => !prev)}
+                className="rounded-lg border border-white/10 bg-white/5 p-2"
+              >
+                {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
+              </button>
+
               <button
                 onClick={toggleMenu}
-                className="rounded-sm border border-white/10 p-1.5 text-white"
+                className="rounded-lg border border-white/10 bg-white/5 p-2"
               >
                 <Menu size={20} />
               </button>
@@ -255,11 +258,12 @@ const Navigationbar = () => {
           </div>
         </div>
 
-        {/* MOBILE SEARCH BAR */}
+        {/* MOBILE SEARCH */}
         {mobileSearchOpen && (
           <div className="mt-4 lg:hidden">
             <div className="relative">
               <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
               <Input
                 autoFocus
                 value={query}
@@ -268,224 +272,62 @@ const Navigationbar = () => {
                   setShowResult(true);
                 }}
                 placeholder="Cari Game atau Voucher"
-                className="w-full rounded-full border-gray-50/20 pl-11 text-white placeholder:text-sm placeholder:text-gray-400"
+                className="h-11 rounded-full border-white/10 bg-white/5 pl-11 text-white"
               />
             </div>
-
-            {/* SEARCH RESULT (MOBILE) */}
-            {showResult && query && (
-              <div className="mt-2 rounded-xl bg-[#141414] p-2 shadow-xl">
-                {isSearching ? (
-                  <p className="p-3 text-sm text-gray-400">Mencari...</p>
-                ) : searchResults.length > 0 ? (
-                  searchResults.slice(0, 6).map((product) => (
-                    <Link
-                      key={product.id}
-                      href={`/${locale}/product/${product.slug}`}
-                      onClick={() => {
-                        setQuery("");
-                        setShowResult(false);
-                        setMobileSearchOpen(false);
-                      }}
-                      className="flex items-center gap-3 rounded-lg p-3 hover:bg-rose-500/10"
-                    >
-                      <Image
-                        src={getProductImage(product.image, product.slug)}
-                        alt={product.name}
-                        width={40}
-                        height={40}
-                        className="rounded-md object-cover"
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {product.name}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {product.category_name}
-                        </p>
-                      </div>
-                    </Link>
-                  ))
-                ) : debouncedQuery.length >= 2 ? (
-                  <p className="p-3 text-sm text-gray-400">
-                    Produk tidak ditemukan
-                  </p>
-                ) : (
-                  <p className="p-3 text-sm text-gray-400">
-                    Ketik minimal 2 karakter untuk mencari
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         )}
 
         {/* DESKTOP NAV */}
-        <div className="flex items-center justify-between lg:mt-6">
-          <div className="hidden items-center gap-6 md:flex">
+        <div className="mt-6 hidden items-center justify-between lg:flex">
+          {/* LEFT MENU */}
+          <div className="flex items-center gap-8">
             {navItems.map((item) => {
               const Icon = item.icon;
 
-              // Hide transaction link for admin users
               if (item.key === "transaction" && isAdmin) {
                 return null;
-              }
-
-              if (item.key === "calculator") {
-                const isCalculatorActive =
-                  cleanPath === "/calculator" ||
-                  cleanPath.startsWith("/calculator/");
-
-                return (
-                  <div key="calculator" className="group relative">
-                    {/* TRIGGER (BUKAN LINK) */}
-                    <button
-                      type="button"
-                      className={`relative flex h-8 cursor-pointer items-center gap-2 text-sm transition ${
-                        isCalculatorActive
-                          ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
-                          : "text-gray-300 hover:text-white"
-                      }`}
-                    >
-                      <Calculator className="h-5 w-5" />
-                      {t("calculator")}
-                    </button>
-
-                    {/* DROPDOWN */}
-                    <div className="invisible absolute top-full left-0 z-50 mt-4 w-96 rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
-                      {/* ARROW */}
-                      <div className="absolute -top-2 left-6 h-4 w-4 rotate-45 bg-[#141414]" />
-
-                      <div className="space-y-3">
-                        <CalculatorDropdownItem
-                          title="Win Rate"
-                          desc="Digunakan untuk menghitung total jumlah match yang harus ditempuh untuk mencapai target win rate."
-                          href={`/${locale}/calculator/winrate`}
-                        />
-
-                        <CalculatorDropdownItem
-                          title="Magic Wheel"
-                          desc="Digunakan untuk mengetahui total maksimal diamond yang dibutuhkan untuk mendapatkan skin Legends."
-                          href={`/${locale}/calculator/magicwheel`}
-                        />
-
-                        <CalculatorDropdownItem
-                          title="Zodiac"
-                          desc="Digunakan untuk mengetahui total diamond maksimal yang dibutuhkan untuk mendapatkan skin Zodiac."
-                          href={`/${locale}/calculator/zodiac`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
               }
 
               const active = cleanPath === item.href;
 
               return (
                 <Link
-                  key={item.href}
+                  key={item.key}
                   href={`/${locale}${item.href}`}
-                  className={`relative flex h-8 items-center gap-2 text-sm transition ${
-                    active
-                      ? "font-semibold text-rose-500 after:absolute after:-bottom-4 after:left-0 after:h-0.5 after:w-full after:bg-rose-500"
+                  className={`flex items-center gap-2 text-sm transition ${active
+                      ? "font-semibold text-rose-500"
                       : "text-gray-300 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {Icon && <Icon className="h-5 w-5" />}
+
                   {t(item.key)}
                 </Link>
               );
             })}
           </div>
 
-          {/* AUTH BUTTONS */}
-          <div className="hidden items-center gap-6 md:flex">
-            {isPending || isAdmin === null ? (
-              <div className="text-sm text-gray-300">Loading...</div>
-            ) : session?.user && !isAdmin ? (
-              <div className="group relative">
-                {/* TRIGGER BUTTON */}
+          {/* RIGHT AUTH */}
+          <div className="flex items-center gap-5">
+            {session?.user && !isAdmin ? (
+              <div className="flex items-center gap-3">
+                <Avatar className="size-9">
+                  <AvatarImage src={displayImage} />
+
+                  <AvatarFallback>{displayInitials}</AvatarFallback>
+                </Avatar>
+
+                <span className="text-sm font-medium text-white">
+                  {displayName}
+                </span>
+
                 <button
-                  type="button"
-                  className="flex items-center gap-2 text-sm leading-none text-gray-300 hover:text-white"
+                  onClick={handleLogout}
+                  className="text-sm text-red-400 hover:text-red-300"
                 >
-                  <Avatar className="size-8 shrink-0 overflow-hidden rounded-full">
-                    <AvatarImage src={displayImage} alt={displayName} />
-                    <AvatarFallback className="flex items-center justify-center bg-gray-700 text-xs text-white">
-                      {displayInitials}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <span className="font-medium text-white">{displayName}</span>
+                  Logout
                 </button>
-
-                {/* DROPDOWN */}
-                <div className="invisible absolute top-full right-0 z-50 mt-4 max-h-150 w-64 overflow-y-auto rounded-xl bg-[#141414] p-4 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:opacity-100">
-                  {/* ARROW */}
-                  <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 bg-[#141414]" />
-
-                  <div className="space-y-3">
-                    {/* USER INFO */}
-                    <div className="flex flex-col space-y-1 border-b border-gray-800 pb-2">
-                      <p className="text-sm font-semibold text-white">
-                        {displayName}
-                      </p>
-                      <p className="text-xs leading-relaxed text-gray-400">
-                        {session.user.email}
-                      </p>
-                    </div>
-
-                    {/* PROFILE LINK */}
-                    <Link
-                      href={`/${locale}/profile`}
-                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
-                    >
-                      <div className="text-primary flex h-8 w-8 items-center justify-center">
-                        <UserCircle className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          Profile
-                        </p>
-                      </div>
-                    </Link>
-
-                    {/* TRANSACTION LINK */}
-                    <Link
-                      href={`/${locale}/my-transactions`}
-                      className="group/item flex items-center gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
-                    >
-                      <div className="text-primary flex h-8 w-8 items-center justify-center">
-                        <ReceiptText className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          Transaction
-                        </p>
-                        <p className="text-xs text-gray-400">Order history</p>
-                      </div>
-                    </Link>
-
-                    {/* SEPARATOR */}
-                    <div className="border-t border-gray-800 pt-2"></div>
-
-                    {/* LOGOUT BUTTON */}
-                    <button
-                      onClick={handleLogout}
-                      className="group/item flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition hover:bg-red-500/10"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center text-red-400">
-                        <LogOut className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-red-400">
-                          Logout
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
               </div>
             ) : (
               <>
@@ -494,15 +336,14 @@ const Navigationbar = () => {
                   className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
                 >
                   <LogIn className="h-5 w-5" />
-                  <p>{t("login")}</p>
+                  Login
                 </Link>
 
                 <Link
                   href={`/${locale}/register`}
-                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+                  className="rounded-full bg-rose-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
                 >
-                  <UserRoundPlus className="h-5 w-5" />
-                  <p>{t("register")}</p>
+                  Register
                 </Link>
               </>
             )}
@@ -512,33 +353,36 @@ const Navigationbar = () => {
 
       {/* MOBILE SIDEBAR */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-300 md:hidden ${
-          open
+        className={`fixed inset-0 z-40 transition-opacity duration-300 lg:hidden ${open
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
-        }`}
+          }`}
       >
         {/* OVERLAY */}
         <div
-          className="absolute inset-0 bg-black/60"
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
 
         {/* SIDEBAR */}
         <aside
-          className={`absolute top-0 left-0 h-screen w-[81%] max-w-sm transform bg-[#0f131a] transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "-translate-x-full"}`}
+          className={`absolute top-0 left-0 h-screen w-[82%] max-w-sm transform border-r border-white/10 bg-[#0b0f14] transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"
+            }`}
         >
           {/* HEADER */}
-          <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4">
-            <Image src={logo} alt="logo" className="w-36" />
-            <button onClick={() => setOpen(false)}>
-              <X className="h-6 w-6 text-white" />
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-5">
+            <Image src={logo} alt="logo" className="w-32" />
+
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-lg border border-white/10 bg-white/5 p-2"
+            >
+              <X className="h-5 w-5 text-white" />
             </button>
           </div>
 
           {/* MENU */}
-          <div className="space-y-4 px-4 py-6">
-            {/* NAV ITEMS */}
+          <div className="space-y-5 px-5 py-6">
             <MobileNavItem
               href={`/${locale}`}
               icon={Gamepad2}
@@ -562,28 +406,25 @@ const Navigationbar = () => {
               onClick={() => setOpen(false)}
             />
 
+            {/* CALCULATOR */}
             <div>
               <button
                 onClick={() => setMobileCalcOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between text-base text-white"
+                className="flex w-full items-center justify-between text-white"
               >
                 <div className="flex items-center gap-3">
                   <Calculator className="h-5 w-5" />
                   Kalkulator
                 </div>
 
-                <span
-                  className={`transition-transform duration-200 ${
-                    mobileCalcOpen ? "rotate-180" : ""
-                  }`}
-                >
-                  <ChevronDown />
-                </span>
+                <ChevronDown
+                  className={`transition ${mobileCalcOpen ? "rotate-180" : ""
+                    }`}
+                />
               </button>
 
-              {/* SUBMENU */}
               {mobileCalcOpen && (
-                <div className="mt-3 ml-8 space-y-3">
+                <div className="mt-4 ml-7 space-y-4">
                   <MobileNavItem
                     href={`/${locale}/calculator/winrate`}
                     icon={SquareChartGantt}
@@ -608,57 +449,47 @@ const Navigationbar = () => {
               )}
             </div>
 
-            <div className="my-4 border-t border-gray-800" />
+            <div className="border-t border-white/10 pt-5">
+              {session?.user && !isAdmin ? (
+                <>
+                  <MobileNavItem
+                    href={`/${locale}/profile`}
+                    icon={UserCircle}
+                    label="Profile"
+                    onClick={() => setOpen(false)}
+                  />
 
-            {/* AUTH */}
-            {session?.user && !isAdmin ? (
-              <>
-                {/* PROFILE */}
-                <MobileNavItem
-                  href={`/${locale}/profile`}
-                  icon={UserCircle}
-                  label="Profile"
-                  onClick={() => setOpen(false)}
-                />
+                  <div className="mt-5">
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setOpen(false);
+                      }}
+                      className="flex items-center gap-3 text-red-400"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Logout
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-5">
+                  <MobileNavItem
+                    href={`/${locale}/login`}
+                    icon={LogIn}
+                    label="Masuk"
+                    onClick={() => setOpen(false)}
+                  />
 
-                {/* MY TRANSACTIONS */}
-                <MobileNavItem
-                  href={`/${locale}/my-transactions`}
-                  icon={ReceiptText}
-                  label="Transaksi Saya"
-                  onClick={() => setOpen(false)}
-                />
-
-                <div className="my-4 border-t border-gray-800" />
-
-                {/* LOGOUT */}
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setOpen(false);
-                  }}
-                  className="flex items-center gap-3 text-red-400"
-                >
-                  <LogOut className="h-5 w-5" />
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <MobileNavItem
-                  href={`/${locale}/login`}
-                  icon={LogIn}
-                  label="Masuk"
-                  onClick={() => setOpen(false)}
-                />
-                <MobileNavItem
-                  href={`/${locale}/register`}
-                  icon={UserRoundPlus}
-                  label="Daftar"
-                  onClick={() => setOpen(false)}
-                />
-              </>
-            )}
+                  <MobileNavItem
+                    href={`/${locale}/register`}
+                    icon={UserRoundPlus}
+                    label="Daftar"
+                    onClick={() => setOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </aside>
       </div>
@@ -667,32 +498,6 @@ const Navigationbar = () => {
 };
 
 export default Navigationbar;
-
-const CalculatorDropdownItem = ({
-  title,
-  desc,
-  href,
-}: {
-  title: string;
-  desc: string;
-  href: string;
-}) => {
-  return (
-    <Link
-      href={href}
-      className="group/item flex gap-3 rounded-lg p-3 transition hover:bg-rose-500/10"
-    >
-      <div className="text-primary flex h-8 w-8 items-center justify-center">
-        <SquareChartGantt />
-      </div>
-
-      <div>
-        <p className="text-sm font-semibold text-white">{title}</p>
-        <p className="text-xs leading-relaxed text-gray-400">{desc}</p>
-      </div>
-    </Link>
-  );
-};
 
 const MobileNavItem = ({
   href,
