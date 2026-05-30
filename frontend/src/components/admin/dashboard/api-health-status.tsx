@@ -102,26 +102,26 @@ export function ApiHealthStatus({ apiHealth }: ApiHealthStatusProps) {
             </div>
           </div>
 
-          {/* Mailgun Status */}
+          {/* Resend Status */}
           <div className="flex items-center gap-4 rounded-lg border p-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getStatusBgClass(apiHealth.mailgun.status)}`}>
-              {getStatusIcon(apiHealth.mailgun.status)}
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getStatusBgClass(apiHealth.resend.status)}`}>
+              {getStatusIcon(apiHealth.resend.status)}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-medium">Mailgun</span>
-                <Badge variant="outline" className={getStatusBadgeClass(apiHealth.mailgun.status)}>
-                  {getStatusLabel(apiHealth.mailgun.status)}
+                <span className="font-medium">Resend</span>
+                <Badge variant="outline" className={getStatusBadgeClass(apiHealth.resend.status)}>
+                  {getStatusLabel(apiHealth.resend.status)}
                 </Badge>
               </div>
               <div className="mt-1 flex items-center gap-3 text-sm text-gray-400">
-                <span>{apiHealth.mailgun.successRate}% success</span>
+                <span>{apiHealth.resend.successRate}% success</span>
                 <span>•</span>
-                <span>{apiHealth.mailgun.total} calls</span>
-                {apiHealth.mailgun.avgResponseTime > 0 && (
+                <span>{apiHealth.resend.total} calls</span>
+                {apiHealth.resend.avgResponseTime > 0 && (
                   <>
                     <span>•</span>
-                    <span>{apiHealth.mailgun.avgResponseTime}ms avg</span>
+                    <span>{apiHealth.resend.avgResponseTime}ms avg</span>
                   </>
                 )}
               </div>

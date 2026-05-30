@@ -225,7 +225,7 @@ def dashboard_stats(request):
     api_stats = {log['provider']: log for log in all_api_logs}
     
     # Process each provider
-    for provider in ['DIGIFLAZZ', 'MIDTRANS', 'MAILGUN']:
+    for provider in ['DIGIFLAZZ', 'MIDTRANS', 'RESEND']:
         stats = api_stats.get(provider, {'total': 0, 'success_count': 0, 'avg_response': 0})
         total = stats['total']
         success = stats['success_count']

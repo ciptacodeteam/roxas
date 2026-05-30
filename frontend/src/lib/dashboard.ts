@@ -100,7 +100,7 @@ export interface ApiError {
 export interface ApiHealth {
   digiflazz: ApiHealthStatus;
   midtrans: ApiHealthStatus;
-  mailgun: ApiHealthStatus;
+  resend: ApiHealthStatus;
   recentErrors: ApiError[];
 }
 
@@ -200,7 +200,7 @@ interface DashboardResponse {
       success_rate: number;
       avg_response_time: number;
     };
-    mailgun: {
+    resend: {
       status: "healthy" | "degraded" | "unknown";
       total: number;
       success_rate: number;
@@ -307,11 +307,11 @@ function transformDashboardData(data: DashboardResponse): DashboardData {
         successRate: data.api_health.midtrans.success_rate,
         avgResponseTime: data.api_health.midtrans.avg_response_time,
       },
-      mailgun: {
-        status: data.api_health.mailgun.status,
-        total: data.api_health.mailgun.total,
-        successRate: data.api_health.mailgun.success_rate,
-        avgResponseTime: data.api_health.mailgun.avg_response_time,
+      resend: {
+        status: data.api_health.resend.status,
+        total: data.api_health.resend.total,
+        successRate: data.api_health.resend.success_rate,
+        avgResponseTime: data.api_health.resend.avg_response_time,
       },
       recentErrors: data.api_health.recent_errors.map((error) => ({
         id: error.id,

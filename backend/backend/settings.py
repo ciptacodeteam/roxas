@@ -329,28 +329,24 @@ CSRF_COOKIE_SECURE = COOKIE_SECURE  # Use secure cookies in production
 SESSION_COOKIE_SAMESITE = COOKIE_SAMESITE
 SESSION_COOKIE_SECURE = COOKIE_SECURE
 
-# Email Configuration (Mailgun)
-# Use HTTP API backend if MAILGUN_API_KEY is provided, otherwise fall back to SMTP
-MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '')
-MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN', '')
+# Email Configuration (Resend)
+# Use HTTP API backend if RESEND_API_KEY is provided, otherwise fall back to console/SMTP
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 
-if MAILGUN_API_KEY and MAILGUN_DOMAIN:
-    # Use Mailgun HTTP API (recommended - no SMTP port issues)
-    EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
     ANYMAIL = {
-        'MAILGUN_API_KEY': MAILGUN_API_KEY,
-        'MAILGUN_SENDER_DOMAIN': MAILGUN_DOMAIN,
-        'MAILGUN_API_URL': os.environ.get('MAILGUN_API_URL', 'https://api.mailgun.net/v3'),
+        'RESEND_API_KEY': RESEND_API_KEY,
     }
+elif DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    # Fall back to SMTP (may be blocked on some servers)
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.environ.get('MAILGUN_SMTP_SERVER', 'smtp.mailgun.org')
-    EMAIL_PORT = int(os.environ.get('MAILGUN_SMTP_PORT', '587'))
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = os.environ.get('MAILGUN_SMTP_LOGIN', '')
-    EMAIL_HOST_PASSWORD = os.environ.get('MAILGUN_SMTP_PASSWORD', '')
-    # Email connection timeout (in seconds) - prevents hanging connections
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() in ('true', '1', 'yes')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
     EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '30'))
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@yourdomain.com')

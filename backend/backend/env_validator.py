@@ -60,8 +60,7 @@ def validate_env_vars() -> None:
     # Email configuration (warn if missing in production)
     if is_production:
         email_vars = [
-            'MAILGUN_API_KEY',
-            'MAILGUN_DOMAIN',
+            'RESEND_API_KEY',
             'DEFAULT_FROM_EMAIL',
         ]
         for var in email_vars:
@@ -121,5 +120,5 @@ def print_env_summary() -> None:
     print(f"Cache/Queue: {'Redis' if os.environ.get('CELERY_BROKER_URL') else 'None'}")
     print(f"Midtrans: {'Configured' if os.environ.get('MIDTRANS_SERVER_KEY') else 'Not configured'}")
     print(f"Digiflazz: {'Configured' if os.environ.get('DIGIFLAZZ_API_KEY') else 'Not configured'}")
-    print(f"Email: {'Configured' if os.environ.get('MAILGUN_API_KEY') else 'Not configured'}")
+    print(f"Email: {'Configured' if os.environ.get('RESEND_API_KEY') else 'Not configured'}")
     print("="*60 + "\n")

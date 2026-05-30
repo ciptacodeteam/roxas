@@ -65,7 +65,7 @@ class OrderStatus(models.TextChoices):
 class ApiProvider(models.TextChoices):
     DIGIFLAZZ = "DIGIFLAZZ", _("Digiflazz")
     MIDTRANS = "MIDTRANS", _("Midtrans")
-    MAILGUN = "MAILGUN", _("Mailgun")
+    RESEND = "RESEND", _("Resend")
 
 
 class ApiLogStatus(models.TextChoices):

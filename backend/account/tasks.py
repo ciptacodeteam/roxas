@@ -96,17 +96,17 @@ def send_email_verification(self, user_id):
         # Validate email configuration
         backend = settings.EMAIL_BACKEND
         if 'anymail' in backend.lower():
-            # HTTP API backend - check for API key
-            mailgun_api_key = getattr(settings, 'MAILGUN_API_KEY', '') or settings.ANYMAIL.get('MAILGUN_API_KEY', '')
-            if not mailgun_api_key:
-                error_msg = "Mailgun API key not configured. Set MAILGUN_API_KEY in .env"
+            resend_api_key = getattr(settings, 'RESEND_API_KEY', '') or settings.ANYMAIL.get('RESEND_API_KEY', '')
+            if not resend_api_key:
+                error_msg = "Resend API key not configured. Set RESEND_API_KEY in .env"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-            logger.info(f"Email config check passed. Using Mailgun HTTP API")
+            logger.info("Email config check passed. Using Resend HTTP API")
+        elif 'console' in backend.lower():
+            logger.info("Email config check passed. Using console email backend")
         else:
-            # SMTP backend - check for SMTP credentials
             if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
-                error_msg = "Mailgun SMTP credentials not configured. EMAIL_HOST_USER or EMAIL_HOST_PASSWORD is missing."
+                error_msg = "SMTP credentials not configured. EMAIL_HOST_USER or EMAIL_HOST_PASSWORD is missing."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             logger.info(f"Email config check passed. Using SMTP: {settings.EMAIL_HOST}")

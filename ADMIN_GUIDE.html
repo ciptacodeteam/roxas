@@ -1422,13 +1422,13 @@
 
   <div class="section">
     <h3>11.1 API Logs</h3>
-    <p>Every outgoing API call to Digiflazz, Midtrans, and Mailgun is recorded. Navigate to <code>/api/admin-portal/</code> → <em>Api Logs</em> in the Django Admin.</p>
+    <p>Every outgoing API call to Digiflazz, Midtrans, and Resend is recorded. Navigate to <code>/api/admin-portal/</code> → <em>Api Logs</em> in the Django Admin.</p>
 
     <div class="table-wrap">
       <table>
         <thead><tr><th>Field</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td>Provider</td><td>DIGIFLAZZ, MIDTRANS, or MAILGUN</td></tr>
+          <tr><td>Provider</td><td>DIGIFLAZZ, MIDTRANS, or RESEND</td></tr>
           <tr><td>Endpoint</td><td>The API URL called</td></tr>
           <tr><td>Method</td><td>HTTP method (GET, POST)</td></tr>
           <tr><td>Status</td><td><span class="badge badge-green">SUCCESS</span> <span class="badge badge-red">FAILED</span> <span class="badge badge-yellow">TIMEOUT</span> <span class="badge badge-gray">ERROR</span></td></tr>
@@ -1484,15 +1484,15 @@
         <tbody>
           <tr><td><span class="badge badge-yellow">PENDING</span></td><td>Queued but not yet picked up by Celery</td><td>Wait; should process within seconds</td></tr>
           <tr><td><span class="badge badge-blue">PROCESSING</span></td><td>Currently being sent</td><td>Wait</td></tr>
-          <tr><td><span class="badge badge-green">SENT</span></td><td>Successfully delivered to Mailgun</td><td>No action needed</td></tr>
-          <tr><td><span class="badge badge-red">FAILED</span></td><td>All retry attempts exhausted</td><td>Click <strong>Retry</strong> or investigate SMTP/Mailgun config</td></tr>
+          <tr><td><span class="badge badge-green">SENT</span></td><td>Successfully delivered to Resend</td><td>No action needed</td></tr>
+          <tr><td><span class="badge badge-red">FAILED</span></td><td>All retry attempts exhausted</td><td>Click <strong>Retry</strong> or investigate Resend config</td></tr>
         </tbody>
       </table>
     </div>
 
     <p>Failed emails show the last error in the <strong>Last Error</strong> column. Common causes:</p>
     <ul class="styled">
-      <li>Invalid Mailgun API key or domain configuration</li>
+      <li>Invalid Resend API key or unverified sending domain</li>
       <li>Recipient email address bounced</li>
       <li>Celery worker not running (check server health)</li>
     </ul>

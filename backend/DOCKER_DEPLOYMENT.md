@@ -36,11 +36,10 @@ CELERY_RESULT_BACKEND=redis://redis:6379/0
 REDIS_URL=redis://redis:6379/1
 ```
 
-#### Email (Mailgun)
+#### Email (Resend)
 ```bash
-MAILGUN_API_KEY=              # From Mailgun dashboard
-MAILGUN_DOMAIN=               # Your verified domain
-DEFAULT_FROM_EMAIL=           # noreply@yourdomain.com
+RESEND_API_KEY=               # From Resend dashboard (https://resend.com/api-keys)
+DEFAULT_FROM_EMAIL=           # noreply@yourdomain.com (must be a verified domain)
 FRONTEND_URL=                 # https://yourdomain.com
 ```
 
@@ -189,7 +188,7 @@ cp env.prod.example .env
 - Set `CSRF_TRUSTED_ORIGINS` with https:// URLs
 - Configure Midtrans production keys
 - Configure Digiflazz production keys
-- Set Mailgun credentials
+- Set Resend credentials
 - Enable all security settings
 
 3. **Create nginx SSL directory (if using HTTPS):**
@@ -236,7 +235,7 @@ docker-compose -f docker-compose.prod.yml exec api python manage.py collectstati
 - [ ] Configure CSRF_TRUSTED_ORIGINS with https:// URLs
 - [ ] Set up Midtrans production account and keys
 - [ ] Set up Digiflazz production account and keys
-- [ ] Configure Mailgun domain and API key
+- [ ] Configure Resend API key and verify sending domain
 - [ ] Set up SSL certificates
 - [ ] Configure nginx server_name
 - [ ] Enable all security settings (HSTS, secure cookies, etc.)
@@ -375,6 +374,6 @@ docker-compose -f docker-compose.prod.yml exec api python manage.py migrate
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Midtrans Documentation](https://docs.midtrans.com/)
 - [Digiflazz Documentation](https://digiflazz.com/dokumentasi-api)
-- [Mailgun Documentation](https://documentation.mailgun.com/)
+- [Resend Documentation](https://resend.com/docs/introduction)
 - [Docker Documentation](https://docs.docker.com/)
 - [Nginx Documentation](https://nginx.org/en/docs/)
