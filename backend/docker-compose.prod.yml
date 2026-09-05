@@ -9,6 +9,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/data.roxasgamestore.com.conf:/etc/nginx/conf.d/data.roxasgamestore.com.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Let's Encrypt HTTP-01 webroot (host certbot writes here; nginx serves it)
+      - ./certbot/www:/var/www/certbot:ro
       # HTTP-only config (use when SSL certificates don't exist):
       # - ./nginx/data.roxasgamestore.com.http-only.conf:/etc/nginx/conf.d/data.roxasgamestore.com.conf:ro
       - media_volume:/app/media:ro

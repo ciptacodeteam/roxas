@@ -141,10 +141,11 @@ sudo ./deploy/ssl-setup.sh
 
 **What this does:**
 - Checks DNS configuration
-- Generates Let's Encrypt SSL certificate
-- Copies certificates to nginx directory
-- Updates Docker Compose to use SSL
-- Configures auto-renewal
+- Requests a Let's Encrypt certificate via HTTP-01 webroot (nginx stays running)
+- Copies certificates into `nginx/ssl` and reloads nginx
+- Installs a certbot deploy hook plus twice-daily cron auto-renewal
+
+Re-run this script if the certificate has expired or auto-renewal was broken.
 
 **Expected time:** 2-3 minutes
 
@@ -364,19 +365,29 @@ If you see an error like `failed to bind host port 0.0.0.0:80/tcp: address alrea
 
 ### SSL Certificate Issues
 
+Certificates expire every 90 days. Auto-renewal uses HTTP-01 webroot (nginx stays up) and a twice-daily cron. Do not use `certbot --standalone` while nginx is bound to port 80.
+
 1. **Check certificate status:**
    ```bash
    sudo certbot certificates
+   echo | openssl s_client -connect data.roxasgamestore.com:443 -servername data.roxasgamestore.com 2>/dev/null | openssl x509 -noout -dates
    ```
 
-2. **Test certificate renewal:**
+2. **Issue or repair the certificate (also reinstalls auto-renewal):**
    ```bash
-   sudo certbot renew --dry-run
+   sudo ./deploy/ssl-setup.sh
    ```
 
-3. **Check nginx SSL config:**
+3. **Renew now / test renewal:**
+   ```bash
+   sudo ./deploy/renew-ssl.sh
+   sudo certbot certonly --webroot -w certbot/www -d data.roxasgamestore.com --dry-run
+   ```
+
+4. **Check nginx SSL config and renewal logs:**
    ```bash
    docker compose -f docker-compose.prod.yml exec nginx nginx -t
+   tail -n 50 /var/log/letsencrypt/roxas-renew.log
    ```
 
 ### Out of Memory Issues

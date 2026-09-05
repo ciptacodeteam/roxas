@@ -43,8 +43,9 @@ mkdir -p nginx/logs
 mkdir -p media
 mkdir -p staticfiles
 mkdir -p nginx/ssl
+mkdir -p certbot/www/.well-known/acme-challenge
 # Ensure logs directory is writable
-chmod 755 logs nginx/logs media staticfiles nginx/ssl 2>/dev/null || true
+chmod 755 logs nginx/logs media staticfiles nginx/ssl certbot/www 2>/dev/null || true
 # Create log file if it doesn't exist (to avoid permission issues)
 touch logs/django.log 2>/dev/null || true
 chmod 666 logs/django.log 2>/dev/null || true

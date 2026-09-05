@@ -123,6 +123,8 @@ docker compose -f docker-compose.prod.yml restart
 
 **SSL issues?**
 ```bash
+sudo ./deploy/ssl-setup.sh
+sudo ./deploy/renew-ssl.sh
 sudo certbot certificates
 docker compose -f docker-compose.prod.yml logs nginx
 ```

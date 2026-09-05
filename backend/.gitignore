@@ -52,6 +52,8 @@ staticfiles/
 # Production deployment files
 nginx/ssl/
 nginx/logs/
+certbot/www/*
+!certbot/www/.gitkeep
 backups/
 *.tar.gz
 deploy/*.log
